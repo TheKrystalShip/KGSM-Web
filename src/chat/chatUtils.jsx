@@ -40,24 +40,15 @@ function saveSetting(key, val) {
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
-const TOOL_LABELS = {
-  run_health_check:    "Running health check",
-  get_status:          "Checking status",
-  get_performance:     "Reading metrics",
-  get_audit_log:       "Reading recent events",
-  get_change_timeline: "Checking what changed",
-  get_network:         "Checking network",
-  get_console:         "Reading console output",
-  get_config:          "Reading config",
-  get_host_diagnostics:"Checking host health",
-  trace_root_cause:    "Tracing the root cause",
-  server_command:      "Running command",
-  search:              "Searching docs & web",
-  create_blueprint:    "Setting up a new game",
-};
-function toolLabel(tool) {
+// The label a tool shows while it runs arrives ON the frame, from the tool's own catalog entry —
+// the assistant owns its tools, so it owns what they are called. The map that used to live here
+// went stale without failing: it named four tools that no longer existed and knew nothing about any
+// tool added after it was written, and the fallback below hid that by prettifying the raw name.
+// A frame with no label still gets that fallback, which is all a pre-label leaf ever sent.
+function toolLabel(tool, label) {
+  if (label) return label;
   if (!tool) return "Working";
-  return TOOL_LABELS[tool] || (tool.charAt(0).toUpperCase() + tool.slice(1).replace(/_/g, " "));
+  return tool.charAt(0).toUpperCase() + tool.slice(1).replace(/_/g, " ");
 }
 
 // ---------- command verified (rendered from the leaf's confirm verdict) ----------
@@ -588,7 +579,7 @@ function reduceTurnFrame(messages, ev) {
       msgs[lastIdx] = { ...bubble, thinking: (bubble.thinking || "") + (ev.text || "") };
       break;
     case "tool.start": {
-      const startTools = (bubble.tools || []).concat({ id: ev.id, label: toolLabel(ev.tool), state: "pending" });
+      const startTools = (bubble.tools || []).concat({ id: ev.id, label: toolLabel(ev.tool, ev.label), state: "pending" });
       msgs[lastIdx] = { ...bubble, tools: startTools };
       break;
     }
@@ -756,7 +747,7 @@ function scaffoldHistory(entries) {
     if (t.thinking) bubble.thinking = t.thinking;
     if (t.usage) bubble.usage = t.usage;
     const tools = Array.isArray(t.tools)
-      ? t.tools.map((tl, ti) => ({ id: "h" + ei + "_" + ti, label: toolLabel(tl.tool), state: "done", summary: tl.summary || "" }))
+      ? t.tools.map((tl, ti) => ({ id: "h" + ei + "_" + ti, label: toolLabel(tl.tool, tl.label), state: "done", summary: tl.summary || "" }))
       : [];
     if (tools.length) bubble.tools = tools;
     const cards = Array.isArray(t.tools)
@@ -801,7 +792,7 @@ function scaffoldLiveTurn(messages, attach) {
   const settled = messages.filter(m => !m.live);
   const tools = (attach.tools || []).map(t => ({
     id: t.id,
-    label: toolLabel(t.name),
+    label: toolLabel(t.name, t.label),
     state: t.state === "done" ? "done" : "pending",
     summary: t.summary || "",
   }));

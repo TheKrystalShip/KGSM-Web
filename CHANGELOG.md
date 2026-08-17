@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the assistant names its own tools
+
+`TOOL_LABELS` is gone. The label shown while a tool runs arrives on the `tool.start` frame, read from
+that tool's own entry in the assistant's catalog — the leaf owns its tools, so it owns what they are
+called.
+
+The map that used to live here went stale without ever failing. It named `get_console`, `get_config`,
+`get_host_diagnostics` and `get_change_timeline`, four tools that no longer exist, and knew nothing
+about any tool added after it was written; `toolLabel`'s prettify-the-name fallback covered for it, so
+the wrong labels looked like a design choice. That fallback still runs for a frame that carries no
+label, which is all a pre-label leaf ever sent.
+
+
 ### Added — one way in: node → sign in / register → the app
 
 `components/AuthGate.jsx` and `pages/auth/` replace the old chain of early returns inside the shell.
