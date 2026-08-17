@@ -379,6 +379,10 @@ function host(hostId) {
     conversation: (id, opts) => json(hostId, "GET", "/conversations/" + encodeURIComponent(id), null, opts),
     deleteConversation: (id) => json(hostId, "DELETE", "/conversations/" + encodeURIComponent(id)),
     compact: (id) => json(hostId, "POST", "/conversations/" + encodeURIComponent(id) + "/compact"),
+    // What the leaf has written down about this caller — a fact that outlives any one conversation.
+    // Principal-scoped by the leaf itself: this can only ever list or forget the caller's OWN memory.
+    memories: (opts) => json(hostId, "GET", "/memories", null, opts),
+    deleteMemory: (key) => json(hostId, "DELETE", "/memories/" + encodeURIComponent(key)),
     // The commands this caller may type, and running one. The leaf performs every command it lists,
     // so the catalog is authoritative rather than advisory: a name that appears here is a name the
     // POST below will honour. Both are gated by the leaf, and the listing is filtered to the caller's

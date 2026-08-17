@@ -4,8 +4,10 @@ import { Icon } from "../components/Icon.jsx";
 import { SubTabs } from "../components/SubTabs.jsx";
 import { ThemePicker } from "../components/ThemePicker.jsx";
 import { SettingsRow, SettingsSection, Toggle } from "../components/settings-primitives.jsx";
+import { SettingsMemory } from "../components/SettingsMemory.jsx";
 import * as push from "./push.js";
 import { SETTINGS_TABS } from "./route.js";
+import { SELF } from "./self.js";
 
 // The standalone assistant's settings — the preferences that belong to this surface and this
 // device, on a page of their own rather than tucked under the conversation rail.
@@ -16,13 +18,15 @@ import { SETTINGS_TABS } from "./route.js";
 // about a KGSM account across a cluster — access per node, sessions, connected identities — and
 // none of those questions exist on a surface that talks to one leaf.
 //
-// Two tabs, in the order the questions get asked: how this looks, and how it gets hold of you.
+// Three tabs, in the order the questions get asked: how this looks, what it remembers about you,
+// and how it gets hold of you.
 //
 // The tab lives in the URL (`#/settings/notifications`), so Back, Forward, refresh and a shared
 // link all land on the right one; `appearance` is the default and is omitted.
 
 const TABS = [
   { id: "appearance", label: "Appearance", icon: "palette" },
+  { id: "memory", label: "Memory", icon: "brain" },
   { id: "notifications", label: "Notifications", icon: "bell" },
 ];
 
@@ -55,6 +59,8 @@ function SettingsPage({ tab, onTabChange, onBack }) {
               <ThemePicker />
             </SettingsSection>
           )}
+
+          {active === "memory" && <SettingsMemory hostId={SELF} />}
 
           {active === "notifications" && <Notifications />}
         </div>

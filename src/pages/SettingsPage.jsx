@@ -2,7 +2,10 @@ import { Icon } from "../components/Icon.jsx";
 import { SubTabs } from "../components/SubTabs.jsx";
 import { ThemePicker } from "../components/ThemePicker.jsx";
 import { SettingsRow, SettingsSection } from "../components/settings-primitives.jsx";
+import { SettingsMemory } from "../components/SettingsMemory.jsx";
 import { signInMethodLabel } from "../components/host-helpers.jsx";
+import { useAssistantDock } from "../components/AssistantDockContext.jsx";
+import { capUsable } from "../lib/capabilities.js";
 import { SettingsAccess } from "./SettingsAccess.jsx";
 import { SettingsIdentities } from "./SettingsIdentities.jsx";
 import { SettingsNotifications } from "./SettingsNotifications.jsx";
@@ -34,6 +37,7 @@ const TABS = [
   { id: "profile", label: "Profile", icon: "user" },
   { id: "security", label: "Security", icon: "key-round" },
   { id: "devices", label: "Devices", icon: "monitor-smartphone" },
+  { id: "memory", label: "Memory", icon: "brain" },
   { id: "notifications", label: "Notifications", icon: "bell" },
 ];
 
@@ -42,6 +46,11 @@ function SettingsPage({ user, onLogout, tab, onTabChange }) {
   // (`provider:subject`) at login. It decides what the password row can offer, so it is read here
   // once and passed down rather than re-derived.
   const sessionProvider = (user && user.provider) || null;
+
+  // The leaf your chat is currently pointed at — memory lives on that leaf, addressed the same way
+  // a turn is, direct to the assistant rather than through kgsm-api's peer relay.
+  const { assistantHost } = useAssistantDock();
+  const assistantConnected = !!(assistantHost && capUsable(assistantHost, "assistant"));
 
   // An unknown tab falls back to the landing one rather than rendering an empty body — a stale or
   // hand-typed URL should land somewhere, not nowhere.
@@ -118,6 +127,10 @@ function SettingsPage({ user, onLogout, tab, onTabChange }) {
 
         {/* Where you are signed in, and the history of getting there. */}
         {active === "devices" && <SettingsSessions onLogout={onLogout} />}
+
+        {active === "memory" && (
+          <SettingsMemory hostId={assistantHost && assistantHost.id} connected={assistantConnected} />
+        )}
 
         {active === "notifications" && <SettingsNotifications />}
       </div>

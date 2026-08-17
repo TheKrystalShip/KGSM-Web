@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — a Memory settings card
+
+Both settings surfaces (the Control Panel's account page and the standalone assistant's own
+settings) gain a Memory tab: what the assistant has written down about you, each row showing its
+summary, its key and when it was written, with a control to forget it. The new
+`src/components/SettingsMemory.jsx` talks to the assistant leaf directly through
+`assistantClient.js` (`memories()` / `deleteMemory()`), the same seam a chat turn uses, never
+through kgsm-api's peer relay — so it stays safe for the standalone bundle.
+
 ### Changed — the assistant names its own tools
 
 `TOOL_LABELS` is gone. The label shown while a tool runs arrives on the `tool.start` frame, read from

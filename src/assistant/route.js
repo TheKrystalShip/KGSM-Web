@@ -16,7 +16,7 @@ import React from "react";
 // The landing tab is omitted from the URL, so the plain `#/settings` the chat's own entry points
 // produce is the canonical address of the page as it opens.
 
-const SETTINGS_TABS = ["appearance", "notifications"];
+const SETTINGS_TABS = ["appearance", "memory", "notifications"];
 const DEFAULT_TAB = SETTINGS_TABS[0];
 
 // `{ kind: "chat" }` or `{ kind: "settings", tab }`. An unknown word is the chat, and an unknown tab
