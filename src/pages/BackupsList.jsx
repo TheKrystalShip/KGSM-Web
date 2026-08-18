@@ -19,6 +19,12 @@ import { useConfirmAction } from "../components/ServerActions.jsx";
 // for), and an absent field is simply not rendered: never a fabricated size or
 // age, never a "0 B" standing in for unknown.
 //
+// A backup also records WHY it was taken and WHETHER retention may delete it.
+// The two are separate on the wire and stay separate here: the reason rides the
+// subtitle (including when it is unknown), and pinned is a badge on the row plus
+// the pin/unpin toggle beside Restore. Pinning is not a delete guard — the trash
+// still removes a pinned backup — so the toggle is a plain button with no arming.
+//
 // Delete is arm-then-fire (the shared useConfirmAction, as the lifecycle buttons
 // use): the trash swaps to a check for a few seconds and only the second click
 // sends. There is no undo behind it — the snapshot is gone from the host — and
@@ -34,9 +40,28 @@ import { useConfirmAction } from "../components/ServerActions.jsx";
 // resume. Only a COMPRESSED backup can be downloaded: an uncompressed one is a
 // directory tree, not one file, and the backend refuses it — so the button is
 // disabled with that reason rather than offering a click that always fails.
-// The one-line subtitle under a backup's id: age · size · version, built only
-// from the fields the manifest actually carried. A backup with no manifest
+// How a backup's `reason` reads. The engine's vocabulary is five words; anything
+// else is passed through as-is rather than dropped, so a value added to the
+// engine shows up here instead of vanishing.
+const REASON_LABELS = {
+  manual: "manual",
+  scheduled: "scheduled",
+  "pre-update": "before an update",
+  "pre-restore": "before a restore",
+  incident: "incident",
+};
+
+// The one-line subtitle under a backup's id: age · size · version · why, built
+// only from the fields the manifest actually carried. A backup with no manifest
 // contributes nothing here and renders as its id alone.
+//
+// The reason is the one field rendered when it is ABSENT too. Null means the
+// manifest records none — a backup taken before the engine wrote one, which
+// cannot be identified after the fact — and "reason unknown" is that, stated.
+// Leaving it blank would read as an ordinary backup, which is the confusion the
+// field exists to remove: a snapshot of a broken server and a routine one are
+// not interchangeable. It is only claimed for a backup we have a manifest for;
+// one listed with no manifest at all says nothing about anything.
 function metaFor(b) {
   const parts = [];
   if (b.createdAt) {
@@ -45,6 +70,8 @@ function metaFor(b) {
   }
   if (b.sizeBytes != null) parts.push(formatBytes(b.sizeBytes));
   if (b.version) parts.push("v" + b.version);
+  if (b.reason) parts.push(REASON_LABELS[b.reason] || b.reason);
+  else if (b.createdAt) parts.push("reason unknown");
   return parts.join(" · ");
 }
 
@@ -129,6 +156,21 @@ function BackupsList({ server }) {
     );
   };
 
+  // Pin/unpin is NOT a job — the backend rewrites one manifest inside the request and answers 204,
+  // so the only thing left to do is re-list. Re-listed rather than flipped locally: the badge must
+  // say what the host records, not what we asked for.
+  const setPinned = (name, pinned) => {
+    setBusy("pin:" + name);
+    setError(null);
+    const verb = pinned ? "pin" : "unpin";
+    api.host(server.hostId)
+      .post("/servers/" + server.id + "/backups/" + encodeURIComponent(name) + "/" + verb, { origin: "ui" })
+      .then(
+        () => load().finally(() => setBusy(null)),
+        (err) => { setError(err && (err.userMessage || err.message) || "Could not change the backup's retention."); setBusy(null); }
+      );
+  };
+
   // Delete is NOT a job either — the backend unlinks the snapshot inside the request and answers 204,
   // so the only thing left to do is re-list. The row is dropped because the backend said it is gone,
   // never optimistically ahead of it: a delete that failed must leave the backup visibly still there.
@@ -176,6 +218,7 @@ function BackupsList({ server }) {
             const restoring = busy === ("restore:" + b.name);
             const downloading = busy === ("download:" + b.name);
             const deleting = busy === ("delete:" + b.name);
+            const pinning = busy === ("pin:" + b.name);
             // `compressed` may be absent entirely (a backup the engine lists but whose manifest we
             // could not read). That is "we don't know", not "it's compressed" — and offering a
             // download that the backend would refuse is worse than not offering one, so an unknown
@@ -187,6 +230,11 @@ function BackupsList({ server }) {
                 <div className="chat-brief__body">
                   <span className="chat-brief__item-title chat-brief__item-title--mono">
                     <span className="chat-brief__titletext">{b.name}</span>
+                    {b.pinned && (
+                      <span className="backup-row__tag backup-row__tag--pinned" title="Pinned — retention will not delete this backup">
+                        <Icon name="pin" size={11} strokeWidth={2.2} /> Pinned
+                      </span>
+                    )}
                   </span>
                   {metaFor(b) && <span className="chat-brief__detail">{metaFor(b)}</span>}
                 </div>
@@ -203,6 +251,17 @@ function BackupsList({ server }) {
                     disabled={!!busy || !canDownload}
                   >
                     {downloading ? <span className="oauth-spinner" /> : <Icon name="download" size={14} />}
+                  </button>
+                  <button
+                    className={"icon-btn" + (b.pinned ? " is-armed" : "")}
+                    title={b.pinned
+                      ? "Unpin — let retention delete this backup again"
+                      : "Pin — keep retention from deleting this backup"}
+                    aria-label={b.pinned ? "Unpin backup" : "Pin backup"}
+                    onClick={() => setPinned(b.name, !b.pinned)}
+                    disabled={!!busy}
+                  >
+                    {pinning ? <span className="oauth-spinner" /> : <Icon name={b.pinned ? "pin-off" : "pin"} size={14} />}
                   </button>
                   <DeleteBackupButton
                     name={b.name}

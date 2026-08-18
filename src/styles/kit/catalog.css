@@ -1085,6 +1085,21 @@ a.game-fact:hover {
   color: var(--krystal-teal);
 }
 
+/* Pinned — retention skips this backup. Inline beside the id rather than in the
+   subtitle, because it is a property of the row's fate rather than a detail of
+   what it holds. */
+.backup-row__tag--pinned {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  vertical-align: middle;
+  background: var(--info-bg);
+  color: var(--info-fg);
+  font-family: var(--font-sans);
+  letter-spacing: 0.02em;
+}
+
 .backup-row__actions {
   display: flex;
   gap: 6px;

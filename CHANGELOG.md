@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — why a backup exists, and whether retention may take it
+
+A backup row's subtitle ends with why it was taken — `manual`, `scheduled`, `before an update`,
+`before a restore`, `incident`. It is the one field rendered when it is **absent** too: a backup taken
+before the engine recorded a reason reads `reason unknown`, because leaving it blank would present it
+as an ordinary snapshot, and telling a routine archive from one taken over a broken server is the
+whole point of the field.
+
+A pinned backup carries a `Pinned` badge beside its id, and the pin/unpin toggle sits next to
+Restore. Pinning is not a delete guard — the trash still removes a pinned backup — so the toggle is a
+plain button with no arming. Both directions re-list rather than flipping the badge locally: it says
+what the host records, never what was asked for.
+
 ### Added — a Memory settings card
 
 Both settings surfaces (the Control Panel's account page and the standalone assistant's own
