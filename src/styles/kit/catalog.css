@@ -282,7 +282,7 @@
   padding: 0 10px 0 9px;
   border-radius: var(--r-pill);
   background: var(--krystal-teal);
-  color: var(--fg-inverse);
+  color: var(--on-accent);
   font-size: 11px;
   font-weight: 700;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
@@ -774,7 +774,7 @@ a.game-fact:hover {
 
 .fb-editor__btn {
   background: var(--krystal-teal);
-  color: var(--btn-accent-fg);
+  color: var(--on-accent);
   border: 1px solid transparent;
   border-radius: var(--r-sm);
   padding: 0 14px;

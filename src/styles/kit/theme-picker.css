@@ -94,7 +94,7 @@
   height: 18px;
   border-radius: var(--r-pill);
   background: var(--krystal-teal);
-  color: var(--fg-inverse);
+  color: var(--on-accent);
   display: inline-flex;
   align-items: center;
   justify-content: center;

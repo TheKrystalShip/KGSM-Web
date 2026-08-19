@@ -274,12 +274,29 @@
   --info-bg: rgba(56, 189, 248, 0.14);
   --info-fg: #7DD3FC;
 
-  /* Text on a FILLED --info surface — the server card's update chip and the update CTA it
-     promotes into its connect row. Defaults to --fg-inverse, which is right wherever --info is
-     a light tint (it is, in most themes). A theme whose --info is dark, or whose --fg-inverse
-     is itself light, re-values this: CSS cannot choose a legible foreground from a background
-     it was handed, so the pairing has to be stated per theme. 17 themes do.
-     Same job as --btn-accent-fg does for the teal, for the semantic blue instead. */
+  /* ---------- ON-COLORS — text on a FILLED semantic surface ----------
+     One token per semantic family, for the case where the colour is the BACKGROUND and type sits
+     on top of it: a primary button, a filled badge, a status chip. Read them at any call site that
+     writes `background: var(--success)` and then needs a foreground.
+
+     They exist because no single foreground answers the question. --fg-inverse is dark in most
+     themes and light in the tribute light ones; --btn-accent-fg tracks the teal specifically. Both
+     are right somewhere and wrong elsewhere, and CSS cannot pick a legible ink from a background it
+     was handed — there is no contrast() to lean on — so the pairing is stated per theme. The
+     defaults below are the value that is right for MOST themes; 29 themes re-value at least one.
+
+     --on-accent and --on-success default THROUGH the two tokens that already carried this job, so
+     a theme that tuned --btn-accent-fg / --btn-success-fg keeps that tuning and needs no new line.
+
+     ⚠ This is not a palette retouch. A theme named after an upstream scheme still ships that
+     scheme's colours unretouched (see styles/CLAUDE.md) — choosing black rather than white type to
+     lay ON Solarized's red does not change Solarized's red. What is measured here is the pair.
+     Re-measure with scripts/visual-harness/semantic-contrast.mjs after touching any of it. */
+  --on-accent: var(--btn-accent-fg);
+  --on-success: var(--btn-success-fg);
+  --on-danger: var(--fg-inverse);
+  --on-warning: var(--fg-inverse);
+  --on-update: var(--fg-inverse);
   --on-info: var(--fg-inverse);
 
   /* ---------- Overlays, veils & scrims -------------------
@@ -298,6 +315,13 @@
   /* stronger badge fill */
   --scrim-base: #070A0E;
   /* modal / drawer / pop-out backdrop (via color-mix) */
+  --scrim-media: rgba(7, 10, 14, 0.72);
+  /* A scrim laid over COVER ART rather than over the page — the chips that sit on a server
+     card's artwork. Deliberately NOT theme-scoped and deliberately not --scrim-base: a backdrop
+     dims the page and so belongs to the theme, but what is behind these is an image nobody
+     chose, so they hold the dark palette in every theme and their content stays white. Three
+     light themes give --scrim-base a LIGHT value, which is correct for a backdrop and would put
+     white type on white here. Same reasoning as lib/art.js's separate dark hero placeholder. */
   --scrollbar-thumb: rgba(255, 255, 255, 0.14);
   --scrollbar-thumb-hover: rgba(255, 255, 255, 0.24);
 }
@@ -455,6 +479,9 @@
   --info: #0EA5E9;
   --info-bg: rgba(2, 132, 199, 0.12);
   --info-fg: #0369A1;
+  /* Type ON these fills: the default ink lands at 3.3:1 or worse here. */
+  --on-success: #000000;
+  --on-danger: #FFFFFF;
 
   /* ---------- Overlays, veils & scrims -------------------- */
   --veil-1: rgba(0, 0, 0, 0.05);
@@ -542,6 +569,9 @@
   /* nord9 — deeper Frost */
   --info-bg: rgba(129, 161, 193, 0.14);
   --info-fg: #81a1c1;
+  /* Type ON these fills: the default ink lands at 3.1:1 or worse here. */
+  --on-danger: #000000;
+  --on-update: #000000;
 
   /* ---------- Overlays, veils & scrims -------------------- */
   --veil-1: rgba(216, 222, 233, 0.06);
@@ -880,6 +910,9 @@
   /* neon cyan */
   --info-bg: rgba(54, 249, 246, 0.12);
   --info-fg: #36f9f6;
+  /* Type ON these fills: the default ink lands at 4.3:1 or worse here. */
+  --on-accent: #000000;
+  --on-danger: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------- */
   --veil-1: rgba(226, 217, 243, 0.05);
@@ -1048,6 +1081,8 @@
   /* teal-aqua */
   --info-bg: rgba(131, 165, 152, 0.14);
   --info-fg: #83A598;
+  /* Type ON these fills: the default ink lands at 4.1:1 or worse here. */
+  --on-danger: #FFFFFF;
 
   /* ---------- Overlays, veils & scrims ------------------- */
   --veil-1: rgba(232, 196, 156, 0.05);
@@ -1133,6 +1168,8 @@
   /* cyan */
   --info-bg: rgba(86, 182, 194, 0.12);
   --info-fg: #56B6C2;
+  /* Type ON these fills: the default ink lands at 4.4:1 or worse here. */
+  --on-danger: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------- */
   --veil-1: rgba(171, 178, 191, 0.05);
@@ -1217,6 +1254,8 @@
   /* foam */
   --info-bg: rgba(156, 207, 216, 0.12);
   --info-fg: #9CCFD8;
+  /* Type ON these fills: the default ink lands at 3.4:1 or worse here. */
+  --on-success: #FFFFFF;
 
   /* ---------- Overlays, veils & scrims ------------------- */
   --veil-1: rgba(224, 222, 244, 0.05);
@@ -1301,6 +1340,8 @@
   /* crystalBlue */
   --info-bg: rgba(127, 180, 202, 0.12);
   --info-fg: #7FB4CA;
+  /* Type ON these fills: the default ink lands at 3.7:1 or worse here. */
+  --on-danger: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------- */
   --veil-1: rgba(220, 215, 186, 0.05);
@@ -1473,6 +1514,10 @@
   /* cyan */
   --info-bg: rgba(42, 161, 152, 0.14);
   --info-fg: #2AA198;
+  /* Type ON these fills: the default ink lands at 3.2:1 or worse here. */
+  --on-accent: #000000;
+  --on-danger: #FFFFFF;
+  --on-update: #FFFFFF;
 
   /* ---------- Overlays, veils & scrims ------------------- */
   --veil-1: rgba(147, 161, 161, 0.05);
@@ -1628,6 +1673,8 @@
   --info: #66D9EF;
   --info-bg: rgba(102, 217, 239, 0.13);
   --info-fg: #66D9EF;
+  /* Type ON these fills: the default ink lands at 3.9:1 or worse here. */
+  --on-danger: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------- */
   --veil-1: rgba(248, 248, 242, 0.05);
@@ -1882,6 +1929,12 @@
   /* cyan */
   --info-bg: rgba(42, 161, 152, 0.12);
   --info-fg: #2AA198;
+  /* Type ON these fills: the default ink lands at 2.9:1 or worse here. */
+  --on-accent: #000000;
+  --on-success: #000000;
+  --on-danger: #FFFFFF;
+  --on-warning: #000000;
+  --on-update: #FFFFFF;
   --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims -------------------- */
@@ -1967,6 +2020,10 @@
   /* sapphire */
   --info-bg: rgba(32, 159, 181, 0.12);
   --info-fg: #209FB5;
+  /* Type ON these fills: the default ink lands at 2.3:1 or worse here. */
+  --on-success: #000000;
+  --on-warning: #000000;
+  --on-update: #000000;
   --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims -------------------- */
@@ -2053,6 +2110,12 @@
   /* nord9 — deeper Frost */
   --info-bg: rgba(129, 161, 193, 0.12);
   --info-fg: #81A1C1;
+  /* Type ON these fills: the default ink lands at 1.4:1 or worse here. */
+  --on-accent: #000000;
+  --on-success: #000000;
+  --on-danger: #000000;
+  --on-warning: #000000;
+  --on-update: #000000;
   --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims -------------------- */
@@ -2135,6 +2198,9 @@
   /* faded blue */
   --info-bg: rgba(7, 102, 120, 0.13);
   --info-fg: #076678;
+  /* Type ON these fills: the default ink lands at 3.3:1 or worse here. */
+  --on-success: #FFFFFF;
+  --on-warning: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------- */
   --veil-1: rgba(60, 56, 52, 0.05);
@@ -2212,6 +2278,10 @@
   --info: #3A94C5;
   --info-bg: rgba(58, 148, 197, 0.14);
   --info-fg: #3A94C5;
+  /* Type ON these fills: the default ink lands at 3.7:1 or worse here. */
+  --on-accent: #000000;
+  --on-success: #000000;
+  --on-danger: #000000;
   --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------- */
@@ -2295,6 +2365,11 @@
   /* foam */
   --info-bg: rgba(86, 148, 159, 0.14);
   --info-fg: #56949f;
+  /* Type ON these fills: the default ink lands at 2.2:1 or worse here. */
+  --on-accent: #000000;
+  --on-danger: #000000;
+  --on-warning: #000000;
+  --on-update: #000000;
   --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------- */
@@ -2374,6 +2449,12 @@
   --info: #007197;
   --info-bg: rgba(0, 113, 151, 0.13);
   --info-fg: #007197;
+  /* Type ON these fills: the default ink lands at 3.0:1 or worse here. */
+  --on-accent: #000000;
+  --on-success: #FFFFFF;
+  --on-danger: #000000;
+  --on-warning: #FFFFFF;
+  --on-update: #FFFFFF;
   --on-info: #FFFFFF;
 
   /* ---------- Overlays, veils & scrims ------------------- */
@@ -2452,6 +2533,11 @@
   --info: #0184BC;
   --info-bg: rgba(1, 132, 188, 0.13);
   --info-fg: #0184BC;
+  /* Type ON these fills: the default ink lands at 3.1:1 or worse here. */
+  --on-accent: #000000;
+  --on-success: #000000;
+  --on-danger: #000000;
+  --on-warning: #000000;
   --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------- */
@@ -2537,6 +2623,12 @@
   /* tag */
   --info-bg: rgba(85, 180, 212, 0.16);
   --info-fg: #2E8FB0;
+  /* Type ON these fills: the default ink lands at 1.9:1 or worse here. */
+  --on-accent: #000000;
+  --on-success: #000000;
+  --on-danger: #000000;
+  --on-warning: #000000;
+  --on-update: #000000;
   --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------- */
@@ -3291,6 +3383,9 @@
   /* light blue, raised */
   --info-bg: rgba(145, 132, 216, 0.20);
   --info-fg: #C6BFF0;
+  /* Type ON these fills: the default ink lands at 3.8:1 or worse here. */
+  --on-danger: #000000;
+  --on-update: #000000;
   --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------- */
@@ -3518,6 +3613,8 @@
   --info: #0094FA;
   --info-bg: rgba(0, 148, 250, 0.12);
   --info-fg: #1298FF;
+  /* Type ON these fills: the default ink lands at 4.3:1 or worse here. */
+  --on-danger: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------ */
   --veil-1: rgba(255, 255, 255, 0.07);
@@ -3579,6 +3676,9 @@
   --info: #406FF5;
   --info-bg: rgba(64, 111, 245, 0.1);
   --info-fg: #0056D5;
+  /* Type ON these fills: the default ink lands at 1.8:1 or worse here. */
+  --on-danger: #FFFFFF;
+  --on-update: #FFFFFF;
   --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------ */
@@ -3643,6 +3743,9 @@
   --info: #006AF3;
   --info-bg: rgba(0, 106, 243, 0.12);
   --info-fg: #6989FF;
+  /* Type ON these fills: the default ink lands at 4.0:1 or worse here. */
+  --on-danger: #FFFFFF;
+  --on-update: #FFFFFF;
   --on-info: #FFFFFF;
 
   /* ---------- Overlays, veils & scrims ------------------ */
@@ -3704,6 +3807,9 @@
   --info: #005EDC;
   --info-bg: rgba(0, 94, 220, 0.1);
   --info-fg: #005EDC;
+  /* Type ON these fills: the default ink lands at 1.8:1 or worse here. */
+  --on-danger: #FFFFFF;
+  --on-update: #FFFFFF;
   --on-info: #FFFFFF;
 
   /* ---------- Overlays, veils & scrims ------------------ */
@@ -3769,6 +3875,7 @@
   --info: #0075E5;
   --info-bg: rgba(0, 117, 229, 0.12);
   --info-fg: #3F8CFF;
+  /* Type ON these fills: the default ink lands at 4.3:1 or worse here. */
   --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------ */
@@ -3830,6 +3937,8 @@
   --info: #6978FF;
   --info-bg: rgba(105, 120, 255, 0.1);
   --info-fg: #004FDE;
+  /* Type ON these fills: the default ink lands at 3.4:1 or worse here. */
+  --on-warning: #000000;
   --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------ */
@@ -3895,6 +4004,9 @@
   --info: #0071D9;
   --info-bg: rgba(0, 113, 217, 0.12);
   --info-fg: #3E8BFA;
+  /* Type ON these fills: the default ink lands at 4.0:1 or worse here. */
+  --on-danger: #FFFFFF;
+  --on-update: #FFFFFF;
   --on-info: #FFFFFF;
 
   /* ---------- Overlays, veils & scrims ------------------ */
@@ -3956,6 +4068,9 @@
   --info: #007FFB;
   --info-bg: rgba(0, 127, 251, 0.1);
   --info-fg: #005EBD;
+  /* Type ON these fills: the default ink lands at 1.8:1 or worse here. */
+  --on-danger: #FFFFFF;
+  --on-update: #FFFFFF;
 
   /* ---------- Overlays, veils & scrims ------------------ */
   --veil-1: rgba(0, 0, 0, 0.05);
@@ -4021,6 +4136,8 @@
   --info: #496BD4;
   --info-bg: rgba(73, 107, 212, 0.12);
   --info-fg: #6F8AF7;
+  /* Type ON these fills: the default ink lands at 4.0:1 or worse here. */
+  --on-danger: #000000;
   --on-info: #FFFFFF;
 
   /* ---------- Overlays, veils & scrims ------------------ */
@@ -4082,6 +4199,8 @@
   --info: #9670FF;
   --info-bg: rgba(150, 112, 255, 0.1);
   --info-fg: #5F40E5;
+  /* Type ON these fills: the default ink lands at 3.4:1 or worse here. */
+  --on-warning: #000000;
   --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------ */

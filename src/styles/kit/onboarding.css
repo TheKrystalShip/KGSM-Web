@@ -340,7 +340,7 @@
   border-radius: var(--r-sm);
   border: 1px solid transparent;
   background: var(--krystal-teal);
-  color: var(--btn-accent-fg);
+  color: var(--on-accent);
   font-family: var(--font-ui);
   font-weight: 600;
   font-size: 14px;

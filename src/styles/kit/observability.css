@@ -3320,7 +3320,7 @@
   padding: 0 12px;
   border-radius: var(--r-sm);
   background: var(--krystal-teal);
-  color: var(--fg-inverse);
+  color: var(--on-accent);
   border: none;
   font-weight: 600;
   font-size: 12px;

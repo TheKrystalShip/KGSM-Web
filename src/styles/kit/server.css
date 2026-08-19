@@ -979,7 +979,7 @@
 
 .console-card__body .ln--hit-current .ln__hit {
   background: var(--krystal-teal);
-  color: var(--fg-inverse);
+  color: var(--on-accent);
 }
 
 .console-card__input {
@@ -1011,7 +1011,7 @@
 
 .console-card__input button {
   background: var(--krystal-teal);
-  color: var(--fg-inverse);
+  color: var(--on-accent);
   border: none;
   border-radius: var(--r-sm);
   padding: 0 14px;
@@ -1332,7 +1332,7 @@
 
 .console-card__jump:hover {
   background: var(--krystal-teal);
-  color: var(--fg-inverse);
+  color: var(--on-accent);
   border-color: var(--krystal-teal);
 }
 

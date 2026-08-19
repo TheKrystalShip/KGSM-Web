@@ -145,14 +145,15 @@
   font-size: 10.5px;
   font-weight: 600;
   color: var(--fg-2);
-  background: color-mix(in srgb, var(--scrim-base) 62%, transparent);
+  background: var(--scrim-media);
   backdrop-filter: blur(4px);
   padding: 3px 8px 3px 6px;
   border-radius: var(--r-pill);
   border: var(--edge);
 }
 
-/* Always white — this pill overlays cover art, not the page canvas. */
+/* Always white — this pill overlays cover art on the fixed dark --scrim-media, not the page
+   canvas, so it takes no theme foreground and needs none. */
 .server-tile__host>svg {
   color: rgba(255, 255, 255, 0.75);
 }
@@ -171,10 +172,13 @@
   padding: 0;
   border-radius: var(--r-pill);
   cursor: pointer;
-  background: color-mix(in srgb, var(--scrim-base) 62%, transparent);
+  background: var(--scrim-media);
   backdrop-filter: blur(4px);
   border: var(--edge);
-  color: var(--fg-3);
+  /* Light on the fixed dark media scrim, in every theme — --fg-3 is a PAGE foreground and goes
+     dark-on-dark under a light one. It only has to read as "not yet pinned"; --warning takes over
+     the moment it is. */
+  color: rgba(255, 255, 255, 0.62);
   opacity: 0;
   transition: opacity var(--d-fast) var(--ease-out), color var(--d-fast) var(--ease-out),
     border-color var(--d-fast) var(--ease-out), background var(--d-fast) var(--ease-out);
@@ -885,7 +889,7 @@
 
 .host-btn--primary {
   background: var(--krystal-teal);
-  color: var(--fg-inverse);
+  color: var(--on-accent);
 }
 
 .host-btn--primary:hover {
@@ -922,7 +926,7 @@
 
 .host-btn--danger {
   background: var(--danger);
-  color: #fff;
+  color: var(--on-danger);
 }
 
 .host-btn--danger:hover {

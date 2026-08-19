@@ -15,6 +15,49 @@ The same now applies to **radius** and to a surface's **border**: write
 `border-radius: var(--r-sm)` and `border: var(--edge)`, never a literal, because
 those two tokens are how a theme re-shapes the whole app at once.
 
+## Filling with a semantic colour? Take its `--on-*` ink
+
+A semantic colour is used two ways, and only one of them is a contrast question.
+As a **tint** behind muted text (`--success-bg` + `--success-fg`) the theme has
+already tuned the pair. As a **fill** — a primary button, a filled badge, a status
+chip — the colour becomes the background and something has to be legible on it.
+
+For that second case there is one token per family, and a call site that writes
+`background: var(--success)` reads `color: var(--on-success)`:
+
+`--on-accent` · `--on-success` · `--on-danger` · `--on-warning` · `--on-update` · `--on-info`
+
+**Do not reach for `--fg-inverse` or `--btn-accent-fg` there.** Both are right on
+some themes and wrong on others — `--fg-inverse` is dark in most themes and light
+in the tribute light ones, `--btn-accent-fg` tracks the teal specifically — and
+CSS has no `contrast()` to pick an ink from a background it was handed, so the
+pairing has to be stated per theme. `--on-accent` and `--on-success` *default
+through* those two tokens, so a theme that tuned them keeps its tuning; 29 themes
+re-value at least one of the six.
+
+⚠ A per-theme `--on-*` is **not** a palette retouch, and does not conflict with
+"an upstream scheme ships unretouched" below. Choosing black rather than white
+type to lay *on* Solarized's red does not change Solarized's red. What is measured
+is the pair, never the palette.
+
+**`node /home/heisen/tks/scripts/visual-harness/semantic-contrast.mjs`** re-measures
+all of it in a real browser — every theme the stylesheet defines, every filled
+surface that renders on the routes it walks — and is the check to run after
+touching any of these tokens or adding a filled surface. It also covers the
+`--scrim-media` chips (below), compositing the scrim over white and black artwork
+so the figure is the worst case rather than a flattering one.
+
+## `--scrim-base` dims the page; `--scrim-media` sits on cover art
+
+Two different jobs. A modal or drawer **backdrop** dims the page and belongs to the
+theme, so it uses `color-mix(in srgb, var(--scrim-base) N%, transparent)` and
+several light themes correctly give that a light value. A chip sitting on a server
+card's **artwork** has an image behind it that nobody chose, so it takes
+`--scrim-media` — deliberately not theme-scoped, dark in every theme — and its
+content stays white. Borrowing `--scrim-base` there puts white type on white under
+those same light themes. Same reasoning as `lib/art.js` keeping a separate dark
+placeholder for the cinematic hero.
+
 **`npm run check:tokens` is the guard.** It fails on any `var(--…)` naming a
 property nothing defines — the failure mode CSS gives you for free otherwise, in
 which `border-color: var(--typo)` silently becomes `currentColor` and
@@ -71,6 +114,11 @@ tribute pack are both ours, so both hold: text at 4.5:1 on every surface it land
 on, fills at 3:1, each `-fg` at 4.5:1 over its own `-bg` tint. The one relaxation
 is `--fg-4` — placeholder and disabled rank, which the default `dark` theme itself
 ships at 2.4:1.
+
+**The split does not extend to the `--on-*` inks.** Every theme, upstream-named or
+ours, states a foreground that clears 4.5:1 on its own fills, because that is a
+choice about *our* type rather than about their palette — see the `--on-*` section
+above.
 
 ## The tribute pack is quoted, not designed
 

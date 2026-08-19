@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — type on a filled semantic colour is legible in every theme
+
+A semantic colour is used two ways, and only one of them was ever tuned. As a **tint** behind muted
+text (`--success-bg` + `--success-fg`) each theme had already picked the pair. As a **fill** — a
+primary button, a filled badge, a status chip — the colour becomes the background, and the
+foreground was whichever of `--fg-inverse` / `--btn-accent-fg` / a literal `#fff` the call site
+happened to reach for. Measured in a browser across all 48 themes and 7 routes, **80 of 290 rendered
+(theme × filled surface) pairs sat below AA**; the worst was 1.35:1, and the failures clustered in
+the tribute light themes and the colour-vision pack, where legibility is the entire point.
+
+`--on-accent` / `--on-success` / `--on-danger` / `--on-warning` / `--on-update` / `--on-info` now
+carry that ink, one per family. A call site writing `background: var(--success)` reads
+`color: var(--on-success)` and nothing else. `--on-accent` and `--on-success` default *through*
+`--btn-accent-fg` / `--btn-success-fg`, so a theme that had tuned those keeps its tuning; 29 themes
+re-value at least one of the six. **All 290 pairs now clear AA, worst 4.53:1.**
+
+⚠ This is not a palette retouch and does not soften "an upstream scheme ships unretouched": choosing
+black rather than white type to lay *on* Solarized's red does not change Solarized's red. What is
+stated per theme is the pair.
+
+Twenty-two teal-filled surfaces were reading `--fg-inverse` where `--btn-accent-fg` was the token
+built for exactly that job — dark type on a teal the light theme also darkens. Those are among the
+80.
+
+### Fixed — chips on cover art no longer borrow a page colour
+
+`--scrim-media` is the scrim for something sitting on **artwork** rather than on the page: the server
+card's host pill, its favourite star and the update chip. Deliberately not theme-scoped, dark in
+every theme, content stays white. `--scrim-base` remains the modal/drawer backdrop and is correctly
+light in several light themes — which is exactly why the two cannot be the same token, since a white
+host pill on a light scrim was white on white. Worst case is now measured with the scrim composited
+over white artwork: 8.25:1.
+
+`scripts/visual-harness/semantic-contrast.mjs` measures all of the above in a real browser and is the
+check to run after touching an `--on-*` token or adding a filled surface. It reads the theme list out
+of the stylesheet, so a new theme is covered the day it lands.
+
 ### Changed — a server card says which update is waiting, and offers it when it can run
 
 A pending update is announced by a chip on the card's **artwork**, in the corner the host pill and

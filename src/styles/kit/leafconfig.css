@@ -160,7 +160,7 @@
 
 .lcf-btn--primary {
   background: var(--krystal-teal);
-  color: var(--btn-accent-fg);
+  color: var(--on-accent);
 }
 
 .lcf-btn--primary:hover:not(:disabled) {

@@ -62,7 +62,7 @@
 
 .dash-customize__btn--done {
   background: var(--krystal-teal);
-  color: var(--fg-inverse);
+  color: var(--on-accent);
   border-color: transparent;
 }
 
@@ -825,12 +825,9 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   border: 1px solid color-mix(in srgb, var(--info) 40%, transparent);
-  /* A FIXED dark scrim, not --scrim-base. What is behind this chip is cover art, not the page,
-     so it cannot borrow a page colour: several light themes give --scrim-base a light value, and
-     the white version below would then sit on white. Media overlays hold the dark palette in
-     every theme here — the same reason lib/art.js keeps a separate dark placeholder for the
-     cinematic hero rather than the themed one. */
-  background: rgba(7, 10, 14, 0.72);
+  /* The media scrim, not the page backdrop — what is behind this chip is cover art. See
+     --scrim-media in tokens.css; the host pill on the opposite corner rides the same one. */
+  background: var(--scrim-media);
   backdrop-filter: blur(5px);
   box-shadow: var(--shadow-1);
   cursor: default;
@@ -1375,7 +1372,7 @@
   align-items: center;
   gap: 4px;
   background: var(--danger);
-  color: var(--fg-inverse);
+  color: var(--on-danger);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -1508,7 +1505,7 @@
 
 .alert-btn--primary {
   background: var(--krystal-teal);
-  color: var(--fg-inverse);
+  color: var(--on-accent);
   border-color: transparent;
 }
 

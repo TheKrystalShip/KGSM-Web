@@ -122,12 +122,12 @@
   /* Solid fills so the tiny pip stays legible (the 14%-alpha tone bgs don't) */
   .sidebar--rail .nav-item__badge--danger {
     background: var(--danger);
-    color: #fff;
+    color: var(--on-danger);
   }
 
   .sidebar--rail .nav-item__badge--warn {
     background: var(--warning);
-    color: var(--fg-inverse);
+    color: var(--on-warning);
   }
 
   .sidebar--rail .nav-item__badge--info {

@@ -335,7 +335,7 @@
 
 .k-modal__btn--primary {
   background: var(--krystal-teal);
-  color: var(--btn-accent-fg);
+  color: var(--on-accent);
   border: 1px solid transparent;
 }
 
