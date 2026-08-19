@@ -32,9 +32,10 @@ CPU from `Random`).
 **So the cardinal rule for this wiring:** the adapter maps backend → frontend, and
 where the backend has no value, the UI renders **unknown / —**, *never* `0` or a
 fabricated default. `players: x ?? 0` in the adapter would re-introduce exactly the
-fabrication the ecosystem bans. (`players` specifically is "unknown now, wired
-later" — presence tracking is actively being built — so the player UI degrades to
-unknown, it is not deleted.)
+fabrication the ecosystem bans. (`players` is the worked example: the count is
+sourced now — `onlinePlayers` on the server DTO — and is **null** for a server whose
+presence this host can't see, which the UI renders "—" and a fleet total excludes
+and counts separately, never sums as 0.)
 
 ## 1. Architecture: per-host, not a mismatch
 
@@ -77,7 +78,7 @@ treatment):
 | File | Direct fixture read | Backend source | Bucket (see §9) |
 |---|---|---|---|
 | `pages/PerformanceTab.jsx:42` | `KRYSTAL_DATA.metricsByServer[id]` (48-pt time series) | none — BE emits point-in-time only | **C** (history) |
-| `pages/PlayersTab.jsx:80` | `KRYSTAL_DATA.playersByServer[id]` (roster) | none — only `player.join/leave` audit | **C** (presence WIP) |
+| `pages/PlayersTab.jsx:80` | — | `GET /servers/{id}/players` + the `players` topic (`usePlayerRoster`) | **A** (wired) |
 | `pages/BackupsList.jsx:14` | `KRYSTAL_DATA.backups` | none — only `backup.*` audit | **C** |
 | `pages/FileBrowser.jsx` | ~~`KRYSTAL_DATA.files`/`fileContent`~~ | `GET/PUT /servers/{id}/files…` (lazy tree + read + save) | **WIRED** (Tier 3 #12) |
 | `pages/DashboardPage.jsx:230` | ~~`KRYSTAL_DATA.session.ping_ms`~~/`region` | ping = WS `ping`/`pong` (client-measured RTT, `pingStore`); region none | **WIRED**(ping)/**D**(region) |
@@ -165,7 +166,7 @@ B = backend could add.** Honest-unknown is the default for every missing value.
 | FE fixture field | BE field | Resolution |
 |---|---|---|
 | `status: online/offline/updating/installing/error/crashed` | `status: running/stopped/unknown/starting` + `activeJob` | **A**: map `running→online`, `stopped→offline`, `starting→starting`, `unknown→unknown`. `updating` is synthesized in `stores/servers.js` from the in-flight **job** verb — which the backend carries on the server itself (`activeJob`) as well as announcing on the `jobs` topic, so it survives a cold read and a reload; `installing` renders as a phantom row (no server exists yet); `crashed` from a firing **alert**; `error` from job `failed` |
-| `players:{current,max}` | — | **F**: honest-unknown (presence tracking WIP). Render "—", not 0 |
+| `players:{current,max}` | `onlinePlayers` (nullable) | **A**: `current` = the count, counted off the same roster `/servers/{id}/players` serves and carried on the list + `server.patch`. `null` (presence unobservable) renders "—", never 0, and a fleet total counts those servers instead of summing them. `max` stays unsourced — no instance declares a capacity |
 | `ip` ("host:port") | — | **F**: not exposed by kgsm; derive from host + `ports` if needed, else hide |
 | `uptime` (string) | — | **F**: not exposed; FE already has "—" fallback |
 | `cpu` (0–100) | `metrics.cpuPctCore` (can exceed 100) | **A**: different unit — relabel UI to per-core %, or divide by host cores. `null` → "—" |
@@ -227,7 +228,7 @@ B = backend could add.** Honest-unknown is the default for every missing value.
     at boot (`authRedirect.js`). Mechanically verified; the real Discord consent
     round-trip is owed-to-human. Refresh-token *rotation* (>15-min sessions) and
     multi-host token routing remain deferred.
-4. **Honest-unknown UI** — players/ip/uptime/per-process/sensors have no source: render "unknown" (preferred) or hide; never fabricate.
+4. **Honest-unknown UI** — ip/uptime/per-process/sensors have no source, and the player count has none for a server whose presence is unobservable: render "unknown" (preferred) or hide; never fabricate.
 
 ## 7. Open decisions
 - **D1 — Host registry**: where the SPA stores each host's base URL. Recommend a
@@ -647,7 +648,7 @@ kgsm-api DTOs (`src/Api/Contracts/*.cs`) + the monitor contract
 | `runtime`, `steamAppId*`, `network` | same | **A** | surface (runtime badge, port card) |
 | `job{verb,state}` | `jobs` WS `job.patch` | **A** | remap `job`↔`job.patch` |
 | `last_backup` | `backup.create` audit rows | **B** | derive latest from audit (weak; or hide) |
-| `players{current,max}` | — (presence WIP) | **C** | honest-unknown now (done); wired when presence lands |
+| `players{current,max}` | `onlinePlayers` | **A** | wired; `null` (unobservable) stays honest-unknown |
 | `uptime` | — (no per-instance uptime) | **C** | derive from `server.start` ts later; `—` now |
 | `ip` | — (kgsm doesn't resolve) | **C** | host addr+port later; `—`/hide now |
 | `update_available` | — (no update check) | **C** | hide until an update-probe exists |

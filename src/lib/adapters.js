@@ -1,6 +1,6 @@
 // adapters.js — translate kgsm-api DTOs into the shapes the SPA components read.
 //
-// The backend emits an HONEST, narrow model: no per-server players/ip/uptime, no
+// The backend emits an HONEST, narrow model: no per-server ip/uptime, no
 // per-process host tables — kgsm-api omits anything it can't measure (the "never
 // fabricate" invariant). So the cardinal rule here: a value the backend doesn't
 // provide maps to null / "unknown" / empty — NEVER to 0 or an invented default.
@@ -39,11 +39,15 @@ export function adaptServer(be) {
     // id (enriched from /library by id in a later slice).
     game: be.blueprint,
     status: SERVER_STATUS[be.status] || "unknown",
-    // honest-unknown — no backend source on the server DTO; player counts
-    // are derived client-side from the /servers/{id}/players endpoint via
-    // usePlayerRoster (src/lib/hooks/usePlayerRoster.js). `max` is still
-    // unsourced (no capacity field on the server DTO).
-    players: null,
+    // How many people are on it right now. The backend counts this off the same roster the players
+    // tab reads, and carries it on the list, the detail AND the server.patch stream — so a card, the
+    // fleet total on the dashboard and the Players tab are one number, live, with no per-card fetch.
+    //
+    // null when the backend could not see: the game declares no join/leave detection, or the
+    // supervisor could not be asked. That is NOT zero, and no surface may sum it as one — the
+    // dashboard counts the servers it cannot see and says so instead. `max` stays null: no instance
+    // declares a capacity, so there is nothing honest to render a "x / y" against.
+    players: be.onlinePlayers == null ? null : { current: be.onlinePlayers, max: null },
     uptime: null,                  // not exposed by kgsm
     ip: null,                      // not exposed by kgsm
     // The newest backup's own manifest record ({ name, createdAt, version, sizeBytes, fileCount,
@@ -130,8 +134,9 @@ export const adaptServers = (arr) => (Array.isArray(arr) ? arr.map(adaptServer) 
 //   - rxBps/txBps are bytes/sec and NOW SOURCED for native instances (the meter
 //     covers everything under kgsm.slice), but still null when unmeasured — a
 //     container (outside kgsm.slice) or an un-metered host. Honest null, never 0.
-//   - per-server players / tick-rate have NO source and are absent — the tab
-//     must not invent them.
+//   - tick-rate has NO source and is absent — the tab must not invent it. Players
+//     are NOT a metric: the count rides the server DTO (see adaptServer), because
+//     it is a reading of the roster, not of the process.
 export function adaptServerMetrics(be) {
   if (!be) return null;
   return {

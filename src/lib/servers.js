@@ -14,6 +14,35 @@ function instancesOfBlueprint(game, servers) {
     s.id === game.id);
 }
 
+// ---------- Presence ----------
+
+// How many people are on a set of servers, and how honestly that number can be stated.
+//
+// `players` is null for a server this host can't see the presence of — the game declares no
+// join/leave detection, or the supervisor couldn't be asked. Those add NOTHING to the sum: a null
+// summed as 0 is a figure nobody measured, sitting inside a total that reads as measured. They are
+// counted separately instead, so a surface can say how much of the fleet it can't see.
+//
+// A measurably stopped server is never counted as unseen: nobody is connected to a process that
+// isn't running, so its unknown presence takes nothing away from the total.
+function playerTally(servers) {
+  const list = servers || [];
+  return {
+    total: list.reduce((n, s) => n + (s.players ? s.players.current : 0), 0),
+    unseen: list.filter(s => !s.players && s.status !== "offline").length,
+  };
+}
+
+// The dashboard's one-line state of the fleet: what's up, who's on, and what can't be seen.
+function fleetSummary(servers) {
+  const list = servers || [];
+  const online = list.filter(s => s.status === "online").length;
+  const { total, unseen } = playerTally(list);
+  return `${online} of ${list.length} servers online · `
+    + `${total} ${total === 1 ? "player" : "players"} connected right now`
+    + (unseen > 0 ? ` · ${unseen} ${unseen === 1 ? "server can't" : "servers can't"} report who's on.` : ".");
+}
+
 // ---------- Host availability ----------
 
 // A blueprint is offered by one or more connected hosts. `game.hosts` (a list
@@ -76,4 +105,4 @@ function serverStatusLabel(server) {
   return STATUS_LABEL[server.status] || server.status;
 }
 
-export { hostAvailabilityLabel, instancesOfBlueprint, offeringHosts, PHASE_LABEL, serverStatusLabel, STATUS_LABEL };
+export { fleetSummary, hostAvailabilityLabel, instancesOfBlueprint, offeringHosts, playerTally, PHASE_LABEL, serverStatusLabel, STATUS_LABEL };

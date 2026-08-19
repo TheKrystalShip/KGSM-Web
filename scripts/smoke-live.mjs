@@ -201,7 +201,17 @@ try {
   const rawServers = await (await fetch(API + "/api/v1/servers")).json();
   const servers = adapt.adaptServers(rawServers);
   assert(servers.length === rawServers.length && servers.length > 0, `adaptServers maps ${servers.length} server(s)`);
-  assert(servers.every((s) => s.players === null), "servers: players → null (honest, not 0)");
+  // The count is sourced now, and the null it can still carry is load-bearing: a server whose presence
+  // this host cannot see must arrive as null, NOT as the 0 that would silently join a fleet total.
+  assert(
+    servers.every((s) => s.players === null || (Number.isInteger(s.players.current) && s.players.max === null)),
+    "servers: players → a measured count, or null when presence is unobservable");
+  assert(
+    servers.every((s, i) => (rawServers[i].onlinePlayers == null) === (s.players === null)),
+    "servers: an unobservable presence survives the adapter as null (never fabricated as 0)");
+  assert(
+    servers.every((s, i) => s.players === null || s.players.current === rawServers[i].onlinePlayers),
+    "servers: the count is the backend's, carried through untouched");
   assert(servers.every((s) => ["online", "offline", "unknown"].includes(s.status)), "servers: status vocab remapped");
   assert(servers.every((s) => (s.metrics == null ? s.cpu === null && s.ram === null : true)), "servers: cpu/ram → null when no metrics (not 0)");
   assert(servers.every((s) => Array.isArray(s.log)), "servers: log → [] (console is a separate endpoint, not on the server DTO)");
@@ -1449,6 +1459,60 @@ try {
       console.log("• card metrics: every server on this host is running — skipped the stopped-server "
         + "proofs (stop one to cover them; this smoke will not).");
     }
+
+    // Presence on the card and in the fleet line — the two figures that must never contradict each
+    // other, and the null that must never become a 0 in either.
+    const { ServerTile: Tile } = await vite.ssrLoadModule("/src/components/ServerCard.jsx");
+    const { fleetSummary, playerTally } = await vite.ssrLoadModule("/src/lib/servers.js");
+
+    const renderTile = async (server) => {
+      const node = w.document.createElement("div");
+      const root = createRoot(node);
+      root.render(React.createElement(Tile, { server, onOpen: () => {}, onAction: () => {}, showHost: false }));
+      await sleep(40);
+      const html = node.innerHTML;
+      root.unmount();
+      return html;
+    };
+
+    const seen = rows.find((s) => s.players);
+    if (seen) {
+      const html = await renderTile(seen);
+      assert(html.includes(">" + seen.players.current + "<"),
+        `ServerTile: a server whose presence is visible shows its count (${seen.id} → ${seen.players.current})`);
+    } else {
+      console.log("• presence: no server on this host reports a count — skipped the count-on-the-card proof.");
+    }
+
+    const unseen = rows.find((s) => !s.players);
+    if (unseen) {
+      const html = await renderTile(unseen);
+      assert(html.includes("can't see who is connected"),
+        `ServerTile: a server whose presence is unobservable says so (${unseen.id}) — never a 0`);
+    } else {
+      console.log("• presence: every server on this host reports presence — skipped the unobservable-card proof.");
+    }
+
+    // The fleet line, off the LIVE roster: its total is the sum of the counts that exist, and nothing
+    // else. This is the check that pins the dashboard's greeting to real data.
+    const tally = playerTally(rows);
+    const expected = rows.reduce((n, s) => n + (s.players ? s.players.current : 0), 0);
+    assert(tally.total === expected,
+      `fleet tally: the total is the sum of the measured counts (${tally.total})`);
+    assert(fleetSummary(rows).includes(`${tally.total} player`),
+      `fleet line: the live roster renders its real total (${fleetSummary(rows)})`);
+
+    // The failure this replaced: an unobservable server summed as 0 and never mentioned.
+    const synthetic = [
+      { id: "a", status: "online", players: { current: 2, max: null } },
+      { id: "b", status: "online", players: null },
+      { id: "c", status: "offline", players: null },
+    ];
+    const line = fleetSummary(synthetic);
+    assert(line.includes("2 players connected"),
+      "fleet line: an unobservable server is left OUT of the total, never added as 0");
+    assert(line.includes("1 server can't report who's on"),
+      "fleet line: it says how many servers it can't see — and counts only the ones not measurably stopped");
 
     // The roster frame the cards stay live from: rows merge onto the store's metric fields and
     // touch nothing else. Applied directly (no engine, no writes) — the transport is kgsm-api's.

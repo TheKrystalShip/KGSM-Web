@@ -8,7 +8,6 @@ import { favoritesStore, hostsStore, serversStore, useIsFavorite } from "../lib/
 import { artBg } from "../lib/art.js";
 import { PHASE_LABEL, serverStatusLabel } from "../lib/servers.js";
 import { formatBps, formatBytes, fmtBytesTight } from "../lib/formatting.js";
-import { usePlayerRoster } from "../lib/hooks/usePlayerRoster.js";
 import { useRosterMetrics } from "../lib/hooks/useRosterMetrics.js";
 
 // ServerCard — the reusable game-server tile (art header, live metrics,
@@ -67,12 +66,11 @@ function ServerTile({ server, onOpen, onAction, showHost }) {
   // `servers` topic carries status only, so without this the numbers below are as old as the last
   // status change. Shared and ref-counted, so a grid of cards costs one subscription.
   useRosterMetrics();
-  // Player roster — hydrate then follow live. Derive online count for the meta
-  // row. Read before the phantom early return so hook order is stable.
-  const roster = usePlayerRoster(server);
-  const playerCurrent = roster.status === "ready"
-    ? roster.players.filter(p => p.status === "online").length
-    : null;
+  // Players ride the server element itself (adaptServer), live off the same
+  // server.patch stream as status — so a grid of cards costs no roster fetches
+  // and every card agrees with the fleet total on the dashboard. null is "this
+  // host cannot see who is on it", rendered "—", never 0.
+  const playerCurrent = server.players ? server.players.current : null;
   if (server._phantom) return <ServerPhantomTile server={server} />;
   // kgsm-api serves cover/hero directly (the old client-side RAWG hook is gone).
   // Prefers landscape hero, then portrait cover, then themed gradient placeholder.
@@ -163,9 +161,10 @@ function ServerTile({ server, onOpen, onAction, showHost }) {
             second form put network and disk together without reordering anything. */}
         <div className="server-tile__meta">
           <div className="server-tile__metarow">
-            <span className="server-tile__metric server-tile__metric--players" title="Players online">
+            <span className="server-tile__metric server-tile__metric--players"
+              title={playerCurrent == null ? "This host can't see who is connected to this server" : "Players online"}>
               <Icon name="users" size={11} />
-              <span className="server-tile__metric-val">{playerCurrent != null ? playerCurrent : (server.players ? server.players.current : "—")}</span>
+              <span className="server-tile__metric-val">{playerCurrent != null ? playerCurrent : "—"}</span>
             </span>
             <span className={liveMetricClass} title={runningMetricTitle("CPU, as a percentage of one core")}>
               <Icon name="cpu" size={11} />

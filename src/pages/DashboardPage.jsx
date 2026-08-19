@@ -12,7 +12,7 @@ import { RecentActivity } from "../components/RecentActivity.jsx";
 import { capUsable } from "../lib/capabilities.js";
 import { parseTs } from "../lib/formatting.js";
 import { KRYSTAL_LABELS } from "../lib/labels.js";
-import { instancesOfBlueprint } from "../lib/servers.js";
+import { fleetSummary, instancesOfBlueprint } from "../lib/servers.js";
 import { useStore } from "../lib/store.js";
 import { auditStore, clusterStore, favoritesStore, hostsStore, libraryStore, pingStore, serversStore } from "../lib/stores.js";
 import { startPingLoop } from "../lib/stores/ui.js";
@@ -35,8 +35,9 @@ function DashboardPage({ user, onOpenServer, onAction, onLibrary, onInstall, onA
   // per-node view is a thing you navigate to (a node's page), not a mode this
   // one switches into.
   const servers = useStore(serversStore, s => s.list);
-  const onlineCount = servers.filter(s => s.status === "online").length;
-  const totalPlayers = servers.reduce((n, s) => n + (s.players?.current || 0), 0);
+  // What's up, who's on, and what can't be seen — one line, and the counting rules that keep the
+  // player figure honest live in lib/servers.js beside the ones the Servers page reads.
+  const summary = fleetSummary(servers);
   // Bottom "Servers" card — the WHOLE fleet on a rail, UNFILTERED by status so
   // it's not a duplicate of the "Online" KPI above. Servers carry no
   // added/created date, so instead of arbitrary list order the ones worth a
@@ -313,7 +314,7 @@ function DashboardPage({ user, onOpenServer, onAction, onLibrary, onInstall, onA
           <div className="dash-head__sub">
             {dataLoading
               ? <Skel w={300} h={14} />
-              : <>{onlineCount} of {servers.length} servers online · {totalPlayers} players connected right now.</>}
+              : summary}
           </div>
           <ClusterReach />
         </div>

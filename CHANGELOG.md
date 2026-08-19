@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — the dashboard's player count is the fleet's, not zero
+
+*"X of Y servers online · Z players connected right now"* always said **0**. The count read
+`server.players`, which the adapter hardcoded to null because the backend carried no player field —
+so the greeting reported nobody on a fleet whose own cards, right below it, showed people playing.
+
+kgsm-api now carries `onlinePlayers` on the server DTO, counted off the same roster the Players tab
+reads and pushed on the `server.patch` stream. The adapter maps it, so the count is live everywhere it
+was dead: the dashboard line, the Servers page group and favourites tallies, and the **"Players
+online" sort**, which until now compared zeroes and sorted nothing.
+
+⚠ `null` is not `0`. A server whose presence this host can't see (no join/leave detection, or an
+unreachable supervisor) carries null, renders "—" on its card, and is **left out of a total and
+counted separately** — the dashboard says *"· N servers can't report who's on"*, and a group tally
+renders `3+ players`. A measurably stopped server is not counted among those: nobody is connected to a
+process that isn't running. The counting rules live in `lib/servers.js` (`playerTally`,
+`fleetSummary`), so the two pages can't drift.
+
+Server cards no longer fetch a roster each — a dashboard with eight servers fired eight
+`GET /servers/{id}/players` requests to render eight numbers that now ride the roster they already had.
+
 ### Fixed — one conversation, one name, whichever surface you open it in
 
 A chat started in the Control Panel's dock read **New chat** there and **Untitled chat** in the

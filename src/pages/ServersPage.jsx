@@ -8,6 +8,7 @@ import { ServersSkeleton, Skel } from "../components/Skeletons.jsx";
 import { Toolbar, ToolbarButton, ToolbarCount, ToolbarFilters, ToolbarSearch, ToolbarSort, ToolbarSpacer } from "../components/Toolbar.jsx";
 import { serverCapUsable } from "../lib/capabilities.js";
 import { can } from "../lib/persona.js";
+import { playerTally } from "../lib/servers.js";
 import { sortByAccessor } from "../lib/sorting.js";
 import { useStore } from "../lib/store.js";
 import { favoritesStore, hostsStore, serversStore } from "../lib/stores.js";
@@ -31,11 +32,23 @@ function effectiveStatus(s) {
 // (online / players), and a collapse toggle, with the card grid beneath. When
 // there's only ONE section (e.g. a single-host fleet) the heavy banner would be
 // redundant, so `solo` swaps it for a thin context strip.
+// A group's player figure, off the shared tally. A sum that leaves out a server whose presence can't
+// be seen is a FLOOR, not a total — the trailing "+" is what says so, and the tooltip says how many.
+function groupPlayers(items) {
+  const { total, unseen } = playerTally(items);
+  return {
+    label: `${total}${unseen ? "+" : ""} ${total === 1 && !unseen ? "player" : "players"}`,
+    title: unseen
+      ? `${unseen} of these servers can't report who's connected — at least ${total} online`
+      : undefined,
+  };
+}
+
 function ServerGroup({ group, groupBy, solo, onOpenServer, onAction, showHost }) {
   const [open, setOpen] = React.useState(true);
   const items = group.items;
   const online = items.filter(s => s.status === "online").length;
-  const players = items.reduce((n, s) => n + (s.players ? s.players.current : 0), 0);
+  const players = groupPlayers(items);
   const isBlueprint = groupBy === "blueprint";
   const grid = (
     <div className="server-grid server-grid--page server-group__grid">
@@ -51,7 +64,7 @@ function ServerGroup({ group, groupBy, solo, onOpenServer, onAction, showHost })
         <div className="server-group__strip">
           <Icon name="server" size={12} strokeWidth={2.2} />
           <span className="server-group__strip-name">{group.key}</span>
-          <span className="server-group__strip-meta">{items.length} servers &middot; {online} online &middot; {players} players</span>
+          <span className="server-group__strip-meta" title={players.title}>{items.length} servers &middot; {online} online &middot; {players.label}</span>
         </div>
         {grid}
       </section>
@@ -68,9 +81,9 @@ function ServerGroup({ group, groupBy, solo, onOpenServer, onAction, showHost })
             : <span className="server-group__chip server-group__chip--host"><Icon name="server" size={12} strokeWidth={2.2} /></span>}
           <span className="server-group__name">{group.key}</span>
           <span className="server-group__count">{items.length}</span>
-          <span className="server-group__agg">
+          <span className="server-group__agg" title={players.title}>
             <span className={"server-group__dot" + (online ? " is-on" : "")}></span>
-            {online} online &middot; {players} {players === 1 ? "player" : "players"}
+            {online} online &middot; {players.label}
           </span>
         </button>
       </div>
@@ -87,7 +100,7 @@ function ServerGroup({ group, groupBy, solo, onOpenServer, onAction, showHost })
 function FavoritesSection({ items, onOpenServer, onAction }) {
   const [open, setOpen] = React.useState(true);
   const online = items.filter(s => s.status === "online").length;
-  const players = items.reduce((n, s) => n + (s.players ? s.players.current : 0), 0);
+  const players = groupPlayers(items);
   return (
     <section className={"server-group server-group--fav" + (open ? "" : " is-collapsed")}>
       <div className="server-group__head">
@@ -96,9 +109,9 @@ function FavoritesSection({ items, onOpenServer, onAction }) {
           <span className="server-group__chip server-group__chip--fav"><Icon name="star" size={12} strokeWidth={2.2} /></span>
           <span className="server-group__name">Favorites</span>
           <span className="server-group__count">{items.length}</span>
-          <span className="server-group__agg">
+          <span className="server-group__agg" title={players.title}>
             <span className={"server-group__dot" + (online ? " is-on" : "")}></span>
-            {online} online &middot; {players} {players === 1 ? "player" : "players"}
+            {online} online &middot; {players.label}
           </span>
         </button>
       </div>
@@ -200,6 +213,8 @@ function ServersPage({ onOpenServer, onAction, onLibrary, initialStatus }) {
   const SORT_ACCESSORS = {
     status:  s => { const r = STATUS_RANK[effectiveStatus(s)]; return r != null ? r : 9; },
     name:    s => (s.name || "").toLowerCase(),
+    // A server whose presence can't be seen sorts as 0 — it goes to the bottom of a "most players
+    // first" list rather than jumping the queue on a number nobody measured. The CARD still shows "—".
     players: s => (s.players ? s.players.current : 0),
     cpu:     s => s.cpu || 0,
     uptime:  s => parseUptime(s.uptime),
