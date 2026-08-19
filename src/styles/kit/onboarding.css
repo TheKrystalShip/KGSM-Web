@@ -117,6 +117,21 @@
   line-height: 1.5;
 }
 
+/* Why a sign-in did not go through — rendered by every card that asks for an identity, on both
+   surfaces. It sits inside the card's own flex column, so it needs no margin of its own. */
+.login-card__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--danger-fg) 30%, transparent);
+  border-radius: var(--r-sm);
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .login-shell__legal {
   color: var(--fg-4);
   font-size: 12.5px;

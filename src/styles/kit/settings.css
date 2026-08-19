@@ -726,3 +726,211 @@
 .settings-link__dismiss:hover {
   color: var(--fg-1);
 }
+
+/* ===============================================================
+   MEMORY EDITOR (SettingsMemoryEditor.jsx)
+   The sheet over the settings page for reading one memory in full
+   and correcting it. It reuses the file editor's shell — the
+   .fb-modal pair for the overlay, .fb-editor__foot / __btn for the
+   footer, .fb-editor__monaco-wrap for the editor's box — so only
+   what is particular to a memory is spelled out here: the two
+   fields, and the counts against the host's own caps.
+   =============================================================== */
+/* A memory is text at a reading measure, not a file tree, so the sheet is
+   capped and centred instead of filling a desktop edge to edge. The mobile
+   rules under .fb-modal already drop the scrim's padding and the border, which
+   makes this full-bleed on a phone without a second breakpoint here. */
+.mem-modal {
+  max-width: 900px;
+  margin: 0 auto;
+  /* Centred and sized, rather than filling a desktop the way the file browser's pop-out does: that
+     one is a tree over a whole file, this is a couple of fields and a note.
+     ⚠ The height is DEFINITE on purpose. Monaco renders a `height: 100%` section, which resolves
+     against nothing in an auto-height ancestor and collapses to zero — the app's other editor mounts
+     each state a definite track for the same reason. */
+  align-self: center;
+  height: min(620px, 100%);
+}
+
+/* Edge to edge on a phone, where the scrim has already dropped its padding and the sheet its
+   border — a centred card with a strip of scrim above and below wastes the only screen that has
+   none to spare. */
+@media (max-width: 768px) {
+  .mem-modal {
+    height: 100%;
+  }
+}
+
+/* Fills the modal and scrolls internally — the same rule .fb-modal .bp-editor
+   needs, for the same reason: the portaled sheet is not inside the card whose
+   fill rules would otherwise reach it. */
+.fb-modal .mem-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.mem-editor {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.mem-editor__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.mem-editor__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: var(--r-sm);
+  background: var(--surface-3);
+  color: var(--krystal-teal);
+}
+
+.mem-editor__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.mem-editor__title {
+  color: var(--fg-1);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mem-editor__sub {
+  color: var(--fg-3);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.mem-editor__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  border-radius: var(--r-sm);
+  color: var(--fg-3);
+  cursor: pointer;
+}
+
+.mem-editor__close:hover:not(:disabled) {
+  color: var(--fg-1);
+  background: var(--surface-2);
+}
+
+.mem-editor__close:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.mem-editor__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  flex-shrink: 0;
+}
+
+.mem-editor__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* The label carries the count on its right, so the two read as one line about
+   the field below them. */
+.mem-editor__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--fg-2);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.mem-editor__hint {
+  color: var(--fg-3);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.mem-editor__count {
+  color: var(--fg-4);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  flex-shrink: 0;
+}
+
+.mem-editor__count--over {
+  color: var(--danger);
+}
+
+/* The key of a memory that already exists: shown as the identifier it is, at the
+   height of the input it replaces so the two fields keep one rhythm. */
+.mem-editor__key {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  word-break: break-all;
+}
+
+.mem-editor__fields .settings-input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.mem-editor__bodyhead {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 16px 10px;
+  flex-shrink: 0;
+}
+
+/* The editor takes what the fields above it leave, with a floor so a short
+   viewport still shows something to write in rather than a sliver. */
+.mem-editor__monaco {
+  flex: 1 1 auto;
+  min-height: 180px;
+  margin: 0 16px;
+  border: var(--edge);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+
+.mem-editor__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 12px 16px 0;
+  color: var(--danger);
+  font-size: 12.5px;
+  line-height: 1.45;
+}

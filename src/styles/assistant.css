@@ -6,14 +6,30 @@
    the list differs — so the two surfaces cannot drift apart aesthetically: a
    change to chat.css or a token lands in both.
 
-   Order is load-bearing here exactly as it is in kit.css (later wins on equal
-   specificity); keep these in the same sequence as the entries they mirror.
+   ⚠ Order is load-bearing here exactly as it is in kit.css, and the sequence
+   below mirrors it entry for entry. A media query adds NO specificity, so a
+   partial listed after responsive.css beats responsive.css's own phone rules for
+   anything it styles — which is a phone-only bug on this surface alone, invisible
+   in every desktop check and in the panel. Keep the order; add a partial in the
+   place kit.css puts it, never at the end.
+
    Add a partial when the chat starts using one, never a rule of its own. */
 @import "./tokens.css";
 
 @import "./kit/base.css";
 /* page: the heading and the sub-tab strip the settings page is built from. */
 @import "./kit/page.css";
+/* Two settings widgets have their rules filed under other domains: the sign-in spinner
+   (.oauth-spinner) sits in onboarding, and both the blueprint-draft card and the memory editor
+   reuse the file editor's .fb-editor__* family and the .fb-modal pair from catalog. The partials
+   are imported WHOLE rather than the rules copied here — a copy is precisely the divergence this
+   arrangement exists to make impossible, and dead selectors are inert. Refiling them into chat.css
+   would be the tidier fix and would shrink this; it is a cascade change for the Control Panel, so
+   not one to make in passing. */
+@import "./kit/catalog.css";
+/* modal: the evidence cards' expanded chart and the memory editor use <Modal>. */
+@import "./kit/modal.css";
+@import "./kit/onboarding.css";
 /* observability: the metric charts an evidence card renders. */
 @import "./kit/observability.css";
 @import "./kit/controls.css";
@@ -22,16 +38,6 @@
 @import "./kit/toast.css";
 /* settings: the card, row and control family the settings page renders. */
 @import "./kit/settings.css";
-/* modal: the evidence cards' expanded chart uses <Modal>. */
-@import "./kit/modal.css";
-/* Two chat widgets have their rules filed under other domains: the sign-in spinner
-   (.oauth-spinner) sits in onboarding, and the blueprint-draft card reuses the file editor's
-   .fb-editor__btn family from catalog. The partials are imported WHOLE rather than the rules
-   copied here — a copy is precisely the divergence this arrangement exists to make impossible,
-   and dead selectors are inert. Refiling them into chat.css would be the tidier fix and would
-   shrink this; it is a cascade change for the Control Panel, so not one to make in passing. */
-@import "./kit/onboarding.css";
-@import "./kit/catalog.css";
 @import "./kit/theme-picker.css";
 @import "./kit/states.css";
 @import "./kit/extras.css";

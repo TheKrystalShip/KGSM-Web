@@ -382,6 +382,14 @@ function host(hostId) {
     // What the leaf has written down about this caller — a fact that outlives any one conversation.
     // Principal-scoped by the leaf itself: this can only ever list or forget the caller's OWN memory.
     memories: (opts) => json(hostId, "GET", "/memories", null, opts),
+    // What a memory may weigh, so an editor's counters come from the host instead of being restated
+    // here — a client cannot know when a host re-tunes them.
+    memoryLimits: (opts) => json(hostId, "GET", "/memories/limits", null, opts),
+    // Writing one by hand. Create and correct are the same call because that is what the store does:
+    // a memory is revised by rewriting its key. Replayable — the write is idempotent for a given
+    // body, so a rotation that repeats it lands on the same row with the same content.
+    writeMemory: (key, memory) =>
+      json(hostId, "PUT", "/memories/" + encodeURIComponent(key), memory),
     deleteMemory: (key) => json(hostId, "DELETE", "/memories/" + encodeURIComponent(key)),
     // The commands this caller may type, and running one. The leaf performs every command it lists,
     // so the catalog is authoritative rather than advisory: a name that appears here is a name the

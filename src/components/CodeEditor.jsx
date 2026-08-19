@@ -181,7 +181,12 @@ const OPTIONS = {
 // `value` / `onChange` / `readOnly` mirror the textarea the FileBrowser used, so
 // the dirty/etag/save flow upstream is untouched. `path` gives Monaco a stable
 // per-file model (separate undo history + scroll position per file).
-export default function CodeEditor({ value, onChange, path, readOnly = false }) {
+//
+// `wrap` is off by default and belongs to PROSE, not code: a config file or a log
+// line means something by its column, and folding one onto the next reads as a
+// second line that isn't there. A memory's note has no columns and is written on a
+// phone, where an unwrapped sentence runs off the side and cannot be read at all.
+export default function CodeEditor({ value, onChange, path, readOnly = false, wrap = false }) {
   // Follow the app theme: redefine "kgsm" from the now-resolved CSS tokens and
   // re-apply it to every live editor whenever the theme flips (light/dark/auto).
   const resolved = useResolvedTheme();
@@ -198,7 +203,7 @@ export default function CodeEditor({ value, onChange, path, readOnly = false }) 
       language={languageForPath(path)}
       value={value}
       onChange={(v) => onChange && onChange(v ?? "")}
-      options={{ ...OPTIONS, readOnly }}
+      options={{ ...OPTIONS, readOnly, wordWrap: wrap ? "on" : "off" }}
       loading={<div className="fb-editor__empty"><span className="oauth-spinner" /> Loading editor…</div>}
     />
   );

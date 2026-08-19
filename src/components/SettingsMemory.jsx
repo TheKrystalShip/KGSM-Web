@@ -1,17 +1,18 @@
 import React from "react";
 import { Icon } from "./Icon.jsx";
 import { SettingsRow, SettingsSection } from "./settings-primitives.jsx";
+import { SettingsMemoryEditor } from "./SettingsMemoryEditor.jsx";
 import { assistant } from "../lib/assistantClient.js";
 import { fmtRelative, fmtTime, parseTs } from "../lib/formatting.js";
 
 // SettingsMemory.jsx — what the assistant has written down about you, on the leaf you're currently
-// talking to. Shared by both settings surfaces (the Control Panel's account page and the standalone
-// assistant's own settings) so a change to how a memory row looks lands on both — it depends on
-// nothing but `assistantClient`, `settings-primitives` and `formatting`, so it stays safe for the
-// standalone surface (`npm run check:assistant`).
+// talking to, and the one place to correct it. Shared by both settings surfaces (the Control Panel's
+// account page and the standalone assistant's own settings) so a change to how a memory reads lands
+// on both — it depends on nothing but `assistantClient`, `settings-primitives`, `formatting` and the
+// editor beside it, so it stays safe for the standalone surface (`npm run check:assistant`).
 //
 // The leaf, not this card, decides what "yours" means: `assistantClient.js` reaches it directly, the
-// same seam a chat turn does, so this can only ever list or forget the caller's OWN memory.
+// same seam a chat turn does, so this can only ever list, write or forget the caller's OWN memory.
 //
 // `hostId` is the leaf currently being talked to — a real host id in the panel, the fixed `"self"`
 // key the standalone surface always uses. `connected` says whether that leaf is reachable right now,
@@ -22,19 +23,33 @@ function fmtGuard(ts, fn) {
   try { return fn(parseTs(ts)); } catch { return "—"; }
 }
 
+// Most recently written first, which is the order the leaf lists them in. A memory just written IS
+// the most recent, so replacing-then-prepending reproduces that order exactly and saves a re-read
+// whose failure would read as a failed save.
+function withWritten(rows, written) {
+  return [written, ...rows.filter((m) => m.key !== written.key)];
+}
+
 function SettingsMemory({ hostId, connected = true }) {
   const [memories, setMemories] = React.useState([]);
+  const [limits, setLimits] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [err, setErr] = React.useState(null);
-  const [busy, setBusy] = React.useState(null); // the key being forgotten, or null
+  const [busy, setBusy] = React.useState(null);   // the key being forgotten, or null
+  const [editing, setEditing] = React.useState(null); // null | { memory } — a null memory is a new one
 
   React.useEffect(() => {
     if (!hostId || !connected) { setLoading(false); return undefined; }
     let live = true;
     setLoading(true);
     setErr(null);
-    assistant.host(hostId).memories().then(
-      (rows) => { if (live) { setMemories(rows || []); setLoading(false); } },
+    // The limits describe the host and the list describes you; neither waits on the other. A host too
+    // old to answer for its limits still lists and forgets — the editor is what needs them.
+    Promise.all([
+      assistant.host(hostId).memories(),
+      assistant.host(hostId).memoryLimits().catch(() => null),
+    ]).then(
+      ([rows, caps]) => { if (live) { setMemories(rows || []); setLimits(caps); setLoading(false); } },
       (e) => {
         if (!live) return;
         setErr((e && e.userMessage) || "Couldn't load what the assistant remembers.");
@@ -46,11 +61,21 @@ function SettingsMemory({ hostId, connected = true }) {
 
   const forget = (key) => {
     setBusy(key);
+    setErr(null);
     assistant.host(hostId).deleteMemory(key).then(
       () => { setMemories((prev) => prev.filter((m) => m.key !== key)); setBusy(null); },
       (e) => { setBusy(null); setErr((e && e.userMessage) || "Couldn't forget that."); },
     );
   };
+
+  // Resolves to nothing on success and REJECTS with the leaf's own sentence otherwise, because the
+  // editor keeps what was typed on the screen and renders the refusal against it — a cap or a length
+  // is something to correct in place, not a reason to lose the note.
+  const save = (key, memory) =>
+    assistant.host(hostId).writeMemory(key, memory).then((written) => {
+      setMemories((prev) => withWritten(prev, written));
+      setEditing(null);
+    });
 
   if (!hostId || !connected) {
     return (
@@ -61,37 +86,69 @@ function SettingsMemory({ hostId, connected = true }) {
     );
   }
 
+  const full = limits && memories.length >= limits.maxPerOwner;
+  const meta = limits
+    ? `What the assistant has written down about you, across your conversations. `
+      + `${memories.length} of ${limits.maxPerOwner} kept.`
+    : "What the assistant has written down about you, across your conversations.";
+
   return (
-    <SettingsSection icon="brain" title="Memory"
-      meta="What the assistant has written down about you, across your conversations.">
-      {err && (
-        <div className="settings-notice settings-notice--danger">
-          <Icon name="alert-triangle" size={13} /> {err}
-        </div>
-      )}
-      {loading && <div className="settings-notice">Loading…</div>}
-      {!loading && !err && memories.length === 0 && (
-        <div className="settings-notice">The assistant hasn't written anything down yet.</div>
-      )}
-      {!loading && memories.map((m) => (
-        <SettingsRow
-          key={m.key}
-          icon="brain"
-          title={m.summary || m.key}
-          sub={
-            <>
-              <span className="settings-value settings-value--mono">{m.key}</span>
-              {" · Written " + fmtGuard(m.writtenAt, (d) => fmtRelative(d))
-                + " (" + fmtGuard(m.writtenAt, fmtTime) + ")"}
-            </>
-          }
-        >
-          <button className="settings-btn-danger" onClick={() => forget(m.key)} disabled={busy != null}>
-            {busy === m.key ? "Forgetting…" : "Forget"}
+    <>
+      <SettingsSection icon="brain" title="Memory" meta={meta}
+        action={(
+          <button type="button" className="settings-btn-ghost" disabled={loading || !!err || full}
+            title={full ? "You're at the limit — forget one first." : undefined}
+            onClick={() => setEditing({ memory: null })}>
+            <Icon name="plus" size={13} /> Write one
           </button>
-        </SettingsRow>
-      ))}
-    </SettingsSection>
+        )}>
+        {err && (
+          <div className="settings-notice settings-notice--danger">
+            <Icon name="alert-triangle" size={13} /> {err}
+          </div>
+        )}
+        {loading && <div className="settings-notice">Loading…</div>}
+        {!loading && !err && memories.length === 0 && (
+          <div className="settings-notice">
+            The assistant hasn't written anything down yet. It writes things down as they come up in a
+            conversation, and you can write one yourself.
+          </div>
+        )}
+        {!loading && memories.map((m) => (
+          <SettingsRow
+            key={m.key}
+            icon={m.source === "you" ? "user-pen" : "brain"}
+            title={m.summary || m.key}
+            sub={(
+              <>
+                <span className="settings-value settings-value--mono">{m.key}</span>
+                {" · " + (m.source === "you" ? "Written by you" : "Learned in a conversation")}
+                {" " + fmtGuard(m.writtenAt, (d) => fmtRelative(d))
+                  + " (" + fmtGuard(m.writtenAt, fmtTime) + ")"}
+                {m.body ? " · has a longer note" : ""}
+              </>
+            )}
+          >
+            <button className="settings-btn-ghost" onClick={() => setEditing({ memory: m })}
+              disabled={busy != null}>
+              <Icon name="pencil" size={13} /> Edit
+            </button>
+            <button className="settings-btn-danger" onClick={() => forget(m.key)} disabled={busy != null}>
+              {busy === m.key ? "Forgetting…" : "Forget"}
+            </button>
+          </SettingsRow>
+        ))}
+      </SettingsSection>
+
+      {editing && (
+        <SettingsMemoryEditor
+          memory={editing.memory}
+          limits={limits}
+          onSave={save}
+          onClose={() => setEditing(null)}
+        />
+      )}
+    </>
   );
 }
 

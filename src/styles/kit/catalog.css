@@ -1096,7 +1096,7 @@ a.game-fact:hover {
   vertical-align: middle;
   background: var(--info-bg);
   color: var(--info-fg);
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   letter-spacing: 0.02em;
 }
 

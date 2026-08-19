@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the Memory card corrects a memory, not only drops one
+
+Settings → Memory (both surfaces) lists what the leaf has written down about you, and each row opens
+a sheet holding the whole memory: the summary on a line of its own, the note underneath in the same
+editor the file browser and the chat's blueprint card use. `Write one` in the card's header writes one
+from nothing.
+
+The two fields are separate because the SUMMARY is injected into every later turn and the NOTE is
+not. Each carries a live count against the leaf's own cap — read from `GET /memories/limits`, never
+restated here, since a client cannot know when a host re-tunes them — and the card's header says how
+many of the allowance are kept.
+
+⚠ The name of a memory is fixed once it exists: writing that name again is what replaces it, so a
+rename would be a write plus a forget wearing one button. The sheet says so, and offers the name as a
+field only when there is nothing there yet.
+
+A row says where its memory came from — written by you, or learned in a conversation. Correcting one
+the assistant wrote makes it yours, because the sentence is then the person's.
+
+A refusal from the leaf (a length, the per-owner cap) renders inside the sheet against what is still
+on screen, never as a toast: it names something to correct, and a toast would take the note away to
+say it.
+
+### Fixed — the standalone assistant's phone rules lost to the partials listed after them
+
+`styles/assistant.css` imports the shared partials in the order `kit.css` does. A media query adds no
+specificity, so a partial listed after `responsive.css` beat `responsive.css`'s own phone rules for
+anything it styles — which made a modal on that surface keep its desktop scrim inset on a phone, and
+was invisible from every desktop check and from the Control Panel.
+
+### Fixed — two rules that were never written
+
+`.login-card__error` had no rule anywhere: the reason a sign-in did not go through rendered as bare
+text on both surfaces. And a badge in `kit/catalog.css` asked for `--font-sans`, which nothing
+defines — an undefined custom property is invalid at computed-value time, so it silently dropped to
+the inherited family and could not follow a theme that re-values `--font-ui`.
+
 ### Added — why a backup exists, and whether retention may take it
 
 A backup row's subtitle ends with why it was taken — `manual`, `scheduled`, `before an update`,
