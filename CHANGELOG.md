@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the fresh-chat screen offers the last three conversations
+
+Opening a new chat lists the three conversations you were most recently in, each with how many
+messages are in it and when it was last spoken in, and one click resumes it. It is the same
+`BriefCard` the Alerts panel above it is built from, so the two read as one family of cards.
+
+Both surfaces get it from one place. The list is already the chat's own state — this browser's
+conversations merged with the ones the leaf holds — so the card renders in the shared empty state
+rather than being injected per surface, and it makes no request of its own. On a phone, where the
+conversation rail is hidden, it is the only way back into a conversation that does not go through
+the history menu.
+
+Ordered by when each was last spoken in, which the leaf is the authority for: its `lastActivityAt`
+overwrites what this browser remembered, the way the per-conversation switches already do — a
+conversation carried on from another device is otherwise as old here as this browser's last sight
+of it. A conversation nobody has said anything in is left out; it is the screen you are already
+looking at.
+
 ### Fixed — the Memory card says whose memory it is showing
 
 A memory belongs to one leaf and the Control Panel is one page over a whole cluster, so the card now

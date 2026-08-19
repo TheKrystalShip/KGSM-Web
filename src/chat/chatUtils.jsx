@@ -829,6 +829,11 @@ function mergeServerConversations(local, serverList, hostId) {
       const patch = {};
       if ((!existing.title || existing.title === "New chat") && s.title) patch.title = s.title;
       if (!existing.hostId) patch.hostId = hostId;
+      // When it was last spoken in OVERWRITES, for the same reason the switches do: the leaf holds
+      // every surface's turns, and this browser only ever saw its own. A conversation carried on
+      // from a phone is stale here by exactly the amount that matters to anything ordering by it.
+      const touched = Date.parse(s.lastActivityAt);
+      if (touched) patch.lastActivity = touched;
       // The switches OVERWRITE, where everything else above only fills a gap: they are the leaf's,
       // any surface may have moved them since this browser last looked, and what is cached here is
       // only ever a record of what they were. Keeping a remembered value is how the phone comes to

@@ -22,6 +22,7 @@ import { ChatCommandMenu } from "./ChatCommandMenu.jsx";
 import { resolveCommand, suggestFor } from "./chatCommands.js";
 import { ChatContextMeter } from "./ChatContextMeter.jsx";
 import { ChatHistory } from "./ChatHistory.jsx";
+import { RecentConversations } from "./RecentConversations.jsx";
 import { ChatThread } from "./ChatThread.jsx";
 import { useConversationStream } from "./useConversationStream.js";
 
@@ -588,7 +589,7 @@ function ChatPage({
       if (c.id !== convId) return c;
       const title = c.messages.length === 0 ? (text.slice(0, 40) || "Voice note") : c.title;
       return {
-        ...c, title,
+        ...c, title, lastActivity: Date.now(),
         messages: [...c.messages, { ...userMsg, live: true }, { role: "assistant", content: "", live: true }],
       };
     }));
@@ -732,7 +733,7 @@ function ChatPage({
       setConvos(prev => prev.map(c => {
         if (c.id !== convId) return c;
         const title = c.messages.length === 0 ? (text.slice(0, 40) || "Voice note") : c.title;
-        return { ...c, title, messages: [...c.messages, userMsg, { role: "assistant", content: "\u26a0\ufe0f " + why, error: true }] };
+        return { ...c, title, lastActivity: Date.now(), messages: [...c.messages, userMsg, { role: "assistant", content: "\u26a0\ufe0f " + why, error: true }] };
       }));
       return;
     }
@@ -744,7 +745,7 @@ function ChatPage({
         const why = leafStatus === "denied"
           ? "You don\u2019t have access to " + assistantHost.name + "\u2019s assistant."
           : "Sign in to " + assistantHost.name + "\u2019s assistant to talk to it.";
-        return { ...c, title, messages: [...c.messages, userMsg, { role: "assistant", content: "\u26a0\ufe0f " + why, error: true }] };
+        return { ...c, title, lastActivity: Date.now(), messages: [...c.messages, userMsg, { role: "assistant", content: "\u26a0\ufe0f " + why, error: true }] };
       }));
       return;
     }
@@ -1307,6 +1308,7 @@ function ChatPage({
                   composer's own footprint stays exactly as it is without a pinned line. */}
               {assistantHost && <p className="chat-empty__notice">{CHAT_PRIVACY_NOTICE}</p>}
               {ChatBriefingPanel && <ChatBriefingPanel onPick={startBriefingChat} />}
+              <RecentConversations convos={convos} activeId={activeId} onPick={pickChat} />
               <div className="chat-suggestions">
                 {suggestions.map((s, i) => (
                   <button key={i} className="chat-suggestion" onClick={() => { setInput(s); if (taRef.current) taRef.current.focus(); }}>
