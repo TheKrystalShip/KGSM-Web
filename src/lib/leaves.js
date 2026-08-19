@@ -45,6 +45,8 @@ const LEAF_ICON = {
   assistant: "bot",
   firewall: "flame",
   scheduler: "calendar-clock",
+  // The clock's counterpart: the scheduler fires on time, this one fires on something happening.
+  reactor: "zap",
   bot: "message-circle",
   api: "server-cog",
   // Sound itself rather than a microphone or a speaker: this leaf does both directions, and a
@@ -61,6 +63,7 @@ const LEAF_KIND = {
   assistant: "agent",
   firewall: "host ports",
   scheduler: "jobs",
+  reactor: "event rules",
   bot: "chat surface",
   api: "control plane",
   // Both directions, because the name says only one of them: a reader seeing "Speech" would

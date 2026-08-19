@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — the Reactor card says what it is
+
+The Services board draws a leaf's icon and its one-word kind from the frontend's own leaf
+vocabulary, and the reactor had no entry there: its card came up with the generic cube and no
+kind chip above the name, the only card on the board missing one. It now carries a lightning
+bolt and reads "event rules" — the counterpart to the scheduler's clock, which fires on time
+where this one fires on something happening.
+
 ### Changed — the breadcrumb walks the whole URL, sub-tab included
 
 A trail stopped at the page and left the tab off, so `#/cluster/hotrod/services` read
