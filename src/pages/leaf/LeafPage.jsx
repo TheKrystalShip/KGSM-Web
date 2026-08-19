@@ -34,6 +34,7 @@ import { BotOverview } from "./BotOverview.jsx";
 import { FirewallOverview } from "./FirewallOverview.jsx";
 import { MonitorOverview } from "./MonitorOverview.jsx";
 import { ReactorOverview } from "./ReactorOverview.jsx";
+import { ReactorDecisions } from "./ReactorDecisions.jsx";
 import { SchedulerOverview } from "./SchedulerOverview.jsx";
 import { SpeechOverview } from "./SpeechOverview.jsx";
 import { WatchdogOverview } from "./WatchdogOverview.jsx";
@@ -59,6 +60,13 @@ const LEAF_TABS = {
   // sample by sample, and the API only mirrors its verdicts into the alert feed.
   monitor: [
     { id: "thresholds", label: "Thresholds", icon: "gauge", render: (p) => <MonitorThresholds {...p} /> },
+  ],
+  // Decisions belong to the reactor for the same reason thresholds belong to the monitor: the reactor is
+  // what reaches them, from its own ledger, and this is the review its plan gates propose and act mode
+  // behind. Its own tab rather than a card on Overview because it is read deliberately, at a chosen
+  // window, rather than glanced at.
+  reactor: [
+    { id: "decisions", label: "Decisions", icon: "gavel", render: (p) => <ReactorDecisions {...p} /> },
   ],
 };
 

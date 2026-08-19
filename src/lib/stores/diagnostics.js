@@ -263,6 +263,16 @@ function fetchLeafReactorStatus(hostId) {
   return fetchLeafOverview(hostId, "reactor", "status");
 }
 
+// The reactor's decision review over a window — what each rule concluded, the busiest hour a ceiling
+// would have had to clear, how far apart a rule's repeats were, the rules that decided nothing, and the
+// decisions themselves. Relayed verbatim, and `days` is deliberately optional: the LEAF owns both the
+// default (a week, the span its review gate is stated over) and the ceiling on it (its own ledger
+// retention), so a caller that names nothing gets the leaf's answer rather than one this file invented.
+function fetchLeafReactorDecisions(hostId, days) {
+  const q = days > 0 ? "?days=" + days : "";
+  return fetchLeafOverview(hostId, "reactor", "decisions" + q);
+}
+
 function applyLeafConfig(hostId, leaf, body) {
   if (!hostId || !leaf) return Promise.reject(new Error("applyLeafConfig: hostId required"));
   return api.host(hostId).put("/hosts/" + hostId + "/services/" + leaf + "/config", body || {}).then(adaptLeafConfigApply);
@@ -273,5 +283,5 @@ export {
   subscribeHostLogs, subscribeLeafLogs, subscribeHostServices, setLeafProvisioned,
   fetchLeafConfig, fetchLeafCommands, applyLeafConfig, fetchLeafMetricsHistory,
   fetchLeafSchedules, fetchLeafSupervision, fetchLeafMonitorStats, fetchLeafBotStatus,
-  fetchLeafSpeechStatus, fetchLeafReactorStatus,
+  fetchLeafSpeechStatus, fetchLeafReactorStatus, fetchLeafReactorDecisions,
 };

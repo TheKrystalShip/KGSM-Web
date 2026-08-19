@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the Reactor's Decisions tab: the review gate, performed rather than declared
+
+The reactor's plan gates propose and act mode behind a review — nothing moves until a window of
+decisions has been read against what a person would actually have done. That review existed only as
+`kgsm-reactor --decisions` on a terminal on the host, which is how a gate becomes a formality.
+
+`ReactorDecisions` renders the four readings the leaf computes, at a chosen window of 7, 14 or 30
+days: what each rule concluded and how often, the busiest rolling hour of fired decisions, how far
+apart a rule's repeats about one subject were, and the rules that decided nothing at all — plus the
+decisions themselves, each carrying the journal position it was derived from so a reviewer who
+disagrees with a verdict can go and read the line it was made from.
+
+**Nothing on the page is computed.** Every figure arrives from the leaf. Re-deriving the busiest hour
+in the browser from the decisions list would be wrong the moment that list is capped — and it is
+capped, which is why `total` sits on the wire beside it.
+
+An empty window is worded as the ambiguous reading it is, not as "no data": a rule decides nothing
+when its condition never occurred, and equally when the event that wakes it never arrived, and only
+the population report separates those.
+
+⚠ The page suggests no window, ceiling or threshold, because the leaf suggests none. Adding a
+recommendation here would put back exactly what the leaf declined to say.
+
 ### Added — the Reactor leaf has an Overview
 
 The reactor was the one leaf on the board still falling through to the generic configuration card,
