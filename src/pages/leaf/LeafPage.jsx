@@ -35,6 +35,7 @@ import { FirewallOverview } from "./FirewallOverview.jsx";
 import { MonitorOverview } from "./MonitorOverview.jsx";
 import { ReactorOverview } from "./ReactorOverview.jsx";
 import { ReactorDecisions } from "./ReactorDecisions.jsx";
+import { ReactorRules } from "./ReactorRules.jsx";
 import { SchedulerOverview } from "./SchedulerOverview.jsx";
 import { SpeechOverview } from "./SpeechOverview.jsx";
 import { WatchdogOverview } from "./WatchdogOverview.jsx";
@@ -65,7 +66,10 @@ const LEAF_TABS = {
   // what reaches them, from its own ledger, and this is the review its plan gates propose and act mode
   // behind. Its own tab rather than a card on Overview because it is read deliberately, at a chosen
   // window, rather than glanced at.
+  // Rules before Decisions: the rules are what the decisions are decisions OF, and a reader arriving at
+  // this leaf for the first time needs the catalog before the log makes sense.
   reactor: [
+    { id: "rules", label: "Rules", icon: "scale", render: (p) => <ReactorRules {...p} /> },
     { id: "decisions", label: "Decisions", icon: "gavel", render: (p) => <ReactorDecisions {...p} /> },
   ],
 };

@@ -143,7 +143,17 @@ function ReactorOverview({ hostId, leafId }) {
         + "not being asked at all.",
     });
   }
-  if (enabled && lastSweep == null) {
+  // ⚠ Two different reasons for a null sweep, and only one of them clears on its own. A reactor with no
+  // rules live never sweeps at all — the engine has nothing to evaluate and stops before its first pass —
+  // so telling somebody to wait a sweep interval would be telling them to wait forever.
+  if (enabled && lastSweep == null && rules.length === 0) {
+    flags.push({
+      key: "norules", tone: "warn", icon: "circle-off",
+      title: "No rules are live",
+      detail: "The reactor is observing and recording events, and evaluating them against nothing. It "
+        + "will never sweep while every rule is switched off — turn one on under Rules.",
+    });
+  } else if (enabled && lastSweep == null) {
     flags.push({
       key: "firstsweep", tone: "info", icon: "hourglass",
       title: "No sweep has completed yet",
@@ -175,7 +185,9 @@ function ReactorOverview({ hostId, leafId }) {
           tone={sweepBehind ? "warn" : lastSweep ? "ok" : "muted"}
           sub={lastSweep
             ? "rules evaluated every " + fmtSeconds(sweepEvery)
-            : "no sweep has completed yet"} />
+            : rules.length === 0
+              ? "no rules live — it never sweeps"
+              : "no sweep has completed yet"} />
 
         {/* The honesty tile. A non-zero here is the one failure that otherwise looks exactly like a
             quiet host, so it is toned danger at 1 rather than at any threshold. */}

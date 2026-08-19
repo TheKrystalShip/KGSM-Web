@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the Reactor's Rules tab
+
+One card per rule: what wakes it, what it would do about that, how long it settles before judging,
+how long it stays quiet afterwards, and which authority it runs under — with a control to move it
+between off, observe, propose and act.
+
+**What the control can offer comes from the leaf, not from here.** Propose and act are later phases
+in the reactor, and it reports the most authority it will honour; the modes above that render
+disabled with the reason. A panel that hard-coded "this build only observes" would go on refusing
+`act` after the build that acts is deployed.
+
+⚠ **A rule configured beyond what the build honours is now called out on its card.** The leaf reports
+the effective mode with the configured one beside it, and the card says "configured to act, running
+as observe" rather than echoing a granted authority that does not exist.
+
+**The windows stay read-only, deliberately.** Settle and suppression are compiled constants carrying
+the measurement they came from — 30 days of this host, pinned by the leaf's tests with each figure's
+basis. A text box would invite replacing a measurement with a guess that looks just as authoritative
+on screen. Each card states the basis instead, and a closing card says plainly what configuration
+owns and what ships in code.
+
+Writing a rule's mode edits the leaf's own mode lists through the same config path the Settings tab
+uses — a CSV of rule ids is a poor thing to type by hand and a good thing to render as a switch.
+Admin-gated, and the page says up front that applying restarts the reactor.
+
+### Fixed — "no sweep yet" could never clear
+
+The Overview reported a null last-sweep as a first pass that had not landed, telling the reader it
+clears within one sweep interval. With every rule switched off the engine stops before its first
+pass and never sweeps at all, so that message would have stood forever. The two states are now
+separate, and the one that does not resolve itself says what to do about it.
+
 ### Added — the Reactor's Decisions tab: the review gate, performed rather than declared
 
 The reactor's plan gates propose and act mode behind a review — nothing moves until a window of
