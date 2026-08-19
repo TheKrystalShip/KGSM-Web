@@ -3,6 +3,8 @@ import { BriefCard } from "./BriefCard.jsx";
 import { alertInScope } from "./ContextualAlerts.jsx";
 import { Icon } from "./Icon.jsx";
 import { KrystalAlerts } from "../lib/alertsApi.js";
+import { useAlertActions } from "./AlertCard.jsx";
+import { ServerActionButton } from "./ServerActions.jsx";
 import { askAssistantUsable } from "../lib/capabilities.js";
 
 // NeedsAttention — compact FIRING-alerts panel, plus the client hooks over the
@@ -55,6 +57,34 @@ function alertBuckets(hostId, serverId) {
   return { all: list, firing, resolved, active: firing };
 }
 
+// One compact row. The whole row is the "ask the assistant" target, and the condition's
+// own suggested action sits at the end of it — this card is the dashboard's at-a-glance
+// surface, so an update you can apply in one press should not require opening a page
+// first. The button stops the click from reaching the row (ServerActionButton already
+// does), so pressing Update never also opens the assistant.
+function BriefAlertRow({ item, onPick, onRun, actionLabel }) {
+  const askOk = askAssistantUsable(item);
+  const actions = useAlertActions(item, onRun);
+  return (
+    <div className={"chat-brief__item chat-brief__item--" + item.severity + (item.escalated ? " chat-brief__item--escalated" : "") + (askOk ? "" : " chat-brief__item--noask")} onClick={() => askOk && onPick && onPick(item)}>
+      <span className="chat-brief__icon"><Icon name={item.icon} size={14} /></span>
+      <div className="chat-brief__body">
+        <span className="chat-brief__item-title">
+          <span className="chat-brief__titletext">{item.title}</span>
+          {item.escalated && <span className="chat-brief__needs-you"><Icon name="hand" size={9} strokeWidth={2.6} /> Needs you</span>}
+        </span>
+        <span className="chat-brief__detail">{item.detail}</span>
+      </div>
+      {actions.map(a => (
+        <ServerActionButton key={a.key} verb={a.verb} variant="alert"
+          disabled={a.guard.disabled} reason={a.guard.reason}
+          pendingVerb={a.pendingVerb} onRun={a.run} />
+      ))}
+      <span className={"chat-brief__ask" + (askOk ? "" : " chat-brief__ask--off")}>{askOk ? actionLabel : "Unavailable"} <Icon name="arrow-right" size={12} strokeWidth={2.2} /></span>
+    </div>
+  );
+}
+
 // `max` caps how many firing alerts are listed (header count still shows the
 // true total). `emptyState` opts into the dashboard behaviour: instead of
 // collapsing to null when nothing's firing, render the card with a calm
@@ -67,7 +97,7 @@ function alertBuckets(hostId, serverId) {
 //
 // `serverId` (server-detail Performance tab) scopes strictly to one game
 // server's alerts, ignoring the node entirely.
-function NeedsAttention({ onPick, actionLabel = "Ask", onViewAll, className = "", max = Infinity, emptyState = false, hostId, serverId, title = "Alerts" }) {
+function NeedsAttention({ onPick, onRun, actionLabel = "Ask", onViewAll, className = "", max = Infinity, emptyState = false, hostId, serverId, title = "Alerts" }) {
   useAlerts();
   const [hidden, setHidden] = React.useState(false);
   const { active } = alertBuckets(hostId != null ? hostId : "all", serverId);
@@ -98,22 +128,7 @@ function NeedsAttention({ onPick, actionLabel = "Ask", onViewAll, className = ""
         </div>
       ) : (
       <div className="chat-brief__list">
-        {shown.map(it => {
-          const askOk = askAssistantUsable(it);
-          return (
-          <div key={it.id} className={"chat-brief__item chat-brief__item--" + it.severity + (it.escalated ? " chat-brief__item--escalated" : "") + (askOk ? "" : " chat-brief__item--noask")} onClick={() => askOk && onPick && onPick(it)}>
-            <span className="chat-brief__icon"><Icon name={it.icon} size={14} /></span>
-            <div className="chat-brief__body">
-              <span className="chat-brief__item-title">
-                <span className="chat-brief__titletext">{it.title}</span>
-                {it.escalated && <span className="chat-brief__needs-you"><Icon name="hand" size={9} strokeWidth={2.6} /> Needs you</span>}
-              </span>
-              <span className="chat-brief__detail">{it.detail}</span>
-            </div>
-            <span className={"chat-brief__ask" + (askOk ? "" : " chat-brief__ask--off")}>{askOk ? actionLabel : "Unavailable"} <Icon name="arrow-right" size={12} strokeWidth={2.2} /></span>
-          </div>
-          );
-        })}
+        {shown.map(it => <BriefAlertRow key={it.id} item={it} onPick={onPick} onRun={onRun} actionLabel={actionLabel} />)}
       </div>
       )}
     </BriefCard>

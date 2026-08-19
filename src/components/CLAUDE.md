@@ -97,6 +97,26 @@ prove the window's SIZE but not that it holds still, and nothing in jsdom saves 
 harness recomputes every expected count from the text on screen with a second implementation, so a
 matcher that agrees with itself still fails it.
 
+## Lifecycle buttons: `verbGuard` is the one answer
+
+`ServerActions.jsx` owns both halves of every start/stop/restart/update control. `ServerActionButton`
+is the button (confirm-first arming, the job spinner, one `variant` per surface's chrome);
+**`verbGuard(server, verb)` is whether that verb can run right now and the sentence explaining why
+not**. The hero, the server tile and an alert card's suggested action all ask it, which is the point
+— a card offering Update while the hero refuses it would be two answers to one question. It checks
+the watchdog, the observed run state, and (for `update`) whether there is anything to apply; it
+deliberately does **not** check tier, which decides whether the control renders at all
+(`serverOperable`), a different question.
+
+⚠ A refused verb renders **disabled with its reason**, never hidden. kgsm-api's `CommandGate` 409s an
+update on a running server, so the button says "Server must be stopped before updating" before the
+click — hiding it would leave an operator hunting for a control that was there yesterday.
+
+`AlertCard`'s `useAlertActions` resolves the backend's `actions[]` through the same guard. The
+backend chooses the **verb** (its catalog is shared with Web Push, so a crash cannot suggest Stop on
+a phone and Restart here); this side chooses the **wording and the chrome**, and re-derives every
+gate live. An unrecognized kind draws nothing rather than guessing.
+
 ## `<Toasts>` / `<NotificationsPanel>` — outcome reporting
 
 `lib/toasts.js` holds one store; `Toasts.jsx` renders the live cards (portalled to

@@ -11,7 +11,7 @@ import { hostsStore, serversStore } from "../lib/stores.js";
 
 // AlertsPage — the "what's wrong right now" board (Model A, condition-mirror).
 
-function AlertsSection({ title, subtitle, icon, items, defaultOpen, onAsk, onOpenServer, onOpenHost, onOpenAudit, now, emptyHint, footer, resetKey }) {
+function AlertsSection({ title, subtitle, icon, items, defaultOpen, onAsk, onOpenServer, onOpenHost, onOpenAudit, onRun, now, emptyHint, footer, resetKey }) {
   const [open, setOpen] = React.useState(defaultOpen);
   // Each surface paginates independently — the resolved feed in particular can
   // grow well past one screen. 25 per page, matching every other list.
@@ -32,7 +32,7 @@ function AlertsSection({ title, subtitle, icon, items, defaultOpen, onAsk, onOpe
       </button>
       {open && (items.length > 0
         ? <>
-            <div className="alerts-section__list">{pageItems.map(i => <AlertCard key={i.id} item={i} onAsk={onAsk} onOpenServer={onOpenServer} onOpenHost={onOpenHost} onOpenAudit={onOpenAudit} now={now} />)}</div>
+            <div className="alerts-section__list">{pageItems.map(i => <AlertCard key={i.id} item={i} onAsk={onAsk} onOpenServer={onOpenServer} onOpenHost={onOpenHost} onOpenAudit={onOpenAudit} onRun={onRun} now={now} />)}</div>
             <Pagination page={safePage} pageCount={pageCount} total={items.length} pageSize={PAGE_SIZE} onPage={setPage} unit="alerts" />
             {footer}
           </>
@@ -41,7 +41,7 @@ function AlertsSection({ title, subtitle, icon, items, defaultOpen, onAsk, onOpe
   );
 }
 
-function AlertsPage({ onOpenServer, onOpenHost, onAsk, onOpenAudit, initialServerId }) {
+function AlertsPage({ onOpenServer, onOpenHost, onAsk, onOpenAudit, onRun, initialServerId }) {
   useAlerts();
   const hosts = useStore(hostsStore, s => s.list);
   const [query, setQuery] = React.useState("");
@@ -147,12 +147,12 @@ function AlertsPage({ onOpenServer, onOpenHost, onAsk, onOpenAudit, initialServe
           <AlertsSection
             title="Active" icon="triangle-alert" items={ff} defaultOpen now={now}
             resetKey={q + "|" + sev + "|" + source + "|" + node + "|" + serverFilter}
-            onAsk={onAsk} onOpenServer={onOpenServer} onOpenHost={onOpenHost} onOpenAudit={onOpenAudit}
+            onAsk={onAsk} onOpenServer={onOpenServer} onOpenHost={onOpenHost} onOpenAudit={onOpenAudit} onRun={onRun}
             emptyHint={filtering ? "No firing conditions match your filters." : "All clear — nothing needs you right now."} />
           <AlertsSection
             title="Recently resolved" subtitle="last 24h" icon="history" items={fr} defaultOpen now={now}
             resetKey={q + "|" + sev + "|" + source + "|" + node + "|" + serverFilter}
-            onAsk={onAsk} onOpenServer={onOpenServer} onOpenHost={onOpenHost} onOpenAudit={onOpenAudit}
+            onAsk={onAsk} onOpenServer={onOpenServer} onOpenHost={onOpenHost} onOpenAudit={onOpenAudit} onRun={onRun}
             emptyHint={filtering ? "Nothing resolved here matches your filters." : "Nothing has resolved in the last day."}
             footer={
               <button className="alerts-section__footer" onClick={() => onOpenAudit && onOpenAudit()}>

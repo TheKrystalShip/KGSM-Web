@@ -52,6 +52,7 @@ function AppRouter({ route, setRoute, user, activeGame, serverForRender,
       onServers={(status) => setRoute({ kind: "servers", status })}
       onViewAlerts={() => setRoute({ kind: "attention" })}
       onAttention={askAboutAlert}
+      onRunAlertAction={(id, action) => handleAction(action, id)}
     />}
     {route.kind === "attention" && <AlertsPage
       key={route.serverId || "all"}
@@ -60,6 +61,7 @@ function AppRouter({ route, setRoute, user, activeGame, serverForRender,
       onOpenHost={(hostId) => setRoute({ kind: "cluster", hostId })}
       onOpenAudit={() => setRoute({ kind: "audit" })}
       onAsk={askAboutAlert}
+      onRun={(id, action) => handleAction(action, id)}
     />}
     {route.kind === "servers" && <ServersPage
       key={route.status || "all"}
@@ -94,6 +96,7 @@ function AppRouter({ route, setRoute, user, activeGame, serverForRender,
       onTabChange={(t) => setRoute({ kind: "cluster", hostId: route.hostId, tab: t === "overview" ? undefined : t })}
       onFocusHost={(id) => setRoute({ kind: "cluster", hostId: id || undefined })}
       onAsk={askAboutAlert}
+      onRunAlertAction={(id, action) => handleAction(action, id)}
       onOpenServer={(id) => setRoute({ kind: "server", id })}
       onOpenServerSettings={(id) => setRoute({ kind: "server", id, tab: "settings" })}
       onViewAlerts={() => setRoute({ kind: "attention" })}

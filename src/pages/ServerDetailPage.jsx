@@ -135,6 +135,7 @@ function ServerDetailPage({ server, onAction, tab: tabProp, onTabChange, onAsk, 
             node: (
               <div className="dash-feed">
                 <NeedsAttention serverId={server.id} onPick={onAsk} emptyState max={3}
+                  onRun={(id, verb) => onAction(verb, id)}
                   onViewAll={() => onViewServerAlerts && onViewServerAlerts(server.id)} />
                 <RecentActivity serverId={server.id} max={3}
                   onViewAll={() => onViewServerAudit && onViewServerAudit(server.id)} />

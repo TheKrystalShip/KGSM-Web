@@ -45,17 +45,17 @@ function alertsTone(items) {
 // reads as a self-contained card wherever it's dropped (between table rows, in
 // a list, at the top of a section). `tether` adds a downward connector that
 // points at the row immediately below it.
-function InlineAlertCard({ item, onAsk, onOpenServer, now, tether }) {
+function InlineAlertCard({ item, onAsk, onOpenServer, onRun, now, tether }) {
   return (
     <div className={"ctx-alert ctx-alert--" + item.severity + (tether ? " ctx-alert--tether" : "")}>
-      <AlertCard item={item} onAsk={onAsk} onOpenServer={onOpenServer} now={now || new Date()} />
+      <AlertCard item={item} onAsk={onAsk} onOpenServer={onOpenServer} onRun={onRun} now={now || new Date()} />
     </div>
   );
 }
 
 // A labelled strip of inline cards for the top of a page/section — the
 // "look here" summary when the precise element is scrolled away or aggregated.
-function ContextualAlertStrip({ title, items, onAsk, onOpenServer, hint }) {
+function ContextualAlertStrip({ title, items, onAsk, onOpenServer, onRun, hint }) {
   if (!items || items.length === 0) return null;
   const now = new Date();
   const tone = alertsTone(items);
@@ -69,7 +69,7 @@ function ContextualAlertStrip({ title, items, onAsk, onOpenServer, hint }) {
       </div>
       <div className="ctx-strip__list">
         {items.map(it => (
-          <InlineAlertCard key={it.id} item={it} onAsk={onAsk} onOpenServer={onOpenServer} now={now} />
+          <InlineAlertCard key={it.id} item={it} onAsk={onAsk} onOpenServer={onOpenServer} onRun={onRun} now={now} />
         ))}
       </div>
     </section>

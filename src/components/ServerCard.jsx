@@ -1,6 +1,6 @@
 import { serverMetricsFreshness } from "./HostCardBody.jsx";
 import { Icon } from "./Icon.jsx";
-import { ServerActionButton } from "./ServerActions.jsx";
+import { ServerActionButton, verbGuard } from "./ServerActions.jsx";
 import { ServerConnect } from "./ServerConnect.jsx";
 import { serverCapUsable } from "../lib/capabilities.js";
 import { serverOperable } from "../lib/persona.js";
@@ -78,14 +78,8 @@ function ServerTile({ server, onOpen, onAction, showHost }) {
   const host = showHost ? hostsStore.find(server.hostId) : null;
 
   const isOnline = server.status === "online";
-  const isUpdating = server.status === "updating";
-  // Launched but not yet joinable — busy like isUpdating for Start, but a
-  // booting server can still be stopped (see ServerHero, same rule).
+  // Launched but not yet joinable — the metric labels below read it as running.
   const isStarting = server.status === "starting";
-  // On its way down — like isUpdating, nothing lifecycle-shaped is available until it lands.
-  const isStopping = server.status === "stopping";
-  // Bouncing — nothing lifecycle-shaped is available until it lands.
-  const isRestarting = server.status === "restarting";
   const pendingVerb = server.job && server.job.state === "running" ? server.job.verb : null;
   // Live CPU/RAM are host-metrics — when the host's metrics feed is down they
   // go dark with a red status LED, matching the host diagnostics treatment.
@@ -94,6 +88,10 @@ function ServerTile({ server, onOpen, onAction, showHost }) {
   const metricsOff = !!(mFresh && mFresh.frozen) && isOnline;
   // Lifecycle actions are watchdog-mediated — lock the quick row when down.
   const watchdogDown = !serverCapUsable(server, "watchdog");
+  // One shared answer for whether each verb can run and why not (ServerActions.jsx),
+  // so the tile, the hero and an alert card's suggested action never disagree.
+  const guard = { start: verbGuard(server, "start"), stop: verbGuard(server, "stop"),
+                  restart: verbGuard(server, "restart") };
   // Players (viewer / consumer preview) can't operate this host — the quick
   // lifecycle row is replaced with a Join / connect button instead.
   const canOps = serverOperable(server);
@@ -200,9 +198,9 @@ function ServerTile({ server, onOpen, onAction, showHost }) {
         </div>
         {canOps && (
           <div className="server-tile__quick">
-            <ServerActionButton verb="start"   disabled={isOnline || isUpdating || isStarting || isStopping || isRestarting || watchdogDown} reason={watchdogDown ? "Watchdog unavailable" : null} pendingVerb={pendingVerb} onRun={(v) => onAction(server.id, v)} />
-            <ServerActionButton verb="restart" disabled={!isOnline || isRestarting || watchdogDown}              reason={watchdogDown ? "Watchdog unavailable" : null} pendingVerb={pendingVerb} onRun={(v) => onAction(server.id, v)} />
-            <ServerActionButton verb="stop"    disabled={!(isOnline || isStarting) || isRestarting || watchdogDown} reason={watchdogDown ? "Watchdog unavailable" : null} pendingVerb={pendingVerb} onRun={(v) => onAction(server.id, v)} />
+            <ServerActionButton verb="start"   disabled={guard.start.disabled}   reason={guard.start.reason}   pendingVerb={pendingVerb} onRun={(v) => onAction(server.id, v)} />
+            <ServerActionButton verb="restart" disabled={guard.restart.disabled} reason={guard.restart.reason} pendingVerb={pendingVerb} onRun={(v) => onAction(server.id, v)} />
+            <ServerActionButton verb="stop"    disabled={guard.stop.disabled}    reason={guard.stop.reason}    pendingVerb={pendingVerb} onRun={(v) => onAction(server.id, v)} />
           </div>
         )}
         {/* Join / connect — shown to everyone (operators play too), below their

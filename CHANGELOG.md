@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — an alert offers what to do about itself
+
+A firing alert card now carries the condition's own action beside "Ask assistant": an available
+update draws **Update**, a crash the watchdog is retrying draws **Stop**, and one it gave up on
+draws **Start**. The verbs come from the backend (`actions[]` on the alert), which shares its
+catalog with Web Push, so the same condition never suggests one thing on a phone and another here.
+A host threshold offers nothing — a number over a line names no cause — and keeps "Ask assistant"
+as its primary action. On both surfaces the feed appears on: the Alerts page card and the
+dashboard's compact row, where a press does not also open the assistant.
+
+It is the same button pressed anywhere else, with the same misclick guard: one press arms it
+("Confirm?"), the second runs it, and the armed state lapses on its own. A press while the server
+has a command in flight is locked out, and shows that job's spinner.
+
+`verbGuard(server, verb)` in `ServerActions.jsx` is now the ONE answer to "can this verb run, and
+why not", shared by the hero, the server tile and an alert card — so a card cannot offer Update
+while the hero refuses it. A running server with an update pending therefore renders the button
+**disabled**, saying "Server must be stopped before updating", rather than hiding it or letting the
+click come back a 409.
+
+⚠ An unrecognized action kind draws nothing rather than guessing, so kgsm-api can offer a new
+operation before this SPA knows how to render it.
+
 ### Fixed — the dashboard's player count is the fleet's, not zero
 
 *"X of Y servers online · Z players connected right now"* always said **0**. The count read

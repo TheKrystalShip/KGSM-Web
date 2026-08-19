@@ -2576,6 +2576,16 @@ a.ev-search__src:hover {
   white-space: nowrap;
 }
 
+/* An alert's suggested action inside a compact brief row. The button is the shared
+   one (ServerActionButton variant="alert"); only its scale changes here, because a
+   30px control in a 10px-padded row would set the row's height. */
+.chat-brief__item .alert-btn {
+  height: 26px;
+  padding: 0 9px;
+  font-size: 11.5px;
+  flex-shrink: 0;
+}
+
 .chat-brief__ask {
   display: inline-flex;
   align-items: center;

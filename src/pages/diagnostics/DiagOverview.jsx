@@ -11,7 +11,7 @@ import { ServicesSummaryCard } from "./diagComponents.jsx";
 
 const DIAG_KPI_TONE = { cpu: "teal", ram: "teal", disk: "teal", net: "muted", temp: "teal", uptime: "ok" };
 
-function DiagOverview({ host, fresh, onAsk, onViewAlerts, onViewAudit, onViewServices }) {
+function DiagOverview({ host, fresh, onAsk, onRun, onViewAlerts, onViewAudit, onViewServices }) {
   const frozen = !!(fresh && fresh.frozen);
   const wasFrozen = React.useRef(frozen);
   const [poweringOn, setPoweringOn] = React.useState(false);
@@ -57,6 +57,7 @@ function DiagOverview({ host, fresh, onAsk, onViewAlerts, onViewAudit, onViewSer
       <NeedsAttention
         hostId={host.id}
         onPick={onAsk}
+        onRun={onRun}
         onViewAll={onViewAlerts}
         max={3} />
 

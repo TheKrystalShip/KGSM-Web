@@ -1,18 +1,75 @@
 import { Icon } from "./Icon.jsx";
 import { alertHost } from "./ContextualAlerts.jsx";
+import { ServerActionButton, verbGuard } from "./ServerActions.jsx";
 import { askAssistantUsable } from "../lib/capabilities.js";
-import { hostsStore } from "../lib/stores.js";
+import { serverOperable } from "../lib/persona.js";
+import { useStore } from "../lib/store.js";
+import { hostsStore, serversStore } from "../lib/stores.js";
 import { fmtRelative, parseTs } from "../lib/formatting.js";
 
 // AlertCard.jsx — the shared alert card component, extracted from AlertsPage.jsx.
 // Used by AlertsPage and ContextualAlerts (InlineAlertCard).
+
+// A firing alert carries `actions[]` — what the BACKEND says this condition is worth
+// offering to do about it (kgsm-api's AlertActionCatalog, which the Web Push catalog
+// reads from the same place, so a crash never suggests Stop on a phone and Restart
+// here). This map is presentation only: the backend's operation name → the lifecycle
+// verb ServerActionButton draws. An unrecognized kind renders nothing rather than
+// guessing, so the backend can offer a new operation before this SPA knows it.
+const ACTION_VERB = {
+  "server.update": "update",
+  "server.start": "start",
+  "server.stop": "stop",
+  "server.restart": "restart",
+};
 
 function AlertSeverityTag({ severity }) {
   const label = { danger: "Critical", warn: "Warning", info: "Info" }[severity] || severity;
   return <span className={"alert-sev alert-sev--" + severity}>{label}</span>;
 }
 
-function AlertCard({ item, onAsk, onOpenServer, onOpenHost, onOpenAudit, now }) {
+// The suggested actions for one firing alert, resolved against the server as it is
+// right now. Returns [] when there is nothing to draw.
+//
+// An offer is a POLICY, not a permission — the backend says the condition is the kind
+// of thing this verb answers, and nothing more. So everything that decides whether the
+// button would actually work is re-derived here:
+//
+//   · tier   — serverOperable; a viewer sees the card without the control, never a
+//              button that 403s.
+//   · state  — verbGuard, the SAME answer the hero and the tile use. A running server
+//              with an update pending renders Update DISABLED, saying "Server must be
+//              stopped before updating", because that is exactly what kgsm-api's
+//              CommandGate would answer. Hiding it would leave the operator wondering
+//              where the button went.
+//   · job    — the server's in-flight command, so a press shows its spinner here too.
+//
+// Nothing resolves for a resolved alert: the backend sends no actions on one.
+function useAlertActions(item, onRun) {
+  const servers = useStore(serversStore, s => s.list);
+  const offers = item.actions || [];
+  if (!offers.length || !onRun) return [];
+
+  const server = item.serverId ? servers.find(s => s.id === item.serverId) : null;
+  if (!server || !serverOperable(server)) return [];
+
+  const pendingVerb = server.job && server.job.state === "running" ? server.job.verb : null;
+
+  return offers
+    .map(offer => ({ offer, verb: ACTION_VERB[offer.kind] }))
+    // An unrecognized kind is skipped, not guessed at, so the backend can offer a new
+    // operation before this SPA knows how to draw it.
+    .filter(a => a.verb)
+    .map(({ offer, verb }) => ({
+      key: offer.kind,
+      verb,
+      pendingVerb,
+      guard: verbGuard(server, verb),
+      run: (v) => onRun(offer.target || item.serverId, v),
+    }));
+}
+
+function AlertCard({ item, onAsk, onOpenServer, onOpenHost, onOpenAudit, onRun, now }) {
   const resolved = item.status === "resolved";
   const sys = item.resolution && item.resolution.by === "system";
   const stamp = resolved ? item.resolvedAt : item.raisedAt;
@@ -21,6 +78,8 @@ function AlertCard({ item, onAsk, onOpenServer, onOpenHost, onOpenAudit, now }) 
     : null;
   const hostId = alertHost(item);
   const host = hostId ? hostsStore.find(hostId) : null;
+  const actions = useAlertActions(item, onRun);
+  const hasActions = actions.length > 0;
 
   return (
     <div className={"alert-card alert-card--" + item.severity
@@ -72,7 +131,15 @@ function AlertCard({ item, onAsk, onOpenServer, onOpenHost, onOpenAudit, now }) 
 
       {!resolved && (
         <div className="alert-card__actions">
-          <button className="alert-btn alert-btn--primary"
+          {/* The condition's own answer leads, and takes the primary weight from
+              "Ask assistant" \u2014 asking about an update you can apply in one press
+              is the second thing you'd want, not the first. */}
+          {actions.map(a => (
+            <ServerActionButton key={a.key} verb={a.verb} variant="alert"
+              disabled={a.guard.disabled} reason={a.guard.reason}
+              pendingVerb={a.pendingVerb} onRun={a.run} />
+          ))}
+          <button className={"alert-btn" + (hasActions ? "" : " alert-btn--primary")}
             disabled={!askAssistantUsable(item)}
             title={!askAssistantUsable(item) ? "Assistant unavailable on this alert\u2019s host" : undefined}
             onClick={() => { if (askAssistantUsable(item)) onAsk(item); }}><Icon name="bot" size={13} /> Ask assistant</button>
@@ -85,4 +152,4 @@ function AlertCard({ item, onAsk, onOpenServer, onOpenHost, onOpenAudit, now }) 
   );
 }
 
-export { AlertCard, AlertSeverityTag };
+export { AlertCard, AlertSeverityTag, useAlertActions };

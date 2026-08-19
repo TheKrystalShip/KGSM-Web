@@ -30,7 +30,7 @@ import { buildClusterNodes } from "./diagnostics/clusterNodes.js";
 // The dashboard KPI card lives in KPI.jsx (KPI) and is shared with the
 // host diagnostics overview and the server-detail overview stats.
 
-function DashboardPage({ user, onOpenServer, onAction, onLibrary, onInstall, onAudit, onDiagnostics, onOpenHostDiagnostics, onAttention, onServers, onViewAlerts, canCluster = true }) {
+function DashboardPage({ user, onOpenServer, onAction, onLibrary, onInstall, onAudit, onDiagnostics, onOpenHostDiagnostics, onAttention, onRunAlertAction, onServers, onViewAlerts, canCluster = true }) {
   // The dashboard is the CLUSTER's front page: every card reads every node. A
   // per-node view is a thing you navigate to (a node's page), not a mode this
   // one switches into.
@@ -241,7 +241,7 @@ function DashboardPage({ user, onOpenServer, onAction, onLibrary, onInstall, onA
       // Recent activity, so there's no separate closed-alerts card. Alerts shows
       // its all-clear empty state to keep the band level.
       <div className="dash-feed">
-        <NeedsAttention onPick={onAttention} onViewAll={onViewAlerts} max={3} emptyState title="Alerts - Latest" />
+        <NeedsAttention onPick={onAttention} onRun={onRunAlertAction} onViewAll={onViewAlerts} max={3} emptyState title="Alerts - Latest" />
 
         <RecentActivity onViewAll={onAudit} max={3} title="Audit - Recent activity" />
       </div>

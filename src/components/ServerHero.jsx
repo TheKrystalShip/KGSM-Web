@@ -1,5 +1,5 @@
 import { Icon } from "./Icon.jsx";
-import { ServerActionButton } from "./ServerActions.jsx";
+import { ServerActionButton, verbGuard } from "./ServerActions.jsx";
 import { ServerConnect } from "./ServerConnect.jsx";
 import { serverCapUsable } from "../lib/capabilities.js";
 import { serverOperable } from "../lib/persona.js";
@@ -53,18 +53,6 @@ function StatusPill({ server, status, uptime, watchdogDown }) {
 }
 
 function ServerHero({ server, onAction }) {
-  const isOnline = server.status === "online";
-  const isUpdating = server.status === "updating";
-  // Launched but not yet joinable (between launch and the game finishing boot) —
-  // treat it as busy like isUpdating: Start stays disabled, but Stop is allowed
-  // (a booting server can still be shut down). Restart stays online-only — it
-  // makes no sense to "restart" something that hasn't finished starting.
-  const isStarting = server.status === "starting";
-  // Shutting down — the process is still up but on its way out, so every lifecycle chip stays shut:
-  // there is nothing to start yet, nothing left to stop, and nothing to restart until it lands.
-  const isStopping = server.status === "stopping";
-  // Bouncing — for the whole of it there is nothing to start, stop or restart again.
-  const isRestarting = server.status === "restarting";
   // Can the signed-in user operate this server's host? Players (viewer / consumer
   // preview) get the Join + connect surface only — no lifecycle controls, no rename.
   const canOps = serverOperable(server);
@@ -72,21 +60,12 @@ function ServerHero({ server, onAction }) {
   // Lifecycle actions are watchdog-mediated — when the host's watchdog is down
   // the supervisor can't start/stop/restart/update, so the chips lock out.
   const watchdogDown = !serverCapUsable(server, "watchdog");
-  const wdReason = "Watchdog unavailable on this host — lifecycle actions are paused";
-  // The Update chip lights up only when the update-check probe found a newer version
-  // (server.update_available is a truthy target-version string). kgsm refuses to update
-  // a RUNNING instance (the files are in use) and kgsm-api's CommandGate 409s that
-  // synchronously — pre-disable here too so the constraint is visible before the click,
-  // mirroring the Stop chip's pattern. The two-step confirm (confirm: true on the verb)
-  // still arms on first click → "Confirm?" → fires on the second, so a lit chip needs two
-  // deliberate presses; no accidental update.
-  const hasUpdate = !!server.update_available;
-  const updateUnavailable = !hasUpdate || isOnline || isStarting || isStopping || isRestarting;
-  let updReason;
-  if (!hasUpdate) updReason = server.update_checked_at ? "On the latest build" : "Checking for updates…";
-  else if (isStopping) updReason = "Waiting for the server to finish shutting down";
-  else if (isRestarting) updReason = "Waiting for the server to finish restarting";
-  else if (isOnline || isStarting) updReason = "Server must be stopped before updating";
+  // Whether each verb can run, and why not — from the one shared guard, so an alert
+  // card offering "Update" and this chip refusing it can never both be right. The
+  // two-step confirm (confirm: true on the verb) still arms on first click →
+  // "Confirm?" → fires on the second, so a lit chip needs two deliberate presses.
+  const guard = { start: verbGuard(server, "start"), update: verbGuard(server, "update"),
+                  stop: verbGuard(server, "stop"), restart: verbGuard(server, "restart") };
   // The cinematic background prefers the LANDSCAPE banner (`hero` = RAWG
   // background_image_additional), then falls back to the 2:3 portrait `cover`,
   // then to the hero's dark gradient placeholder when neither is available.
@@ -119,10 +98,10 @@ function ServerHero({ server, onAction }) {
           {canOps && (
             <>
               <div className="hero__group">
-                <ServerActionButton verb="start"   variant="glass" disabled={isOnline || isUpdating || isStarting || isStopping || isRestarting || watchdogDown} reason={watchdogDown ? wdReason : null} pendingVerb={pendingVerb} onRun={onAction} />
-                <ServerActionButton verb="update"  variant="glass" disabled={isUpdating || watchdogDown || updateUnavailable} reason={watchdogDown ? wdReason : (updateUnavailable ? updReason : null)} pendingVerb={pendingVerb} onRun={onAction} />
-                <ServerActionButton verb="stop"    variant="glass" disabled={!(isOnline || isStarting) || isRestarting || watchdogDown} reason={watchdogDown ? wdReason : null} pendingVerb={pendingVerb} onRun={onAction} />
-                <ServerActionButton verb="restart" variant="glass" disabled={!isOnline || isRestarting || watchdogDown}              reason={watchdogDown ? wdReason : null} pendingVerb={pendingVerb} onRun={onAction} />
+                <ServerActionButton verb="start"   variant="glass" disabled={guard.start.disabled}   reason={guard.start.reason}   pendingVerb={pendingVerb} onRun={onAction} />
+                <ServerActionButton verb="update"  variant="glass" disabled={guard.update.disabled}  reason={guard.update.reason}  pendingVerb={pendingVerb} onRun={onAction} />
+                <ServerActionButton verb="stop"    variant="glass" disabled={guard.stop.disabled}    reason={guard.stop.reason}    pendingVerb={pendingVerb} onRun={onAction} />
+                <ServerActionButton verb="restart" variant="glass" disabled={guard.restart.disabled} reason={guard.restart.reason} pendingVerb={pendingVerb} onRun={onAction} />
               </div>
               <span className="hero__bardiv" aria-hidden="true"></span>
             </>
