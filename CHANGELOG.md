@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — one conversation, one name, whichever surface you open it in
+
+A chat started in the Control Panel's dock read **New chat** there and **Untitled chat** in the
+standalone assistant. Neither was wrong on its own; they were two clients each inventing a word for a
+title the leaf reported as null. Naming a conversation is a cross-client fact, so the leaf answers it
+now (wire contract 2.1) and both surfaces render what it says.
+
+`/new` returns the conversation it started, not only its id, and `newChat()` adopts that row instead of
+composing one — so the surface that pressed the button holds the identical row every other surface will
+read. `mergeServerConversations` lets the leaf's title **overwrite**, the way it already does the
+per-conversation switches, rather than only filling an empty one.
+
+The browser no longer derives a title from the first prompt. Its rule was `slice(0, 40)` with no
+ellipsis where the leaf's is 80 with one, and the merge would not replace what it had written — so a
+first prompt longer than 40 characters read one way in the browser that typed it and another way
+everywhere else, permanently. A conversation now takes its name from the leaf on the next listing read,
+which the first turn's own completion triggers.
+
+⚠ One client-side name survives, in **one** place (`chatConstants.js`): the row this browser mints
+between pressing New chat and `/new` answering, which is the only conversation the leaf has no opinion
+about yet. It is the leaf's word, which is why the wire contract states the string rather than leaving
+each side to pick one. Everything that renders a conversation name — the rail, the history popover, the
+recent-conversations card, the admin review listing and the review header — goes through the one
+`conversationTitle()` helper, where there were previously four fallbacks spelling three different words.
+
 ### Added — the fresh-chat screen offers the last three conversations
 
 Opening a new chat lists the three conversations you were most recently in, each with how many

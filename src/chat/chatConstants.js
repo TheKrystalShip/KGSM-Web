@@ -51,4 +51,23 @@ function pickGreeting() {
 const CHAT_PRIVACY_NOTICE =
   "Conversations are saved and may be reviewed by an administrator to improve the assistant.";
 
-export { LEAF_COMMAND_VERBS, CHAT_GREETINGS, CHAT_PRIVACY_NOTICE, COMMAND_META, commandMeta, pickGreeting };
+// What a conversation with nothing said in it is called.
+//
+// ⚠ The leaf names every conversation it holds, including this one — `title` on a listing row is never
+// null (`kgsm-llm/docs/wire-contract.md`, "A conversation is named by the leaf"). This constant is NOT
+// a second opinion about that; it covers the one conversation the leaf has no opinion on yet: the row
+// this browser mints between pressing New chat and `/new` answering, and the same row on a leaf too old
+// to name it. It has to be the leaf's word, which is why the wire contract states the string rather
+// than leaving each side to pick one — two words for one conversation is exactly the bug this replaced.
+const NEW_CHAT_TITLE = "New chat";
+
+// What to put on a conversation row. One helper rather than a fallback repeated at each render, so
+// there is one answer to "what is this chat called" and no surface can drift from it.
+function conversationTitle(convo) {
+  return (convo && convo.title) || NEW_CHAT_TITLE;
+}
+
+export {
+  LEAF_COMMAND_VERBS, CHAT_GREETINGS, CHAT_PRIVACY_NOTICE, COMMAND_META, commandMeta, pickGreeting,
+  NEW_CHAT_TITLE, conversationTitle,
+};

@@ -2,7 +2,7 @@
 // its sub-modules. No React state, no component deps (except renderMarkdown
 // which returns JSX from plain data).
 
-import { commandMeta } from "./chatConstants.js";
+import { commandMeta, NEW_CHAT_TITLE } from "./chatConstants.js";
 import { fmtRelative } from "../lib/formatting.js";
 
 const CHAT_LS_KEY      = "krystal:chat:conversations";
@@ -818,6 +818,29 @@ function scaffoldLiveTurn(messages, attach) {
   ];
 }
 
+// One conversation as the LEAF states it, turned into a row this surface holds. The listing path and
+// the create path (`/new` answers with the row it made) both come through here, so a chat adopted the
+// moment it is started and the same chat read back later are the same object — including its name,
+// which is the leaf's either way.
+//
+// `loaded: false` marks the transcript as not yet fetched, which is true of both: a fresh chat has no
+// transcript and a listed one has not been read.
+function adoptServerConversation(s, hostId) {
+  return {
+    id: s.id,
+    title: s.title || NEW_CHAT_TITLE,
+    messages: [],
+    created: Date.parse(s.createdAt) || 0,
+    lastActivity: Date.parse(s.lastActivityAt) || 0,
+    turns: typeof s.turnCount === "number" ? s.turnCount : undefined,
+    think: typeof s.think === "boolean" ? s.think : undefined,
+    autorun: typeof s.autorun === "boolean" ? s.autorun : undefined,
+    hostId,
+    remote: true,
+    loaded: false,
+  };
+}
+
 function mergeServerConversations(local, serverList, hostId) {
   if (!Array.isArray(serverList) || serverList.length === 0) return local;
   const byId = new Map(local.map(c => [c.id, c]));
@@ -827,7 +850,11 @@ function mergeServerConversations(local, serverList, hostId) {
     const existing = byId.get(s.id);
     if (existing) {
       const patch = {};
-      if ((!existing.title || existing.title === "New chat") && s.title) patch.title = s.title;
+      // The NAME overwrites, like the switches below and for the same reason: the leaf is what names a
+      // conversation, and what is held here is only ever a record of what it last said. A row this
+      // browser minted carries the placeholder until the leaf answers; keeping that over the leaf's
+      // answer is how a chat comes to read differently here than everywhere else.
+      if (s.title) patch.title = s.title;
       if (!existing.hostId) patch.hostId = hostId;
       // When it was last spoken in OVERWRITES, for the same reason the switches do: the leaf holds
       // every surface's turns, and this browser only ever saw its own. A conversation carried on
@@ -850,19 +877,7 @@ function mergeServerConversations(local, serverList, hostId) {
       }
       if (Object.keys(patch).length) merged[merged.indexOf(existing)] = { ...existing, ...patch };
     } else {
-      merged.push({
-        id: s.id,
-        title: s.title || "Untitled chat",
-        messages: [],
-        created: Date.parse(s.createdAt) || 0,
-        lastActivity: Date.parse(s.lastActivityAt) || 0,
-        turns: typeof s.turnCount === "number" ? s.turnCount : undefined,
-        think: typeof s.think === "boolean" ? s.think : undefined,
-        autorun: typeof s.autorun === "boolean" ? s.autorun : undefined,
-        hostId,
-        remote: true,
-        loaded: false,
-      });
+      merged.push(adoptServerConversation(s, hostId));
     }
   }
   merged.sort((a, b) => (b.lastActivity || b.created || 0) - (a.lastActivity || a.created || 0));
@@ -911,5 +926,6 @@ export {
   loadConversations, saveConversations, loadSetting, saveSetting,
   uid, toolLabel, composeVerified, adaptResultCard, adaptBlueprintConfirm,
   reduceTurnFrame, promotePendingCards, scaffoldHistory, scaffoldConversation, scaffoldLiveTurn, latestUsage, mergeServerConversations,
+  adoptServerConversation,
   renderMarkdown,
 };

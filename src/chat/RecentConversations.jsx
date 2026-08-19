@@ -2,6 +2,7 @@ import React from "react";
 import { BriefCard } from "../components/BriefCard.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { fmtRelative } from "../lib/formatting.js";
+import { conversationTitle } from "./chatConstants.js";
 
 // RecentConversations — the fresh-chat screen's "pick up where you left off" card.
 //
@@ -66,7 +67,7 @@ function RecentConversations({ convos, activeId, onPick, max = 3 }) {
               <span className="chat-brief__icon"><Icon name="message-square" size={14} /></span>
               <div className="chat-brief__body">
                 <span className="chat-brief__item-title">
-                  <span className="chat-brief__titletext">{c.title || "New chat"}</span>
+                  <span className="chat-brief__titletext">{conversationTitle(c)}</span>
                 </span>
                 {detail && <span className="chat-brief__detail">{detail}</span>}
               </div>

@@ -13,6 +13,7 @@ import React from "react";
 
 import { CardTable } from "../../components/CardTable.jsx";
 import { Icon } from "../../components/Icon.jsx";
+import { conversationTitle } from "../../chat/chatConstants.js";
 import { Toolbar, ToolbarButton, ToolbarCount, ToolbarSearch, ToolbarSpacer } from "../../components/Toolbar.jsx";
 import { fmtRelative, parseTs } from "../../lib/formatting.js";
 import { fetchAssistantConversations, fetchAssistantReviewUsers } from "../../lib/stores.js";
@@ -166,7 +167,7 @@ function AssistantConversations({ hostId, onReviewConversation }) {
               key: "title", label: "Conversation", width: "minmax(0,1.8fr)", sort: r => r.title,
               render: r => (
                 <span>
-                  {r.title || "Untitled conversation"}
+                  {conversationTitle(r)}
                   {r.deleted && <span className="cluster-chip cluster-chip--muted" style={{ marginLeft: 8 }}>deleted</span>}
                   {r.errorTurns > 0 && <span className="cluster-chip cluster-chip--danger" style={{ marginLeft: 8 }}>{r.errorTurns} err</span>}
                   {/* An answer this person marked unhelpful. Beside the error chip on purpose: a turn

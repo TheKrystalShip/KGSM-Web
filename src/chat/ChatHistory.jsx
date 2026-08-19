@@ -5,6 +5,7 @@ import React from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../components/Icon.jsx";
 import { usePortalPopover } from "../hooks/usePortalPopover.js";
+import { conversationTitle } from "./chatConstants.js";
 
 function ChatHistory({ convos, activeId, onPick, onDelete, onOpen, loading }) {
   const [open, setOpen] = React.useState(false);
@@ -28,7 +29,7 @@ function ChatHistory({ convos, activeId, onPick, onDelete, onOpen, loading }) {
                 className={"chat-rail__item" + (c.id === activeId ? " chat-rail__item--active" : "")}
                 onClick={() => { onPick(c.id); setOpen(false); }}>
                 <Icon name="message-square" size={14} />
-                <span className="chat-rail__title">{c.title || "New chat"}</span>
+                <span className="chat-rail__title">{conversationTitle(c)}</span>
                 <button className="chat-rail__del" onClick={(e) => onDelete(c.id, e)} title="Delete">
                   <Icon name="trash-2" size={13} />
                 </button>

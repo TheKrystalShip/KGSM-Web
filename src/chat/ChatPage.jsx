@@ -12,9 +12,11 @@ import {
   loadConversations, saveConversations,
   uid, adaptResultCard, adaptBlueprintConfirm, composeVerified, reduceTurnFrame, promotePendingCards,
   scaffoldHistory, scaffoldConversation,
-  scaffoldLiveTurn, latestUsage, mergeServerConversations,
+  scaffoldLiveTurn, latestUsage, mergeServerConversations, adoptServerConversation,
 } from "./chatUtils.jsx";
-import { LEAF_COMMAND_VERBS, CHAT_PRIVACY_NOTICE, commandMeta, pickGreeting } from "./chatConstants.js";
+import {
+  LEAF_COMMAND_VERBS, CHAT_PRIVACY_NOTICE, NEW_CHAT_TITLE, commandMeta, conversationTitle, pickGreeting,
+} from "./chatConstants.js";
 // ChatCommand is imported only to re-export it (see the export list below); the
 // message-role dispatch that used it now lives in ChatThread.
 import { ChatCommand } from "./ChatMessageParts.jsx";
@@ -531,17 +533,30 @@ function ChatPage({
 
   const newChat = () => {
     const hostId = assistantHost && assistantHost.id;
-    const c = { id: uid(), title: "New chat", messages: [], created: Date.now(), hostId };
-    setConvos(prev => [c, ...prev]);
-    setActiveId(c.id);
+    const id = uid();
+    // Opened at once, so pressing the button is never a wait. What it is CALLED is the leaf's, and the
+    // row below is replaced by the leaf's own the moment it answers — this is the one conversation the
+    // leaf has no opinion on yet, and it carries the name the wire contract states for exactly that
+    // window so nothing changes under the person when the answer lands.
+    setConvos(prev => [{ id, title: NEW_CHAT_TITLE, messages: [], created: Date.now(), hostId }, ...prev]);
+    setActiveId(id);
     setInput("");
     if (taRef.current) taRef.current.focus();
 
     // The id is ours to pick, but the conversation is the leaf's to create — so a chat opened here
-    // exists and is resumable from another device before anything is said in it. A failure is not
-    // surfaced: the first turn creates it anyway, so the only thing lost is the early visibility.
+    // exists, is named, and is resumable from another device before anything is said in it. The answer
+    // carries the whole row, which REPLACES what was put up above: adopting it is what makes this
+    // surface show the same conversation every other surface will read out of the listing, rather than
+    // its own idea of one. A failure leaves the local row standing — the first turn creates the
+    // conversation anyway, so what is lost is the early visibility, not the chat.
     if (hostId && assistantUsable && assistantAuthed) {
-      assistant.host(hostId).runCommand("new", { conversationId: c.id }).catch(() => {});
+      assistant.host(hostId).runCommand("new", { conversationId: id }).then(
+        (result) => {
+          if (!result || !result.conversation) return;
+          const adopted = adoptServerConversation(result.conversation, hostId);
+          setConvos(prev => prev.map(c => (c.id === adopted.id ? { ...c, ...adopted } : c)));
+        },
+        () => {});
     }
   };
   const deleteChat = (id, e) => {
@@ -585,14 +600,16 @@ function ChatPage({
   };
 
   const sendLive = async (convId, text, userMsg) => {
-    setConvos(prev => prev.map(c => {
-      if (c.id !== convId) return c;
-      const title = c.messages.length === 0 ? (text.slice(0, 40) || "Voice note") : c.title;
-      return {
-        ...c, title, lastActivity: Date.now(),
-        messages: [...c.messages, { ...userMsg, live: true }, { role: "assistant", content: "", live: true }],
-      };
-    }));
+    // Deliberately does NOT name the conversation from the prompt. The leaf names it — first prompt,
+    // one line, capped at 80 with an ellipsis — and derives that ONCE for every surface. A copy of the
+    // rule here was capped at 40 with no ellipsis, so a first prompt longer than that read one way in
+    // the browser that typed it and another way everywhere else, permanently: the merge only ever
+    // filled an empty title, so the leaf's real name never replaced it. The name arrives with the next
+    // listing read, which the turn's own completion triggers.
+    setConvos(prev => prev.map(c => (c.id !== convId ? c : {
+      ...c, lastActivity: Date.now(),
+      messages: [...c.messages, { ...userMsg, live: true }, { role: "assistant", content: "", live: true }],
+    })));
 
     setBusy(true);
     const ctrl = new AbortController();
@@ -702,7 +719,7 @@ function ChatPage({
     let convId = activeId;
     if (!convId) {
       convId = uid();
-      const c = { id: convId, title: "New chat", messages: [], created: Date.now(), hostId: assistantHost && assistantHost.id };
+      const c = { id: convId, title: NEW_CHAT_TITLE, messages: [], created: Date.now(), hostId: assistantHost && assistantHost.id };
       setConvos(prev => [c, ...prev]);
       setActiveId(convId);
     }
@@ -730,22 +747,27 @@ function ChatPage({
       const why = !assistantHost
         ? "No assistant is available right now."
         : conn.message || (conn.label || "This assistant is currently unavailable.");
-      setConvos(prev => prev.map(c => {
-        if (c.id !== convId) return c;
-        const title = c.messages.length === 0 ? (text.slice(0, 40) || "Voice note") : c.title;
-        return { ...c, title, lastActivity: Date.now(), messages: [...c.messages, userMsg, { role: "assistant", content: "\u26a0\ufe0f " + why, error: true }] };
-      }));
+      // Unnamed on purpose: the turn never reached the leaf, so there is no recorded first prompt for
+      // it to be named after, and a name invented here would be one no other surface could arrive at.
+      setConvos(prev => prev.map(c => (c.id !== convId ? c : {
+        ...c, lastActivity: Date.now(),
+        messages: [...c.messages, userMsg, { role: "assistant", content: "\u26a0\ufe0f " + why, error: true }],
+      })));
       return;
     }
 
     if (needsAssistantSignIn) {
+      // Unnamed on purpose: the turn never reached the leaf, so there is no recorded first prompt for
+      // it to be named after, and a name invented here would be one no other surface could arrive at.
       setConvos(prev => prev.map(c => {
         if (c.id !== convId) return c;
-        const title = c.messages.length === 0 ? (text.slice(0, 40) || "Voice note") : c.title;
         const why = leafStatus === "denied"
           ? "You don\u2019t have access to " + assistantHost.name + "\u2019s assistant."
           : "Sign in to " + assistantHost.name + "\u2019s assistant to talk to it.";
-        return { ...c, title, lastActivity: Date.now(), messages: [...c.messages, userMsg, { role: "assistant", content: "\u26a0\ufe0f " + why, error: true }] };
+        return {
+          ...c, lastActivity: Date.now(),
+          messages: [...c.messages, userMsg, { role: "assistant", content: "\u26a0\ufe0f " + why, error: true }],
+        };
       }));
       return;
     }
@@ -830,9 +852,11 @@ function ChatPage({
     // live case. The leaf decides which conversation that is (it takes up an offered id only while it
     // holds nothing), so the surface follows it there rather than reporting into the chat left behind.
     if (typeof result.conversationId === "string" && result.conversationId && result.conversationId !== convId) {
-      const started = {
-        id: result.conversationId, title: "New chat", messages: [], created: Date.now(), hostId,
-      };
+      // Named by the leaf, which answers with the whole row. A title composed here would be this
+      // surface's word for a conversation every other surface reads a name for.
+      const started = result.conversation
+        ? adoptServerConversation(result.conversation, hostId)
+        : { id: result.conversationId, title: NEW_CHAT_TITLE, messages: [], created: Date.now(), hostId };
       setConvos(prev => [started, ...prev.filter(c => c.id !== started.id)]);
       setActiveId(started.id);
       setInput("");
@@ -1158,7 +1182,7 @@ function ChatPage({
             <div className="chat-id">
               <span className="chat-id__mark"><Icon name="message-square" size={17} /></span>
               <div className="chat-id__text">
-                <span className="chat-id__title">{review.conversation.title || "Untitled conversation"}</span>
+                <span className="chat-id__title">{conversationTitle(review.conversation)}</span>
                 <span className="chat-id__sub">
                   {review.conversation.turnCount} turn{review.conversation.turnCount === 1 ? "" : "s"}
                   {review.conversation.deleted ? " · deleted by its owner" : ""}
@@ -1217,7 +1241,7 @@ function ChatPage({
               className={"chat-rail__item" + (c.id === activeId ? " chat-rail__item--active" : "")}
               onClick={() => pickChat(c.id)}>
               <Icon name="message-square" size={14} />
-              <span className="chat-rail__title">{c.title || "New chat"}</span>
+              <span className="chat-rail__title">{conversationTitle(c)}</span>
               <button className="chat-rail__del" onClick={(e) => deleteChat(c.id, e)} title="Delete">
                 <Icon name="trash-2" size={13} />
               </button>

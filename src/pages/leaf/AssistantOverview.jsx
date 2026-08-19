@@ -16,6 +16,7 @@ import React from "react";
 import { BriefCard } from "../../components/BriefCard.jsx";
 import { CardTable } from "../../components/CardTable.jsx";
 import { Icon } from "../../components/Icon.jsx";
+import { conversationTitle } from "../../chat/chatConstants.js";
 import { KPI } from "../../components/KPI.jsx";
 import { fmtRelative, parseTs } from "../../lib/formatting.js";
 import { fetchAssistantConversations, fetchAssistantReviewUsers, fetchAssistantStats } from "../../lib/stores.js";
@@ -317,7 +318,7 @@ function AssistantOverview({ hostId, onReviewConversation }) {
                   <span className="chat-brief__icon"><Icon name="message-square" size={14} /></span>
                   <div className="chat-brief__body">
                     <span className="chat-brief__item-title">
-                      <span className="chat-brief__titletext">{c.title || "Untitled conversation"}</span>
+                      <span className="chat-brief__titletext">{conversationTitle(c)}</span>
                     </span>
                     <span className="chat-brief__detail">
                       {/* The raw id when no name was recorded — never a name derived from it. */}
