@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the Reactor leaf has an Overview
+
+The reactor was the one leaf on the board still falling through to the generic configuration card,
+which answered what it is set to and nothing about what it is doing. `ReactorOverview` reads the
+leaf's own status through `GET /hosts/{id}/services/reactor/status` and states four things: whether
+it is observing at all, how long ago the last sweep landed against the interval it is meant to run
+on, what it has ingested, and what it has judged.
+
+Three of those exist because the states they separate look identical from outside. A reactor that
+reports nothing may be deliberately silent — `enabled:false` leaves the daemon running and recording
+nothing, which is how it is quieted without stopping the unit — or sweeping normally over a quiet
+host, or wedged. Observing and the sweep age are what tell them apart, so neither is folded into one
+calm tile.
+
+**Dropped observations are surfaced, loudly.** A non-zero drop count means the ledger is missing
+events that really happened and every rate derived from it under-reports — the one failure that
+otherwise looks exactly like a quiet host. It tones the Observations tile danger at one, not at a
+threshold.
+
+⚠ Every counter the leaf reports is since its own process started, so each says so in its own
+sub-line: a zero after a deploy is a restart, never evidence of a quiet host.
+
+Alongside them, the settling lane (evaluations woken and waiting out a settle window — the difference
+between a reactor that has not noticed and one deliberately waiting), the rules table with each
+rule's shape, severity and windows, and the gate's tuning. Nothing is recomputed: the leaf reports
+each rule's mode and suppression window already resolved, and re-deriving either from the settings
+descriptor would show an authority a rule does not have.
+
 ### Fixed — the Reactor card says what it is
 
 The Services board draws a leaf's icon and its one-word kind from the frontend's own leaf

@@ -33,6 +33,7 @@ import { MonitorThresholds } from "./MonitorThresholds.jsx";
 import { BotOverview } from "./BotOverview.jsx";
 import { FirewallOverview } from "./FirewallOverview.jsx";
 import { MonitorOverview } from "./MonitorOverview.jsx";
+import { ReactorOverview } from "./ReactorOverview.jsx";
 import { SchedulerOverview } from "./SchedulerOverview.jsx";
 import { SpeechOverview } from "./SpeechOverview.jsx";
 import { WatchdogOverview } from "./WatchdogOverview.jsx";
@@ -70,6 +71,7 @@ const LEAF_OVERVIEW = {
   monitor: (p) => <MonitorOverview {...p} />,
   bot: (p) => <BotOverview {...p} />,
   scheduler: (p) => <SchedulerOverview {...p} />,
+  reactor: (p) => <ReactorOverview {...p} />,
   speech: (p) => <SpeechOverview {...p} />,
   watchdog: (p) => <WatchdogOverview {...p} />,
 };

@@ -255,6 +255,14 @@ function fetchLeafSpeechStatus(hostId) {
   return fetchLeafOverview(hostId, "speech", "status");
 }
 
+// The reactor's account of what it is doing right now. Relayed verbatim, and the per-rule fields are the
+// reason: the leaf reports each rule's mode and suppression window AS RESOLVED — the safest of the lists a
+// rule is named in, and the host-wide window where the rule carries none — so re-deriving either here from
+// the settings would show an authority a rule does not actually have.
+function fetchLeafReactorStatus(hostId) {
+  return fetchLeafOverview(hostId, "reactor", "status");
+}
+
 function applyLeafConfig(hostId, leaf, body) {
   if (!hostId || !leaf) return Promise.reject(new Error("applyLeafConfig: hostId required"));
   return api.host(hostId).put("/hosts/" + hostId + "/services/" + leaf + "/config", body || {}).then(adaptLeafConfigApply);
@@ -265,5 +273,5 @@ export {
   subscribeHostLogs, subscribeLeafLogs, subscribeHostServices, setLeafProvisioned,
   fetchLeafConfig, fetchLeafCommands, applyLeafConfig, fetchLeafMetricsHistory,
   fetchLeafSchedules, fetchLeafSupervision, fetchLeafMonitorStats, fetchLeafBotStatus,
-  fetchLeafSpeechStatus,
+  fetchLeafSpeechStatus, fetchLeafReactorStatus,
 };
