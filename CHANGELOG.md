@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — the Memory card says whose memory it is showing
+
+A memory belongs to one leaf and the Control Panel is one page over a whole cluster, so the card now
+names the host: *"What the assistant on hotrod has written down about you."* Left unsaid, changing
+which assistant the chat dock points at silently changed what the card was about.
+
+Three reasons there is nothing to show are told apart, where one message used to cover all of them:
+
+- **no host in the cluster runs an assistant** — nothing has been written down
+- **several run one and none is picked** — the dock deliberately leaves its target unset when more
+  than one could answer, so a cluster of healthy assistants was reporting itself as having none. It
+  offers the chat, where that choice is made; the choice is not duplicated here.
+- **one is picked but the browser has no route to it** — ⚠ stated as *not readable right now*, never
+  as nothing being remembered. The second is a claim about the memory, and it isn't known.
+
+The standalone assistant is untouched: it has exactly one leaf and never has to say which, so every
+prop that makes this cluster-aware defaults to describing that surface.
+
 ### Added — the Memory card corrects a memory, not only drops one
 
 Settings → Memory (both surfaces) lists what the leaf has written down about you, and each row opens

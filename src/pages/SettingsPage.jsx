@@ -13,9 +13,14 @@ import { SettingsSessions } from "./SettingsSessions.jsx";
 
 // SettingsPage — YOUR account, and nothing about anybody else's. Tabs in the order somebody actually
 // asks the questions: who am I (Profile), how do I get in (Security), where am I signed in (Devices),
-// how do I get told things (Notifications). Appearance lives on Profile.
+// what does the assistant know about me (Memory), how do I get told things (Notifications).
+// Appearance lives on Profile.
 //
-// Tabbed rather than one long column because the four are genuinely different subjects, and stacked
+// The subject is what puts a tab here, never which service owns the data — this page is already a
+// join across three of them (the node's account store, this browser, and the assistant leaf), held
+// together by every one of them being about the person reading it.
+//
+// Tabbed rather than one long column because the five are genuinely different subjects, and stacked
 // as equal cards none of them read as primary — the page became a list of slabs with no hierarchy.
 // The tab strip is the same `SubTabs` the server detail, node deep-dive and leaf pages use, so this
 // page navigates like the rest of the site rather than inventing a fifth idiom for itself.
@@ -49,7 +54,13 @@ function SettingsPage({ user, onLogout, tab, onTabChange }) {
 
   // The leaf your chat is currently pointed at — memory lives on that leaf, addressed the same way
   // a turn is, direct to the assistant rather than through kgsm-api's peer relay.
-  const { assistantHost } = useAssistantDock();
+  //
+  // ⚠ Which leaf is not incidental here: this page is one page over a whole cluster, and a memory
+  // belongs to one assistant. The card is given the host's NAME so it can say whose memory it is
+  // showing, and the count of assistant-capable hosts so it can tell "nobody runs one" apart from
+  // "several do and the dock is deliberately holding its target unset until you pick". Opening the
+  // chat is how that pick is made; this page never offers a second way to set it.
+  const { assistantHost, assistantHostList, setAssistantOpen } = useAssistantDock();
   const assistantConnected = !!(assistantHost && capUsable(assistantHost, "assistant"));
 
   // An unknown tab falls back to the landing one rather than rendering an empty body — a stale or
@@ -129,7 +140,13 @@ function SettingsPage({ user, onLogout, tab, onTabChange }) {
         {active === "devices" && <SettingsSessions onLogout={onLogout} />}
 
         {active === "memory" && (
-          <SettingsMemory hostId={assistantHost && assistantHost.id} connected={assistantConnected} />
+          <SettingsMemory
+            hostId={assistantHost && assistantHost.id}
+            connected={assistantConnected}
+            hostName={assistantHost && assistantHost.name}
+            candidates={assistantHostList.length}
+            onPickHost={() => setAssistantOpen(true)}
+          />
         )}
 
         {active === "notifications" && <SettingsNotifications />}

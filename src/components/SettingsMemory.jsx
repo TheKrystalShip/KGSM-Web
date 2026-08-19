@@ -17,6 +17,21 @@ import { fmtRelative, fmtTime, parseTs } from "../lib/formatting.js";
 // `hostId` is the leaf currently being talked to — a real host id in the panel, the fixed `"self"`
 // key the standalone surface always uses. `connected` says whether that leaf is reachable right now,
 // so the card can say why nothing loaded rather than just showing an empty list.
+//
+// ⚠ **A memory belongs to one leaf, and the panel drives a cluster.** The defaults below describe the
+// standalone surface, which has exactly one assistant and never has to say which — everything that
+// makes this card cluster-aware is a prop the panel passes:
+//
+//   `hostName`   — whose assistant this is, named in the card so a reader is never left inferring it
+//                  from whatever the chat dock happens to be pointed at.
+//   `candidates` — how many hosts in the cluster run an assistant at all. It exists only to keep
+//                  three different facts from wearing one label: nobody runs one, several do and
+//                  none is picked, and one is picked but unreachable. The middle case is the trap —
+//                  the dock deliberately leaves the target unset when several could answer, so a
+//                  cluster full of healthy assistants would otherwise read as having none.
+//   `onPickHost` — opens the surface that owns the choice (the chat, where the picker lives). The
+//                  choice is not duplicated here: two places to set one target is how they come to
+//                  disagree.
 
 function fmtGuard(ts, fn) {
   if (!ts) return "—";
@@ -30,7 +45,7 @@ function withWritten(rows, written) {
   return [written, ...rows.filter((m) => m.key !== written.key)];
 }
 
-function SettingsMemory({ hostId, connected = true }) {
+function SettingsMemory({ hostId, connected = true, hostName = null, candidates = 0, onPickHost = null }) {
   const [memories, setMemories] = React.useState([]);
   const [limits, setLimits] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
@@ -77,20 +92,49 @@ function SettingsMemory({ hostId, connected = true }) {
       setEditing(null);
     });
 
+  // Nothing to read, and three different reasons why. They are told apart rather than collapsed
+  // because what to do about each is different, and because a cluster whose assistants are all
+  // healthy must never be reported as having none.
   if (!hostId || !connected) {
+    const several = !hostId && candidates > 1;
+    const none = !hostId && !several;
     return (
-      <SettingsSection icon="brain" title="Memory" meta="What the assistant has written down about you.">
-        <SettingsRow icon="plug" title="No assistant connected"
-          sub="Connect to a host's assistant to see what it remembers." />
+      <SettingsSection icon="brain" title="Memory"
+        meta="What the assistant has written down about you.">
+        {several && (
+          <SettingsRow icon="network" title="Several hosts run an assistant"
+            sub="A memory belongs to the one you're talking to, so pick that host in the chat and what it remembers shows here.">
+            {onPickHost && (
+              <button type="button" className="settings-btn-ghost" onClick={onPickHost}>
+                <Icon name="message-square" size={13} /> Open the chat
+              </button>
+            )}
+          </SettingsRow>
+        )}
+        {none && (
+          <SettingsRow icon="plug" title="No assistant on this cluster"
+            sub="No host here runs one, so nothing has been written down about you." />
+        )}
+        {/* Targeted but out of reach. ⚠ Not "nothing is remembered" — that is a claim about the
+            memory, and the only honest thing available is that it cannot be read right now. */}
+        {hostId && !connected && (
+          <SettingsRow icon="server-off" tone="warn"
+            title={(hostName ? hostName + "'s" : "This host's") + " assistant can't be reached"}
+            sub="What it remembers can't be read until it's back. Nothing has been lost — this is a connection, not a memory." />
+        )}
       </SettingsSection>
     );
   }
 
   const full = limits && memories.length >= limits.maxPerOwner;
+  // Named, on a surface that drives more than one leaf: a memory belongs to ONE assistant, and which
+  // one is what the chat dock's target happens to be. Left unsaid, changing that target silently
+  // changes what this card is about.
+  const whose = hostName ? `What the assistant on ${hostName} has` : "What the assistant has";
   const meta = limits
-    ? `What the assistant has written down about you, across your conversations. `
+    ? `${whose} written down about you, across your conversations. `
       + `${memories.length} of ${limits.maxPerOwner} kept.`
-    : "What the assistant has written down about you, across your conversations.";
+    : `${whose} written down about you, across your conversations.`;
 
   return (
     <>
