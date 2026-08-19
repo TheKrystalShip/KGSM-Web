@@ -14,8 +14,8 @@ import { servicesStore, setLeafProvisioned } from "../lib/stores.js";
 // dead. The strip gives each a labelled half instead of folding them into one status word,
 // and carries the status accent, so the card's colour sits on the row that means something.
 //
-// A leaf the api cannot provision (the api itself, the bot) says so; that absence is honest
-// and is never rendered as "disconnected".
+// A leaf with no link to provision (the api itself, the bot, the speech engine) says so; that
+// absence is honest and is never rendered as "disconnected".
 
 // Lifecycle actions have no endpoint yet — a leaf restarts today only as the tail of applying
 // a config change. The row is shown disabled rather than hidden so its place is settled, and
@@ -59,8 +59,11 @@ function LeafProvisionControl({ svc, hostId }) {
   );
 }
 
-// The Link half. Three states, and the third is an absence rather than a value: `provisioned`
-// is null for the leaves the api holds no connection to, which is not the same as "off".
+// The Link half. Three states, and the third is an absence rather than a value: `provisioned` is null
+// for a leaf with no stored connection to arm, which is not the same as "off". Two different reasons
+// reach that null — the api and the bot, which this api holds no client to at all, and the speech engine,
+// whose presence is read off its socket file rather than stored. Either way there is no switch behind the
+// row, so it reads "not applicable" rather than offering one.
 function LinkAxis({ svc }) {
   if (svc.provisioned == null) {
     return (
