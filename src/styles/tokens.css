@@ -274,6 +274,14 @@
   --info-bg: rgba(56, 189, 248, 0.14);
   --info-fg: #7DD3FC;
 
+  /* Text on a FILLED --info surface — the server card's update chip and the update CTA it
+     promotes into its connect row. Defaults to --fg-inverse, which is right wherever --info is
+     a light tint (it is, in most themes). A theme whose --info is dark, or whose --fg-inverse
+     is itself light, re-values this: CSS cannot choose a legible foreground from a background
+     it was handed, so the pairing has to be stated per theme. 17 themes do.
+     Same job as --btn-accent-fg does for the teal, for the semantic blue instead. */
+  --on-info: var(--fg-inverse);
+
   /* ---------- Overlays, veils & scrims -------------------
      Surface tints (veils), the modal/drawer backdrop base, and the
      scrollbar thumb. These bypassed the tokens before — pills, bars
@@ -1874,6 +1882,7 @@
   /* cyan */
   --info-bg: rgba(42, 161, 152, 0.12);
   --info-fg: #2AA198;
+  --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims -------------------- */
   --veil-1: rgba(0, 43, 54, 0.04);
@@ -1958,6 +1967,7 @@
   /* sapphire */
   --info-bg: rgba(32, 159, 181, 0.12);
   --info-fg: #209FB5;
+  --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims -------------------- */
   --veil-1: rgba(76, 79, 105, 0.05);
@@ -2043,6 +2053,7 @@
   /* nord9 — deeper Frost */
   --info-bg: rgba(129, 161, 193, 0.12);
   --info-fg: #81A1C1;
+  --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims -------------------- */
   --veil-1: rgba(46, 52, 64, 0.05);
@@ -2201,6 +2212,7 @@
   --info: #3A94C5;
   --info-bg: rgba(58, 148, 197, 0.14);
   --info-fg: #3A94C5;
+  --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------- */
   --veil-1: rgba(92, 106, 114, 0.05);
@@ -2283,6 +2295,7 @@
   /* foam */
   --info-bg: rgba(86, 148, 159, 0.14);
   --info-fg: #56949f;
+  --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------- */
   --veil-1: rgba(87, 82, 121, 0.05);
@@ -2361,6 +2374,7 @@
   --info: #007197;
   --info-bg: rgba(0, 113, 151, 0.13);
   --info-fg: #007197;
+  --on-info: #FFFFFF;
 
   /* ---------- Overlays, veils & scrims ------------------- */
   --veil-1: rgba(55, 96, 191, 0.05);
@@ -2438,6 +2452,7 @@
   --info: #0184BC;
   --info-bg: rgba(1, 132, 188, 0.13);
   --info-fg: #0184BC;
+  --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------- */
   --veil-1: rgba(56, 58, 66, 0.05);
@@ -2522,6 +2537,7 @@
   /* tag */
   --info-bg: rgba(85, 180, 212, 0.16);
   --info-fg: #2E8FB0;
+  --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------- */
   --veil-1: rgba(107, 125, 143, 0.05);
@@ -3275,6 +3291,7 @@
   /* light blue, raised */
   --info-bg: rgba(145, 132, 216, 0.20);
   --info-fg: #C6BFF0;
+  --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------- */
   --veil-1: rgba(255, 255, 255, 0.07);
@@ -3562,6 +3579,7 @@
   --info: #406FF5;
   --info-bg: rgba(64, 111, 245, 0.1);
   --info-fg: #0056D5;
+  --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------ */
   --veil-1: rgba(0, 0, 0, 0.05);
@@ -3625,6 +3643,7 @@
   --info: #006AF3;
   --info-bg: rgba(0, 106, 243, 0.12);
   --info-fg: #6989FF;
+  --on-info: #FFFFFF;
 
   /* ---------- Overlays, veils & scrims ------------------ */
   --veil-1: rgba(255, 255, 255, 0.07);
@@ -3685,6 +3704,7 @@
   --info: #005EDC;
   --info-bg: rgba(0, 94, 220, 0.1);
   --info-fg: #005EDC;
+  --on-info: #FFFFFF;
 
   /* ---------- Overlays, veils & scrims ------------------ */
   --veil-1: rgba(0, 0, 0, 0.05);
@@ -3749,6 +3769,7 @@
   --info: #0075E5;
   --info-bg: rgba(0, 117, 229, 0.12);
   --info-fg: #3F8CFF;
+  --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------ */
   --veil-1: rgba(255, 255, 255, 0.07);
@@ -3809,6 +3830,7 @@
   --info: #6978FF;
   --info-bg: rgba(105, 120, 255, 0.1);
   --info-fg: #004FDE;
+  --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------ */
   --veil-1: rgba(0, 0, 0, 0.05);
@@ -3873,6 +3895,7 @@
   --info: #0071D9;
   --info-bg: rgba(0, 113, 217, 0.12);
   --info-fg: #3E8BFA;
+  --on-info: #FFFFFF;
 
   /* ---------- Overlays, veils & scrims ------------------ */
   --veil-1: rgba(255, 255, 255, 0.07);
@@ -3998,6 +4021,7 @@
   --info: #496BD4;
   --info-bg: rgba(73, 107, 212, 0.12);
   --info-fg: #6F8AF7;
+  --on-info: #FFFFFF;
 
   /* ---------- Overlays, veils & scrims ------------------ */
   --veil-1: rgba(255, 255, 255, 0.07);
@@ -4058,6 +4082,7 @@
   --info: #9670FF;
   --info-bg: rgba(150, 112, 255, 0.1);
   --info-fg: #5F40E5;
+  --on-info: #000000;
 
   /* ---------- Overlays, veils & scrims ------------------ */
   --veil-1: rgba(0, 0, 0, 0.05);

@@ -108,16 +108,19 @@ function useConfirmAction(onConfirm, ms = 3500) {
   return { armed, trigger };
 }
 
-// verb: lifecycle verb · variant: "chip" | "glass" | "quick" | "alert" · disabled: base guard
+// verb: lifecycle verb · variant: "chip" | "glass" | "quick" | "alert" | "cta" · disabled: base guard
 // pendingVerb: the verb of the server's in-flight job (or null) · onRun(verb)
 // reason: optional tooltip shown when disabled (e.g. why the watchdog blocks it)
+// label: overrides the verb's idle label only (the pending and armed words are the
+//        verb's own, so a renamed button still reports the same action in flight)
 //
 // "glass" is the cinematic server-hero button — a ghost button with a tone-coloured
 // icon that lives inside the hero's frosted control bar. "alert" is the suggested
-// action on an alert card, wearing that card's own button chrome. Both share the
-// chip's confirm-first + pending behaviour (is-armed / is-pending); only the
+// action on an alert card, wearing that card's own button chrome. "cta" is the
+// full-width primary button a server card promotes into its connect row. All share
+// the chip's confirm-first + pending behaviour (is-armed / is-pending); only the
 // chrome differs, which is the point — a verb pressed anywhere behaves the same.
-function ServerActionButton({ verb, variant = "quick", disabled, pendingVerb, onRun, reason }) {
+function ServerActionButton({ verb, variant = "quick", disabled, pendingVerb, onRun, reason, label }) {
   const def = SERVER_ACTION[verb];
   const { armed, trigger } = useConfirmAction(() => onRun(verb));
   const jobRunning = !!pendingVerb;
@@ -136,6 +139,7 @@ function ServerActionButton({ verb, variant = "quick", disabled, pendingVerb, on
   const base = variant === "chip" ? "chip chip--" + def.tone
     : variant === "glass" ? "gbtn gbtn--" + def.tone
     : variant === "alert" ? "alert-btn alert-btn--primary"
+    : variant === "cta" ? "server-tile__update-cta"
     : "";
   const cls = base
     + (armed ? " is-armed" : "")
@@ -147,12 +151,12 @@ function ServerActionButton({ verb, variant = "quick", disabled, pendingVerb, on
   } else if (armed) {
     inner = <><Icon name="check" size={size} strokeWidth={2.6} className={iconCls} /><span className={labelCls}>Confirm?</span></>;
   } else {
-    inner = <><Icon name={def.icon} size={size} strokeWidth={2.2} className={iconCls} /><span className={labelCls}>{def.label}</span></>;
+    inner = <><Icon name={def.icon} size={size} strokeWidth={2.2} className={iconCls} /><span className={labelCls}>{label || def.label}</span></>;
   }
 
   return (
-    <button className={cls} disabled={isDisabled} aria-label={def.label}
-      title={armed ? "Click again to confirm" : (isDisabled && reason ? reason : def.label)} onClick={click}>
+    <button className={cls} disabled={isDisabled} aria-label={label || def.label}
+      title={armed ? "Click again to confirm" : (isDisabled && reason ? reason : (label || def.label))} onClick={click}>
       {inner}
     </button>
   );

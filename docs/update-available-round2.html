@@ -1,0 +1,1962 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Server card — “Update available”, round 2</title>
+<style>
+/* ============================================================
+   Tokens — verbatim from src/styles/tokens.css.
+   ============================================================ */
+:root {
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r-sm: 4px; --r-md: 8px; --r-lg: 12px; --r-xl: 16px; --r-pill: 999px;
+  --edge: 1px solid var(--border-subtle);
+  --shadow-1: 0 1px 2px rgba(0,0,0,.4); --shadow-2: 0 8px 24px rgba(0,0,0,.45);
+  --ease-out: cubic-bezier(.2,.8,.2,1);
+  --d-fast: 90ms; --d-base: 140ms; --d-slow: 240ms;
+}
+:root, [data-theme="dark"] {
+  --canvas:#0B0F14; --surface-0:#0E141C; --surface-1:#11161D; --surface-2:#161C25; --surface-3:#1C242F;
+  --border-subtle:rgba(255,255,255,.06); --border-strong:rgba(255,255,255,.12); --border-accent:rgba(64,160,192,.50);
+  --fg-1:#F2F5F9; --fg-2:#B8C2D0; --fg-3:#7C8899; --fg-4:#515E70; --fg-inverse:#0B0F14;
+  --btn-accent-fg:#0B0F14; --btn-success-fg:#0B0F14;
+  --krystal-teal:#40A0C0; --krystal-teal-hover:#5DB5D2; --krystal-teal-dim:rgba(64,160,192,.14); --krystal-teal-ring:rgba(64,160,192,.35);
+  --success:#22C55E; --success-bg:rgba(34,197,94,.14); --success-fg:#4ADE80;
+  --danger:#EF4444;  --danger-bg:rgba(239,68,68,.14);  --danger-fg:#FB7185;
+  --warning:#F59E0B; --warning-bg:rgba(245,158,11,.14); --warning-fg:#FBBF24;
+  --update:#F97316;  --update-bg:rgba(249,115,22,.14);  --update-fg:#FB923C;
+  --info:#38BDF8;    --info-bg:rgba(56,189,248,.14);    --info-fg:#7DD3FC;
+  --veil-1:rgba(255,255,255,.06); --veil-2:rgba(255,255,255,.08); --veil-3:rgba(255,255,255,.10);
+  --scrim-base:#070A0E;
+}
+[data-theme="light"] {
+  --canvas:#F5F7FA; --surface-0:#ECEFF4; --surface-1:#FFFFFF; --surface-2:#F1F4F8; --surface-3:#E7EBF1;
+  --border-subtle:rgba(0,0,0,.08); --border-strong:rgba(0,0,0,.15); --border-accent:rgba(30,126,156,.55);
+  --fg-1:#101826; --fg-2:#3C4858; --fg-3:#5F6B7A; --fg-4:#97A2B0; --fg-inverse:#0B1018;
+  --btn-accent-fg:#fff; --btn-success-fg:#fff;
+  --krystal-teal:#1E7E9C; --krystal-teal-hover:#186A85; --krystal-teal-dim:rgba(30,126,156,.12); --krystal-teal-ring:rgba(30,126,156,.30);
+  --success:#16A34A; --success-bg:rgba(22,163,74,.12); --success-fg:#15803D;
+  --danger:#DC2626;  --danger-bg:rgba(220,38,38,.12);  --danger-fg:#B91C1C;
+  --warning:#D97706; --warning-bg:rgba(217,119,6,.13); --warning-fg:#B45309;
+  --update:#EA580C;  --update-bg:rgba(234,88,12,.12);  --update-fg:#C2410C;
+  --info:#0284C7;    --info-bg:rgba(2,132,199,.12);    --info-fg:#0369A1;
+  --veil-1:rgba(0,0,0,.05); --veil-2:rgba(0,0,0,.07); --veil-3:rgba(0,0,0,.09);
+  --scrim-base:#1B2430;
+}
+
+/* ---------------- page chrome (mock only) ---------------- */
+* { box-sizing: border-box; }
+body { margin:0; background:var(--canvas); color:var(--fg-2); font-family:var(--font-ui); font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased; }
+.wrap { max-width: 1280px; margin: 0 auto; padding: 36px 32px 120px; }
+.topbar { position:sticky; top:0; z-index:50; display:flex; align-items:center; gap:12px; padding:12px 32px;
+  background: color-mix(in srgb, var(--canvas) 88%, transparent); backdrop-filter: blur(10px); border-bottom:1px solid var(--border-subtle); }
+.topbar__brand { font-weight:700; color:var(--fg-1); }
+.topbar__sep { color:var(--fg-4); }
+.topbar__spacer { flex:1; }
+.tgl { display:inline-flex; align-items:center; gap:6px; height:30px; padding:0 12px; background:var(--surface-2);
+  border:var(--edge); border-radius:var(--r-pill); color:var(--fg-2); font:inherit; font-size:12.5px; font-weight:600; cursor:pointer; }
+.tgl:hover { color:var(--fg-1); border-color:var(--border-strong); }
+
+h1 { font-size:30px; line-height:1.2; letter-spacing:-.02em; color:var(--fg-1); margin:30px 0 10px; }
+h2 { font-size:12px; text-transform:uppercase; letter-spacing:.10em; font-weight:700; color:var(--fg-3); margin:60px 0 4px; }
+h3.sys { font-size:17px; color:var(--fg-1); margin:0; letter-spacing:-.01em; }
+.lede { max-width:76ch; color:var(--fg-2); }
+code { font-family:var(--font-mono); font-size:.92em; color:var(--fg-1); background:var(--veil-1); padding:1px 5px; border-radius:var(--r-sm); }
+hr.rule { border:0; border-top:1px solid var(--border-subtle); margin:8px 0 26px; }
+
+.brief { margin:22px 0 8px; padding:18px 20px; background:var(--surface-1); border:var(--edge);
+  border-left:3px solid var(--krystal-teal); border-radius:var(--r-md); }
+.brief h4 { margin:0 0 10px; font-size:14px; color:var(--fg-1); }
+.brief ul { margin:0; padding-left:18px; } .brief li { margin:5px 0; } .brief strong { color:var(--fg-1); }
+
+.carry { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px; margin:20px 0 4px; }
+.carry__item { padding:12px 14px; background:var(--surface-1); border:var(--edge); border-radius:var(--r-md); font-size:12.5px; }
+.carry__n { font-family:var(--font-mono); font-size:11px; font-weight:700; color:var(--info-fg); display:block; margin-bottom:3px; }
+.carry__item b { color:var(--fg-1); }
+.carry__item.is-out { opacity:.5; border-style:dashed; }
+.carry__item.is-out .carry__n { color:var(--fg-4); }
+
+/* System block */
+.sys { margin-top:30px; padding:22px 24px 24px; background:var(--surface-0); border:var(--edge); border-radius:var(--r-lg); }
+.sys__head { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:4px; }
+.sys__key { font-family:var(--font-mono); font-size:12px; font-weight:700; color:var(--info-fg);
+  background:var(--info-bg); border:1px solid color-mix(in srgb,var(--info) 25%,transparent);
+  padding:2px 8px; border-radius:var(--r-pill); }
+.sys__from { font-size:12px; color:var(--fg-4); }
+.sys__note { max-width:78ch; font-size:13px; color:var(--fg-2); margin:8px 0 0; }
+.sys__states { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,364px)); gap:26px; margin-top:20px; }
+.state__label { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--fg-4); margin-bottom:8px; }
+.state__label em { font-style:normal; color:var(--info-fg); }
+.state__cap { margin-top:10px; font-size:12px; color:var(--fg-3); max-width:364px; }
+.tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:14px; }
+.tag { font-size:10.5px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:2px 7px; border-radius:var(--r-pill); }
+.tag--pro { background:var(--success-bg); color:var(--success-fg); }
+.tag--con { background:var(--danger-bg); color:var(--danger-fg); }
+.tag--neutral { background:var(--veil-1); color:var(--fg-3); }
+
+/* ============================================================
+   THE CARD — copy of .server-tile
+   ============================================================ */
+.server-tile { background:var(--surface-1); border:var(--edge); border-radius:var(--r-sm); overflow:hidden;
+  container-type:inline-size; container-name:server-tile; transition:border-color var(--d-fast) var(--ease-out); position:relative; }
+.server-tile:hover { border-color:var(--border-strong); }
+.server-tile__art { position:relative; height:88px; background-size:cover; background-position:center; }
+.server-tile__art::after { content:""; position:absolute; inset:0; background:linear-gradient(to top,var(--surface-1) 0%,transparent 60%); }
+.server-tile__corner { position:absolute; top:10px; right:10px; z-index:3; display:flex; align-items:center; gap:6px; }
+.server-tile__host { display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:600; color:#fff;
+  background:color-mix(in srgb,var(--scrim-base) 62%,transparent); backdrop-filter:blur(4px);
+  padding:3px 8px 3px 6px; border-radius:var(--r-pill); border:var(--edge); }
+.server-tile__host svg { color:rgba(255,255,255,.75); }
+.server-tile__fav { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; padding:0;
+  border-radius:var(--r-pill); cursor:pointer; background:color-mix(in srgb,var(--scrim-base) 62%,transparent);
+  backdrop-filter:blur(4px); border:var(--edge); color:var(--fg-3); opacity:0; transition:opacity var(--d-fast) var(--ease-out); }
+.server-tile:hover .server-tile__fav { opacity:1; }
+.server-tile__game { position:absolute; bottom:8px; left:12px; z-index:2; color:var(--fg-3); font-size:11.5px;
+  text-transform:uppercase; letter-spacing:.04em; font-weight:600; }
+.server-tile__body { padding:12px 14px 14px; display:flex; flex-direction:column; gap:8px; }
+.server-tile__head { display:flex; align-items:center; gap:8px; }
+.server-tile__name { flex:1; min-width:0; color:var(--fg-1); font-weight:600; font-size:14.5px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; }
+.server-tile__pill { flex-shrink:0; font-size:11px; font-weight:600; padding:3px 8px 3px 6px; border-radius:var(--r-pill);
+  display:inline-flex; align-items:center; gap:5px; }
+.server-tile__pill .dot { width:6px; height:6px; border-radius:var(--r-pill); }
+.server-tile__pill--online { background:var(--success-bg); color:var(--success-fg); }
+.server-tile__pill--online .dot { background:var(--success); animation:kr-pulse 1.8s ease-in-out infinite; }
+.server-tile__pill--offline { background:var(--veil-1); color:var(--fg-3); }
+.server-tile__pill--offline .dot { background:var(--fg-4); }
+.server-tile__pill--updating { background:var(--warning-bg); color:var(--warning-fg); }
+.server-tile__pill--updating .dot { background:var(--warning); animation:kr-pulse 1.8s ease-in-out infinite; }
+@keyframes kr-pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+.server-tile__notice { color:var(--fg-3); font-size:12px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2;
+  -webkit-box-orient:vertical; overflow:hidden; margin-top:-2px; min-height:calc(12px*1.4*2); cursor:pointer; }
+.server-tile__notice--empty { color:var(--fg-4); font-style:italic; }
+.server-tile__meta { display:flex; flex-direction:var(--tile-meta-dir,row); justify-content:space-between; align-items:center;
+  width:100%; gap:4px 10px; color:var(--fg-3); font-size:11.5px; font-family:var(--font-mono); }
+.server-tile__metarow { display:var(--tile-metarow-display,contents); justify-content:space-between; align-items:center; width:100%; gap:10px; }
+.server-tile__metric,.server-tile__metric-pair { display:inline-flex; align-items:center; gap:4px; white-space:nowrap; }
+.server-tile__metric--net { gap:8px; }
+.server-tile__metric-val { min-width:4ch; }
+.server-tile__metric--players .server-tile__metric-val { min-width:3ch; }
+@container server-tile (max-width:340px) { .server-tile__meta { --tile-meta-dir:column; --tile-metarow-display:flex; } }
+
+.server-tile__quick { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:6px; }
+.server-tile__quick button { min-width:0; height:28px; padding:0 6px; background:var(--surface-3); border:var(--edge);
+  border-radius:var(--r-sm); color:var(--fg-2); font-family:inherit; font-size:11px; font-weight:600; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center; gap:4px; overflow:hidden; }
+.server-tile__quick button:hover:not(:disabled) { color:var(--fg-1); border-color:var(--border-strong); }
+.server-tile__quick button:disabled { opacity:.4; cursor:not-allowed; }
+.server-tile__quick button > * { flex:none; }
+.server-tile__quick button > .act-label { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+.server-tile__connect { display:flex; align-items:stretch; gap:6px; }
+.connect-tile { display:inline-flex; align-items:center; justify-content:center; gap:6px; flex:1; height:32px;
+  border-radius:var(--r-sm); background:var(--success); color:var(--btn-success-fg); border:1px solid transparent;
+  font-family:var(--font-ui); font-size:12.5px; font-weight:700; cursor:pointer; }
+.connect-tile--copy { background:var(--surface-3); color:var(--fg-2); border-color:var(--border-subtle); }
+.connect-tile--icon { flex:0 0 32px; gap:0; padding:0; }
+.connect-tile--off { background:var(--surface-2); color:var(--fg-4); border-color:var(--border-subtle); cursor:not-allowed; }
+
+.art--factorio { background-image: radial-gradient(120% 140% at 20% 10%, #3a5a3f 0%, #1d2f23 45%, #0d1512 100%); }
+.art--terraria { background-image: radial-gradient(120% 140% at 75% 15%, #4a6ea8 0%, #26406b 45%, #101a2b 100%); }
+.art--valheim  { background-image: radial-gradient(120% 140% at 30% 20%, #6b5230 0%, #3c2e1c 45%, #16110a 100%); }
+.art--minecraft{ background-image: radial-gradient(120% 140% at 65% 12%, #4b7a48 0%, #2b4a2c 45%, #101a11 100%); }
+.art--pale     { background-image: radial-gradient(120% 140% at 40% 10%, #dfe7ef 0%, #b9c6d4 45%, #8e9daf 100%); }
+.art--busy     { background-image: repeating-linear-gradient(58deg,#8ac4ff 0 9px,#123a63 9px 18px,#f0b429 18px 26px,#2a1a4d 26px 36px); }
+.art--sky      { background-image: radial-gradient(120% 140% at 30% 0%, #7fd4f7 0%, #38a9d9 45%, #1d5f86 100%); }
+
+.ic { width:1em; height:1em; stroke:currentColor; stroke-width:1.7; fill:none; stroke-linecap:round; stroke-linejoin:round; flex:none; }
+.ic--b { stroke-width:2.3; }
+
+/* ============================================================
+   THE SURVIVING PIECES — every class below is new material.
+   ============================================================ */
+
+/* ---- P1 · version pill (head row) — from option #1 ---- */
+.up-pill { flex:none; display:inline-flex; align-items:center; gap:4px; height:20px; padding:0 7px 0 5px;
+  border-radius:var(--r-pill); background:var(--info-bg); color:var(--info-fg);
+  border:1px solid color-mix(in srgb,var(--info) 28%,transparent);
+  font-family:var(--font-mono); font-size:10.5px; font-weight:700; cursor:pointer; }
+.up-pill:hover { background:color-mix(in srgb,var(--info) 24%,transparent); }
+.up-pill svg { width:11px; height:11px; }
+
+/* ---- P2 · art chip — from option #4 ---- */
+.up-chip { position:absolute; top:10px; left:10px; z-index:3; display:inline-flex; align-items:center; gap:5px;
+  padding:3px 9px 3px 6px; border-radius:var(--r-pill); cursor:pointer; font-size:10.5px; font-weight:700; letter-spacing:.02em;
+  border:1px solid transparent; box-shadow:0 2px 8px rgba(0,0,0,.35); }
+.up-chip svg { width:11px; height:11px; stroke-width:2.4; }
+.up-chip .ver { font-family:var(--font-mono); opacity:.85; }
+/* the four chip treatments under study */
+.up-chip--solid  { background:var(--info); color:#04121c; border-color:color-mix(in srgb,#fff 22%,transparent); }
+.up-chip--frost  { background:color-mix(in srgb,var(--scrim-base) 62%,transparent); backdrop-filter:blur(5px);
+                   color:var(--info-fg); border-color:color-mix(in srgb,var(--info) 45%,transparent); }
+.up-chip--outline{ background:color-mix(in srgb,var(--scrim-base) 40%,transparent); backdrop-filter:blur(5px);
+                   color:#fff; border-color:color-mix(in srgb,#fff 55%,transparent); }
+.up-chip--split  { background:color-mix(in srgb,var(--scrim-base) 68%,transparent); backdrop-filter:blur(5px);
+                   color:var(--info-fg); border-color:color-mix(in srgb,var(--info) 40%,transparent);
+                   padding:0; overflow:hidden; }
+.up-chip--split .seg-a { display:inline-flex; align-items:center; gap:4px; padding:3px 7px 3px 6px; background:var(--info); color:#04121c; }
+.up-chip--split .seg-b { padding:3px 8px; font-family:var(--font-mono); color:#fff; opacity:.9; }
+
+/* ---- P3 · fourth quick button — from option #10 ---- */
+.server-tile__quick button.is-update { background:color-mix(in srgb,var(--info) 16%,var(--surface-3));
+  border-color:color-mix(in srgb,var(--info) 35%,transparent); color:var(--info-fg); }
+.server-tile__quick button.is-update:hover:not(:disabled) { border-color:var(--info); color:var(--fg-1); }
+.server-tile__quick button.is-update:disabled { opacity:.45; }
+.server-tile__quick button.is-armed { background:var(--danger-bg); border-color:color-mix(in srgb,var(--danger) 45%,transparent); color:var(--danger-fg); }
+/* The 4-up row folds to 2x2 on a narrow card, exactly like the metric row does.
+   The 3-up row keeps one line at every width — three short labels always fit. */
+@container server-tile (max-width:340px) {
+  .server-tile__quick--4 { grid-auto-flow:row; grid-template-columns:1fr 1fr; }
+}
+
+/* ---- P4 · connect-row CTA — from option #11 ---- */
+.up-cta { display:inline-flex; align-items:center; justify-content:center; gap:6px; flex:1; height:32px;
+  border-radius:var(--r-sm); background:var(--info); color:#04121c; border:1px solid transparent;
+  font-family:var(--font-ui); font-size:12.5px; font-weight:700; cursor:pointer; }
+.up-cta:hover { filter:brightness(1.08); }
+.up-cta svg { width:13px; height:13px; stroke-width:2.4; }
+.up-cta--icon { flex:0 0 32px; gap:0; padding:0; }
+.up-cta--ghost { background:transparent; color:var(--info-fg); border-color:color-mix(in srgb,var(--info) 45%,transparent); }
+.up-cta--ghost:hover { background:var(--info-bg); filter:none; }
+
+/* ---- chip study grid ---- */
+.chips { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:18px; margin-top:22px; }
+.chipcell__label { font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--fg-3); margin-bottom:8px; }
+.chipcell__note { font-size:12px; color:var(--fg-3); margin-top:8px; }
+.artstrip { position:relative; height:76px; border-radius:var(--r-sm); overflow:hidden; border:var(--edge); background-size:cover; }
+.artstrip + .artstrip { margin-top:8px; }
+.artstrip .up-chip { top:8px; left:8px; }
+.artstrip__name { position:absolute; right:8px; bottom:6px; font-size:10px; font-weight:700; letter-spacing:.05em;
+  text-transform:uppercase; color:rgba(255,255,255,.55); }
+
+/* ---- grid-scan test ---- */
+.scan { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px; margin-top:18px; }
+.scan .server-tile__body { padding:10px 12px 12px; }
+
+/* ---- narrow / mobile ---- */
+.narrow { display:flex; gap:24px; flex-wrap:wrap; margin-top:20px; }
+.narrow .server-tile { width:288px; }
+
+.finding { margin:22px 0 6px; padding:18px 20px; background:color-mix(in srgb,var(--danger) 7%,var(--surface-1));
+  border:var(--edge); border-left:3px solid var(--danger); border-radius:var(--r-md); }
+.finding h4 { margin:0 0 10px; font-size:14px; color:var(--fg-1); }
+.finding p { margin:8px 0 0; max-width:78ch; }
+.finding strong { color:var(--fg-1); }
+.meas { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0 2px; }
+.meas__box { padding:10px 14px; background:var(--surface-2); border:var(--edge); border-radius:var(--r-sm);
+  font-family:var(--font-mono); font-size:12px; color:var(--fg-2); }
+.meas__box b { display:block; color:var(--fg-1); font-size:16px; font-weight:700; margin-top:2px; }
+.meas__box.is-bad b { color:var(--danger-fg); }
+/* The real dashboard grid: content-max 1280 - 32px gutters, 12px gaps, 4 columns. */
+.realgrid { display:grid; grid-template-columns:repeat(4,295px); gap:12px; margin-top:16px;
+  align-items:start; overflow-x:auto; padding-bottom:6px; }
+.realgrid--stretch { align-items:stretch; }
+.rg__cap { font-size:12px; color:var(--fg-3); margin-top:10px; }
+.matrix { width:100%; border-collapse:collapse; margin-top:18px; font-size:13px; }
+.matrix th,.matrix td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--border-subtle); vertical-align:top; }
+.matrix th { color:var(--fg-3); font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+.matrix td:first-child { color:var(--fg-1); font-weight:600; white-space:nowrap; }
+.matrix .yes { color:var(--success-fg); font-weight:700; }
+.matrix .no  { color:var(--danger-fg); font-weight:700; }
+.matrix .mid { color:var(--warning-fg); font-weight:700; }
+
+.foot { margin-top:70px; padding-top:20px; border-top:1px solid var(--border-subtle); color:var(--fg-4); font-size:12.5px; }
+@media (prefers-reduced-motion:reduce) { .server-tile__pill .dot { animation:none; } }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-circle-arrow-down" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="m8 12 4 4 4-4"/></symbol>
+<symbol id="i-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4"/><path d="M12 16V8"/></symbol>
+<symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></symbol>
+<symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+<symbol id="i-cpu" viewBox="0 0 24 24"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></symbol>
+<symbol id="i-memory-stick" viewBox="0 0 24 24"><path d="M6 19v-3"/><path d="M10 19v-3"/><path d="M14 19v-3"/><path d="M18 19v-3"/><path d="M8 11V9"/><path d="M16 11V9"/><path d="M12 11V9"/><path d="M2 15h20"/><path d="M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1.1a2 2 0 0 0 0 3.837V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5.1a2 2 0 0 0 0-3.837Z"/></symbol>
+<symbol id="i-hard-drive" viewBox="0 0 24 24"><line x1="22" x2="2" y1="12" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" x2="6.01" y1="16" y2="16"/><line x1="10" x2="10.01" y1="16" y2="16"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></symbol>
+<symbol id="i-server" viewBox="0 0 24 24"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
+<symbol id="i-square" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/></symbol>
+<symbol id="i-rotate-cw" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></symbol>
+<symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></symbol>
+<symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+<symbol id="i-triangle-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+<symbol id="i-package" viewBox="0 0 24 24"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/><path d="m7.5 4.27 9 5.15"/></symbol>
+<symbol id="i-refresh-cw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+<symbol id="i-gamepad-2" viewBox="0 0 24 24"><line x1="6" x2="10" y1="11" y2="11"/><line x1="8" x2="8" y1="9" y2="13"/><line x1="15" x2="15.01" y1="12" y2="12"/><line x1="18" x2="18.01" y1="10" y2="10"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+<symbol id="i-circle-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+<symbol id="i-external-link" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+<symbol id="i-zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+</defs></svg>
+
+<div class="topbar">
+  <span class="topbar__brand">Krystal Control Panel</span>
+  <span class="topbar__sep">/</span>
+  <span>“Update available” — round 2</span>
+  <span class="topbar__spacer"></span>
+  <button class="tgl" id="themeBtn"><svg class="ic"><use href="#i-sun"/></svg><span id="themeLbl">Light</span></button>
+</div>
+
+<div class="wrap">
+
+<h1>Round 2 — four systems, both states</h1>
+<p class="lede">
+  Your cut leaves four pieces and two hard rules. Nothing below changes the card’s height in any state, and every
+  system has an answer for <em>online</em> — which is exactly where #11 dead-ended.
+</p>
+
+<div class="brief">
+  <h4>The two rules this round is built on</h4>
+  <ul>
+    <li><strong>No layout shift.</strong> A card with an update waiting must be pixel-identical in height to one without,
+      so nothing in the grid jumps or stands out for the wrong reason. That kills #8 and every body-row idea.
+      Both remaining mechanisms are free: a chip on the artwork sits in <em>absolute</em> position, and the quick row
+      going 3→4 columns is a change <em>within</em> a row that already exists.</li>
+    <li><strong>The marker has to survive the online state.</strong> #11’s CTA is the loudest, clearest action on the
+      card — and it only exists when the server is stopped. So the CTA can’t be the announcement; it has to be the
+      <em>reward</em> for a state marker that is present either way. That is the whole shape of the systems below:
+      <b>one always-on marker + one state-dependent action</b>.</li>
+  </ul>
+</div>
+
+<div class="carry">
+  <div class="carry__item"><span class="carry__n">#1 → P1</span><b>Version pill</b>, head row. Quiet, informational, zero height.</div>
+  <div class="carry__item"><span class="carry__n">#4 → P2</span><b>Art chip</b>. Loud, carries the version, free real estate.</div>
+  <div class="carry__item"><span class="carry__n">#10 → P3</span><b>Fourth quick button</b>. Existing pattern, folds 2×2.</div>
+  <div class="carry__item"><span class="carry__n">#11 → P4</span><b>Connect-row CTA</b>. Biggest action, offline only.</div>
+  <div class="carry__item is-out"><span class="carry__n">#2</span>Split pill — pretty, impractical. Cut.</div>
+  <div class="carry__item is-out"><span class="carry__n">#8</span>Inset banner — shifts layout. Cut.</div>
+</div>
+
+<h2>The four systems</h2>
+<hr class="rule">
+<p class="lede">Each is a <b>marker + action</b> pair, drawn in both run states. Same server, same card height, every time.</p>
+
+<div class="sys">
+  <div class="sys__head">
+    <h3 class="sys">System A — Art chip + fourth button</h3>
+    <span class="sys__key">P2 + P3</span>
+    <span class="sys__from">#4 + #10</span>
+  </div>
+  <p class="sys__note">
+    The chip announces in every state; the fourth quick button is the action, and it disables itself with the real guard
+    reason while the server runs. The two never contradict each other, because the chip states a <em>fact</em> and the
+    button offers an <em>action</em> — the card is allowed to have a fact it can’t act on yet.
+    <br><br>
+    Shown here at 364px, where four buttons still fit one line. <b>At the widths the dashboard actually uses they
+    don’t</b> — and that turns out to be the deciding fact about this system. Measured below.
+  </p>
+  <div class="sys__states">
+    <div><div class="state__label">Online — <em>chip informs, button locked</em></div>
+    <article class="server-tile ">
+      <div class="server-tile__art art--factorio">
+        <span class="up-chip up-chip--split" title="Update available -> 2.0.55"><span class="seg-a"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update</span><span class="seg-b">2.0.55</span></span>
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Factorio</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Ketchup</div>
+          
+          <span class="server-tile__pill server-tile__pill--online"><span class="dot"></span>Online</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">7</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">34%</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">2.1G</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">4.2K</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">355B</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">12G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick server-tile__quick--4">
+     <button disabled><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button ><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button ><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+     <button class="is-update" disabled title="Server must be stopped before updating"><svg class="ic"><use href="#i-download"/></svg><span class="act-label">Update</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile "><svg class="ic ic--b"><use href="#i-play"/></svg>Play</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+      <div class="state__cap">Hovering the disabled button says <em>“Server must be stopped before updating”</em> — the guard’s own sentence.</div></div>
+    <div><div class="state__label">Offline — <em>chip informs, button live</em></div>
+    <article class="server-tile ">
+      <div class="server-tile__art art--factorio">
+        <span class="up-chip up-chip--split" title="Update available -> 2.0.55"><span class="seg-a"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update</span><span class="seg-b">2.0.55</span></span>
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Factorio</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Ketchup</div>
+          
+          <span class="server-tile__pill server-tile__pill--offline"><span class="dot"></span>Offline</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">—</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">—</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">—</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">12G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick server-tile__quick--4">
+     <button ><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button disabled><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button disabled><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+     <button class="is-update"><svg class="ic"><use href="#i-download"/></svg><span class="act-label">Update</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile connect-tile--off"><svg class="ic ic--b"><use href="#i-play"/></svg>Offline</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+      <div class="state__cap">Identical card, identical height. Only the button’s enabled state changed.</div></div>
+  </div>
+  <div class="tags"><span class="tag tag--pro">works in every state</span><span class="tag tag--pro">action always in one place</span><span class="tag tag--con">a disabled button is dead pixels</span><span class="tag tag--con">+34px at real grid widths — see below</span></div>
+</div>
+
+<div class="sys">
+  <div class="sys__head">
+    <h3 class="sys">System B — Art chip + connect-row CTA</h3>
+    <span class="sys__key">P2 + P4</span>
+    <span class="sys__from">#4 + #11</span>
+  </div>
+  <p class="sys__note">
+    Your favourite, with its online gap filled. Offline, the update takes the whole connect row — the green Play button
+    is dead weight there anyway, so the loudest slot on the card costs nothing. Online, the row goes back to Play and the
+    chip carries the whole story on its own. <b>Nothing on the card is ever disabled</b>: an action appears when it can run
+    and is simply absent when it can’t.
+  </p>
+  <div class="sys__states">
+    <div><div class="state__label">Online — <em>chip only, Play intact</em></div>
+    <article class="server-tile ">
+      <div class="server-tile__art art--factorio">
+        <span class="up-chip up-chip--split" title="Update available -> 2.0.55"><span class="seg-a"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update</span><span class="seg-b">2.0.55</span></span>
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Factorio</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Ketchup</div>
+          
+          <span class="server-tile__pill server-tile__pill--online"><span class="dot"></span>Online</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">7</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">34%</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">2.1G</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">4.2K</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">355B</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">12G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button disabled><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button ><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button ><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile "><svg class="ic ic--b"><use href="#i-play"/></svg>Play</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+      <div class="state__cap">No update control at all — nothing to click that would just error.</div></div>
+    <div><div class="state__label">Offline — <em>CTA takes the dead row</em></div>
+    <article class="server-tile ">
+      <div class="server-tile__art art--factorio">
+        <span class="up-chip up-chip--split" title="Update available -> 2.0.55"><span class="seg-a"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update</span><span class="seg-b">2.0.55</span></span>
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Factorio</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Ketchup</div>
+          
+          <span class="server-tile__pill server-tile__pill--offline"><span class="dot"></span>Offline</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">—</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">—</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">—</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">12G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button ><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button disabled><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button disabled><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <button class="up-cta"><svg class="ic ic--b"><use href="#i-circle-arrow-up"/></svg>Update to 2.0.55</button>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+      <div class="state__cap">The blue reads as clearly not-Play, and carries the version in the label.</div></div>
+  </div>
+  <div class="tags"><span class="tag tag--pro">no disabled controls, ever</span><span class="tag tag--pro">loudest possible CTA, free</span><span class="tag tag--pro">zero shift</span><span class="tag tag--con">the action moves between states</span></div>
+</div>
+
+<div class="sys">
+  <div class="sys__head">
+    <h3 class="sys">System C — Art chip + both</h3>
+    <span class="sys__key">P2 + P3 + P4</span>
+    <span class="sys__from">#4 + #10 + #11</span>
+  </div>
+  <p class="sys__note">
+    The greedy version: the fourth button is always present (so the quick row never reflows between an updating and a
+    non-updating card), <em>and</em> the offline card additionally promotes the CTA. Shown mostly to prove it’s too much —
+    the offline card says “update” three times.
+  </p>
+  <div class="sys__states">
+    <div><div class="state__label">Online</div>
+    <article class="server-tile ">
+      <div class="server-tile__art art--factorio">
+        <span class="up-chip up-chip--split" title="Update available -> 2.0.55"><span class="seg-a"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update</span><span class="seg-b">2.0.55</span></span>
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Factorio</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Ketchup</div>
+          
+          <span class="server-tile__pill server-tile__pill--online"><span class="dot"></span>Online</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">7</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">34%</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">2.1G</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">4.2K</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">355B</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">12G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick server-tile__quick--4">
+     <button disabled><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button ><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button ><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+     <button class="is-update" disabled title="Server must be stopped before updating"><svg class="ic"><use href="#i-download"/></svg><span class="act-label">Update</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile "><svg class="ic ic--b"><use href="#i-play"/></svg>Play</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article></div>
+    <div><div class="state__label">Offline — <em>saying it three times</em></div>
+    <article class="server-tile ">
+      <div class="server-tile__art art--factorio">
+        <span class="up-chip up-chip--split" title="Update available -> 2.0.55"><span class="seg-a"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update</span><span class="seg-b">2.0.55</span></span>
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Factorio</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Ketchup</div>
+          
+          <span class="server-tile__pill server-tile__pill--offline"><span class="dot"></span>Offline</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">—</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">—</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">—</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">12G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick server-tile__quick--4">
+     <button ><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button disabled><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button disabled><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+     <button class="is-update"><svg class="ic"><use href="#i-download"/></svg><span class="act-label">Update</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <button class="up-cta"><svg class="ic ic--b"><use href="#i-circle-arrow-up"/></svg>Update to 2.0.55</button>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article></div>
+  </div>
+  <div class="tags"><span class="tag tag--pro">quick row never reflows</span><span class="tag tag--con">redundant</span><span class="tag tag--con">two competing blues</span><span class="tag tag--con">+34px on every card, always</span></div>
+</div>
+
+<div class="sys">
+  <div class="sys__head">
+    <h3 class="sys">System D — Chip + “Stop &amp; update”</h3>
+    <span class="sys__key">P2 + P3′</span>
+    <span class="sys__from">new behaviour</span>
+  </div>
+  <p class="sys__note">
+    The only option here that changes <em>behaviour</em> rather than presentation. Instead of explaining that a running
+    server can’t be updated, the button offers to do the two steps: it arms confirm-first (the pattern
+    <code>useConfirmAction</code> already implements for Stop and Restart), and confirming stops the server, waits for it
+    to land, then updates. Offline it is a plain Update — there is nothing to stop.
+    <br><br>
+    ⚠ This needs real work behind it: a client-side sequence would break if the tab closes mid-flight, so the honest
+    version is a backend verb that owns the stop→update→(start?) chain. Worth deciding on its own merits, not as a
+    visual choice.
+  </p>
+  <div class="sys__states">
+    <div><div class="state__label">Online — <em>armed</em></div>
+    <article class="server-tile ">
+      <div class="server-tile__art art--factorio">
+        <span class="up-chip up-chip--split" title="Update available -> 2.0.55"><span class="seg-a"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update</span><span class="seg-b">2.0.55</span></span>
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Factorio</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Ketchup</div>
+          
+          <span class="server-tile__pill server-tile__pill--online"><span class="dot"></span>Online</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">7</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">34%</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">2.1G</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">4.2K</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">355B</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">12G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick server-tile__quick--4">
+     <button disabled><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button ><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button ><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+     <button class="is-update is-armed"><svg class="ic"><use href="#i-triangle-alert"/></svg><span class="act-label">Stop & update?</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile "><svg class="ic ic--b"><use href="#i-play"/></svg>Play</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+      <div class="state__cap">First click arms and swaps the label in place; it reverts after 3.5s untouched.</div></div>
+    <div><div class="state__label">Offline — <em>plain update</em></div>
+    <article class="server-tile ">
+      <div class="server-tile__art art--factorio">
+        <span class="up-chip up-chip--split" title="Update available -> 2.0.55"><span class="seg-a"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update</span><span class="seg-b">2.0.55</span></span>
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Factorio</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Ketchup</div>
+          
+          <span class="server-tile__pill server-tile__pill--offline"><span class="dot"></span>Offline</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">—</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">—</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">—</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">12G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick server-tile__quick--4">
+     <button ><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button disabled><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button disabled><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+     <button class="is-update"><svg class="ic"><use href="#i-download"/></svg><span class="act-label">Update</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile connect-tile--off"><svg class="ic ic--b"><use href="#i-play"/></svg>Offline</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+      <div class="state__cap">Nothing to stop, so no confirm and no drama.</div></div>
+  </div>
+  <div class="tags"><span class="tag tag--pro">removes the dead end entirely</span><span class="tag tag--pro">reuses the confirm pattern</span><span class="tag tag--con">needs a backend verb</span><span class="tag tag--con">takes a server down on one confirm</span><span class="tag tag--con">inherits the +34px</span></div>
+</div>
+
+<h2>The chip’s one real risk — contrast over artwork</h2>
+<hr class="rule">
+<p class="lede">
+  Every system above leans on the chip, and the chip sits on cover art we don’t control. Four treatments, each over the
+  same four backgrounds: a dark cover, a pale one, a high-contrast busy one, and a bright sky — the cases that actually
+  break a chip.
+</p>
+<div class="chips">
+  <div><div class="chipcell__label">Solid info</div><div class="artstrip art--factorio"><span class="up-chip up-chip--solid" title="Update available -> 2.0.55"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update <span class="ver">2.0.55</span></span><span class="artstrip__name">dark cover</span></div><div class="artstrip art--pale"><span class="up-chip up-chip--solid" title="Update available -> 2.0.55"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update <span class="ver">2.0.55</span></span><span class="artstrip__name">pale cover</span></div><div class="artstrip art--busy"><span class="up-chip up-chip--solid" title="Update available -> 2.0.55"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update <span class="ver">2.0.55</span></span><span class="artstrip__name">busy / high contrast</span></div><div class="artstrip art--sky"><span class="up-chip up-chip--solid" title="Update available -> 2.0.55"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update <span class="ver">2.0.55</span></span><span class="artstrip__name">bright</span></div><div class="chipcell__note">Loudest, and the only one that never depends on what’s behind it. Reads as a badge, not as chrome.</div></div>
+  <div><div class="chipcell__label">Frosted (matches host chip)</div><div class="artstrip art--factorio"><span class="up-chip up-chip--frost" title="Update available -> 2.0.55"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update <span class="ver">2.0.55</span></span><span class="artstrip__name">dark cover</span></div><div class="artstrip art--pale"><span class="up-chip up-chip--frost" title="Update available -> 2.0.55"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update <span class="ver">2.0.55</span></span><span class="artstrip__name">pale cover</span></div><div class="artstrip art--busy"><span class="up-chip up-chip--frost" title="Update available -> 2.0.55"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update <span class="ver">2.0.55</span></span><span class="artstrip__name">busy / high contrast</span></div><div class="artstrip art--sky"><span class="up-chip up-chip--frost" title="Update available -> 2.0.55"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update <span class="ver">2.0.55</span></span><span class="artstrip__name">bright</span></div><div class="chipcell__note">Identical treatment to the host pill on the right — the card gains no new visual language. Quieter.</div></div>
+  <div><div class="chipcell__label">Outline / white</div><div class="artstrip art--factorio"><span class="up-chip up-chip--outline" title="Update available -> 2.0.55"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update <span class="ver">2.0.55</span></span><span class="artstrip__name">dark cover</span></div><div class="artstrip art--pale"><span class="up-chip up-chip--outline" title="Update available -> 2.0.55"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update <span class="ver">2.0.55</span></span><span class="artstrip__name">pale cover</span></div><div class="artstrip art--busy"><span class="up-chip up-chip--outline" title="Update available -> 2.0.55"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update <span class="ver">2.0.55</span></span><span class="artstrip__name">busy / high contrast</span></div><div class="artstrip art--sky"><span class="up-chip up-chip--outline" title="Update available -> 2.0.55"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update <span class="ver">2.0.55</span></span><span class="artstrip__name">bright</span></div><div class="chipcell__note">Neutral and safe everywhere, but loses the info-blue that ties it to the rest of the panel.</div></div>
+  <div><div class="chipcell__label">Split — solid label + mono version</div><div class="artstrip art--factorio"><span class="up-chip up-chip--split" title="Update available -> 2.0.55"><span class="seg-a"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update</span><span class="seg-b">2.0.55</span></span><span class="artstrip__name">dark cover</span></div><div class="artstrip art--pale"><span class="up-chip up-chip--split" title="Update available -> 2.0.55"><span class="seg-a"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update</span><span class="seg-b">2.0.55</span></span><span class="artstrip__name">pale cover</span></div><div class="artstrip art--busy"><span class="up-chip up-chip--split" title="Update available -> 2.0.55"><span class="seg-a"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update</span><span class="seg-b">2.0.55</span></span><span class="artstrip__name">busy / high contrast</span></div><div class="artstrip art--sky"><span class="up-chip up-chip--split" title="Update available -> 2.0.55"><span class="seg-a"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update</span><span class="seg-b">2.0.55</span></span><span class="artstrip__name">bright</span></div><div class="chipcell__note">Solid where it must be legible, frosted where it carries data. Most robust of the four.</div></div>
+</div>
+
+<h2>The real test — a dashboard at density</h2>
+<hr class="rule">
+<p class="lede">
+  Six cards at the actual grid width (<code>minmax(280px, 1fr)</code>), two of them with updates waiting. This is the
+  question that matters: does it read at a glance without shouting at you, and can you tell the two apart from the
+  four without reading a word?
+</p>
+
+<div class="state__label" style="margin-top:26px">System A — chip + fourth button</div>
+<div class="scan">
+    <article class="server-tile ">
+      <div class="server-tile__art art--factorio">
+        
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Factorio</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Ketchup</div>
+          
+          <span class="server-tile__pill server-tile__pill--online"><span class="dot"></span>Online</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">7</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">34%</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">2.1G</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">4.2K</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">355B</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">12G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button disabled><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button ><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button ><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile "><svg class="ic ic--b"><use href="#i-play"/></svg>Play</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile ">
+      <div class="server-tile__art art--terraria">
+        <span class="up-chip up-chip--split" title="Update available -> 2.0.55"><span class="seg-a"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update</span><span class="seg-b">2.0.55</span></span>
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Terraria</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Sandbox</div>
+          
+          <span class="server-tile__pill server-tile__pill--online"><span class="dot"></span>Online</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">3</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">12%</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">788M</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">1.1K</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">210B</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">4.8G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick server-tile__quick--4">
+     <button disabled><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button ><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button ><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+     <button class="is-update" disabled title="Server must be stopped before updating"><svg class="ic"><use href="#i-download"/></svg><span class="act-label">Update</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile "><svg class="ic ic--b"><use href="#i-play"/></svg>Play</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile ">
+      <div class="server-tile__art art--valheim">
+        
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Valheim</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Midgard</div>
+          
+          <span class="server-tile__pill server-tile__pill--offline"><span class="dot"></span>Offline</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">—</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">—</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">—</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">12G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button ><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button disabled><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button disabled><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile connect-tile--off"><svg class="ic ic--b"><use href="#i-play"/></svg>Offline</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile ">
+      <div class="server-tile__art art--minecraft">
+        
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Minecraft</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Overworld</div>
+          
+          <span class="server-tile__pill server-tile__pill--online"><span class="dot"></span>Online</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">12</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">58%</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">5.4G</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">9.8K</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">1.2K</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">31G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button disabled><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button ><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button ><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile "><svg class="ic ic--b"><use href="#i-play"/></svg>Play</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile ">
+      <div class="server-tile__art art--sky">
+        <span class="up-chip up-chip--split" title="Update available -> 2.0.55"><span class="seg-a"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update</span><span class="seg-b">2.0.55</span></span>
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Palworld</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Paldeck</div>
+          
+          <span class="server-tile__pill server-tile__pill--offline"><span class="dot"></span>Offline</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">—</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">—</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">—</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">12G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick server-tile__quick--4">
+     <button ><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button disabled><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button disabled><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+     <button class="is-update"><svg class="ic"><use href="#i-download"/></svg><span class="act-label">Update</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile connect-tile--off"><svg class="ic ic--b"><use href="#i-play"/></svg>Offline</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile ">
+      <div class="server-tile__art art--busy">
+        
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Necesse</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Deepvault</div>
+          
+          <span class="server-tile__pill server-tile__pill--online"><span class="dot"></span>Online</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">1</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">6%</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">402M</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">310B</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">88B</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">1.9G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button disabled><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button ><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button ><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile "><svg class="ic ic--b"><use href="#i-play"/></svg>Play</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article></div>
+
+<div class="state__label" style="margin-top:34px">System B — chip + connect CTA</div>
+<div class="scan">
+    <article class="server-tile ">
+      <div class="server-tile__art art--factorio">
+        
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Factorio</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Ketchup</div>
+          
+          <span class="server-tile__pill server-tile__pill--online"><span class="dot"></span>Online</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">7</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">34%</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">2.1G</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">4.2K</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">355B</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">12G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button disabled><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button ><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button ><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile "><svg class="ic ic--b"><use href="#i-play"/></svg>Play</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile ">
+      <div class="server-tile__art art--terraria">
+        <span class="up-chip up-chip--split" title="Update available -> 2.0.55"><span class="seg-a"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update</span><span class="seg-b">2.0.55</span></span>
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Terraria</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Sandbox</div>
+          
+          <span class="server-tile__pill server-tile__pill--online"><span class="dot"></span>Online</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">3</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">12%</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">788M</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">1.1K</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">210B</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">4.8G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button disabled><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button ><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button ><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile "><svg class="ic ic--b"><use href="#i-play"/></svg>Play</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile ">
+      <div class="server-tile__art art--valheim">
+        
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Valheim</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Midgard</div>
+          
+          <span class="server-tile__pill server-tile__pill--offline"><span class="dot"></span>Offline</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">—</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">—</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">—</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">12G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button ><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button disabled><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button disabled><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile connect-tile--off"><svg class="ic ic--b"><use href="#i-play"/></svg>Offline</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile ">
+      <div class="server-tile__art art--minecraft">
+        
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Minecraft</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Overworld</div>
+          
+          <span class="server-tile__pill server-tile__pill--online"><span class="dot"></span>Online</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">12</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">58%</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">5.4G</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">9.8K</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">1.2K</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">31G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button disabled><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button ><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button ><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile "><svg class="ic ic--b"><use href="#i-play"/></svg>Play</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile ">
+      <div class="server-tile__art art--sky">
+        <span class="up-chip up-chip--split" title="Update available -> 2.0.55"><span class="seg-a"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update</span><span class="seg-b">2.0.55</span></span>
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Palworld</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Paldeck</div>
+          
+          <span class="server-tile__pill server-tile__pill--offline"><span class="dot"></span>Offline</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">—</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">—</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">—</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">12G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button ><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button disabled><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button disabled><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <button class="up-cta"><svg class="ic ic--b"><use href="#i-circle-arrow-up"/></svg>Update to 2.0.55</button>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile ">
+      <div class="server-tile__art art--busy">
+        
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Necesse</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Deepvault</div>
+          
+          <span class="server-tile__pill server-tile__pill--online"><span class="dot"></span>Online</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">1</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">6%</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">402M</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">310B</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">88B</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">1.9G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button disabled><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button ><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button ><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile "><svg class="ic ic--b"><use href="#i-play"/></svg>Play</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article></div>
+
+<div class="state__label" style="margin-top:34px">For reference — the quiet version, P1 pill instead of the chip</div>
+<div class="scan">
+    <article class="server-tile ">
+      <div class="server-tile__art art--factorio">
+        
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Factorio</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Ketchup</div>
+          
+          <span class="server-tile__pill server-tile__pill--online"><span class="dot"></span>Online</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">7</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">34%</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">2.1G</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">4.2K</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">355B</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">12G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button disabled><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button ><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button ><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile "><svg class="ic ic--b"><use href="#i-play"/></svg>Play</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile ">
+      <div class="server-tile__art art--terraria">
+        
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Terraria</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Sandbox</div>
+          <span class="up-pill" title="Update available -> 2.0.55"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>2.0.55</span>
+          <span class="server-tile__pill server-tile__pill--online"><span class="dot"></span>Online</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">3</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">12%</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">788M</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">1.1K</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">210B</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">4.8G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button disabled><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button ><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button ><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile "><svg class="ic ic--b"><use href="#i-play"/></svg>Play</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile ">
+      <div class="server-tile__art art--valheim">
+        
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Valheim</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Midgard</div>
+          
+          <span class="server-tile__pill server-tile__pill--offline"><span class="dot"></span>Offline</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">—</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">—</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">—</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">12G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button ><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button disabled><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button disabled><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile connect-tile--off"><svg class="ic ic--b"><use href="#i-play"/></svg>Offline</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile ">
+      <div class="server-tile__art art--minecraft">
+        
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Minecraft</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Overworld</div>
+          
+          <span class="server-tile__pill server-tile__pill--online"><span class="dot"></span>Online</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">12</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">58%</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">5.4G</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">9.8K</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">1.2K</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">31G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button disabled><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button ><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button ><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile "><svg class="ic ic--b"><use href="#i-play"/></svg>Play</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile ">
+      <div class="server-tile__art art--sky">
+        
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Palworld</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Paldeck</div>
+          <span class="up-pill" title="Update available -> 2.0.55"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>2.0.55</span>
+          <span class="server-tile__pill server-tile__pill--offline"><span class="dot"></span>Offline</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">—</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">—</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">—</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">12G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button ><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button disabled><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button disabled><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile connect-tile--off"><svg class="ic ic--b"><use href="#i-play"/></svg>Offline</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile ">
+      <div class="server-tile__art art--busy">
+        
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Necesse</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Deepvault</div>
+          
+          <span class="server-tile__pill server-tile__pill--online"><span class="dot"></span>Online</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">1</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">6%</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">402M</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">310B</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">88B</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">1.9G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button disabled><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button ><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button ><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile "><svg class="ic ic--b"><use href="#i-play"/></svg>Play</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article></div>
+
+<h2>The 2×2 fold — measured, and it’s the deciding fact</h2>
+<hr class="rule">
+<p class="lede">
+  You’re right that four buttons fold well. But the fold isn’t free, and it isn’t optional either — it happens at the
+  widths the dashboard <em>actually renders at</em>. <code>.server-grid</code> is
+  <code>repeat(auto-fill, minmax(280px, 1fr))</code>, and the card’s own container query stacks at
+  <code>max-width: 340px</code>. Work the arithmetic against a 1280px content column:
+</p>
+
+<div class="meas">
+  <div class="meas__box">3 columns<b>397px</b>no fold</div>
+  <div class="meas__box is-bad">4 columns<b>295px</b>folds</div>
+  <div class="meas__box is-bad">5 columns<b>233px</b>folds</div>
+</div>
+<p class="rg__cap">Four across is the ordinary desktop dashboard. It is already below the threshold — the metric row is
+  stacked there today, which is exactly why that container query exists.</p>
+
+<div class="finding">
+  <h4>Measured: a fourth button costs 34px of card height at a real grid width</h4>
+  <div class="meas">
+    <div class="meas__box">3-button card @295px<b>301px</b>quick row 28px</div>
+    <div class="meas__box is-bad">4-button card @295px<b>335px</b>quick row 62px</div>
+    <div class="meas__box is-bad">delta<b>+34px</b>per updating card</div>
+  </div>
+  <p>
+    So the 2×2 fold <strong>reintroduces exactly the layout shift you rejected #8 for</strong> — and worse, because a CSS
+    grid row stretches to its tallest item, one updating card inflates the whole row and leaves dead space under every
+    sibling in it. #8 at least only made its own card taller.
+  </p>
+  <p>
+    This is not a bug to fix. Four labelled buttons genuinely do not fit 295px on one line, and shrinking them to
+    icon-only would cost the labels on <em>all</em> the lifecycle verbs to accommodate a button that is usually absent.
+    It is the intrinsic price of System A.
+  </p>
+</div>
+
+<div class="state__label" style="margin-top:28px">System A at 4-up — the updating card inflates its whole row</div>
+<div class="realgrid realgrid--stretch">
+    <article class="server-tile">
+      <div class="server-tile__art art--factorio">
+        
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Factorio</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Ketchup</div>
+          <span class="server-tile__pill server-tile__pill--online"><span class="dot"></span>Online</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">7</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">34%</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">2.1G</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">4.2K</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">355B</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">12G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button disabled><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button ><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button ><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile "><svg class="ic ic--b"><use href="#i-play"/></svg>Play</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile">
+      <div class="server-tile__art art--sky">
+        <span class="up-chip up-chip--split" title="Update available -> 2.0.55"><span class="seg-a"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update</span><span class="seg-b">2.0.55</span></span>
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Palworld</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Paldeck</div>
+          <span class="server-tile__pill server-tile__pill--offline"><span class="dot"></span>Offline</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">—</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">—</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">—</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">8.3G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick server-tile__quick--4">
+     <button ><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button disabled><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button disabled><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+     <button class="is-update"><svg class="ic"><use href="#i-download"/></svg><span class="act-label">Update</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile connect-tile--off"><svg class="ic ic--b"><use href="#i-play"/></svg>Offline</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile">
+      <div class="server-tile__art art--valheim">
+        
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Valheim</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Midgard</div>
+          <span class="server-tile__pill server-tile__pill--offline"><span class="dot"></span>Offline</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">—</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">—</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">—</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">6.1G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button ><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button disabled><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button disabled><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile connect-tile--off"><svg class="ic ic--b"><use href="#i-play"/></svg>Offline</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile">
+      <div class="server-tile__art art--minecraft">
+        
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Minecraft</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Overworld</div>
+          <span class="server-tile__pill server-tile__pill--online"><span class="dot"></span>Online</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">12</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">58%</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">5.4G</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">9.8K</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">1.2K</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">31G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button disabled><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button ><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button ><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile "><svg class="ic ic--b"><use href="#i-play"/></svg>Play</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article></div>
+<p class="rg__cap">The second card carries the update. Look at the bottom edges: every card in the row is padded out
+  to match it.</p>
+
+<div class="state__label" style="margin-top:32px">System B at 4-up — identical heights, update and all</div>
+<div class="realgrid realgrid--stretch">
+    <article class="server-tile">
+      <div class="server-tile__art art--factorio">
+        
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Factorio</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Ketchup</div>
+          <span class="server-tile__pill server-tile__pill--online"><span class="dot"></span>Online</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">7</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">34%</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">2.1G</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">4.2K</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">355B</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">12G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button disabled><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button ><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button ><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile "><svg class="ic ic--b"><use href="#i-play"/></svg>Play</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile">
+      <div class="server-tile__art art--sky">
+        <span class="up-chip up-chip--split" title="Update available -> 2.0.55"><span class="seg-a"><svg class="ic"><use href="#i-circle-arrow-up"/></svg>Update</span><span class="seg-b">2.0.55</span></span>
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Palworld</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Paldeck</div>
+          <span class="server-tile__pill server-tile__pill--offline"><span class="dot"></span>Offline</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">—</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">—</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">—</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">8.3G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button ><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button disabled><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button disabled><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <button class="up-cta"><svg class="ic ic--b"><use href="#i-circle-arrow-up"/></svg>Update to 2.0.55</button>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile">
+      <div class="server-tile__art art--valheim">
+        
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Valheim</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Midgard</div>
+          <span class="server-tile__pill server-tile__pill--offline"><span class="dot"></span>Offline</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">—</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">—</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">—</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">—</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">6.1G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button ><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button disabled><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button disabled><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile connect-tile--off"><svg class="ic ic--b"><use href="#i-play"/></svg>Offline</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article>
+    <article class="server-tile">
+      <div class="server-tile__art art--minecraft">
+        
+        <div class="server-tile__corner">
+          <span class="server-tile__host"><svg class="ic ic--b"><use href="#i-server"/></svg>hotrod</span>
+          <button class="server-tile__fav"><svg class="ic ic--b"><use href="#i-star"/></svg></button>
+        </div>
+        <span class="server-tile__game">Minecraft</span>
+      </div>
+      <div class="server-tile__body">
+        <div class="server-tile__head">
+          <div class="server-tile__name">Overworld</div>
+          <span class="server-tile__pill server-tile__pill--online"><span class="dot"></span>Online</span>
+        </div>
+        <div class="server-tile__notice server-tile__notice--empty">No server note</div>
+        <div class="server-tile__meta">
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--players"><svg class="ic"><use href="#i-users"/></svg><span class="server-tile__metric-val">12</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-cpu"/></svg><span class="server-tile__metric-val">58%</span></span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-memory-stick"/></svg><span class="server-tile__metric-val">5.4G</span></span>
+          </div>
+          <div class="server-tile__metarow">
+            <span class="server-tile__metric server-tile__metric--net">
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-down"/></svg><span class="server-tile__metric-val">9.8K</span></span>
+              <span class="server-tile__metric-pair"><svg class="ic"><use href="#i-arrow-up"/></svg><span class="server-tile__metric-val">1.2K</span></span>
+            </span>
+            <span class="server-tile__metric"><svg class="ic"><use href="#i-hard-drive"/></svg><span class="server-tile__metric-val">31G</span></span>
+          </div>
+        </div>
+        <div class="server-tile__quick">
+     <button disabled><svg class="ic"><use href="#i-play"/></svg><span class="act-label">Start</span></button>
+     <button ><svg class="ic"><use href="#i-rotate-cw"/></svg><span class="act-label">Restart</span></button>
+     <button ><svg class="ic"><use href="#i-square"/></svg><span class="act-label">Stop</span></button>
+   </div>
+        <div class="server-tile__connect">
+     <a class="connect-tile "><svg class="ic ic--b"><use href="#i-play"/></svg>Play</a>
+     <button class="connect-tile connect-tile--copy connect-tile--icon"><svg class="ic"><use href="#i-copy"/></svg></button>
+   </div>
+      </div>
+    </article></div>
+<p class="rg__cap">The second card carries the same update. The connect row it borrows is a row every card already has,
+  so nothing moves.</p>
+
+<h2>How the four score</h2>
+<hr class="rule">
+<table class="matrix">
+  <tr><th>&nbsp;</th><th>A · chip + button</th><th>B · chip + CTA</th><th>C · all three</th><th>D · stop &amp; update</th></tr>
+  <tr><td>Works online</td><td class="yes">yes</td><td class="yes">yes</td><td class="yes">yes</td><td class="yes">yes</td></tr>
+  <tr><td>Zero layout shift <span style="font-weight:400;color:var(--fg-4)">(≥3 columns)</span></td><td class="yes">yes</td><td class="yes">yes</td><td class="yes">yes</td><td class="yes">yes</td></tr>
+  <tr><td>Zero layout shift <span style="font-weight:400;color:var(--fg-4)">(4-up, the common case)</span></td><td class="no">+34px</td><td class="yes">yes</td><td class="no">+34px always</td><td class="no">+34px</td></tr>
+  <tr><td>Any disabled controls</td><td class="mid">one</td><td class="yes">none</td><td class="mid">one</td><td class="yes">none</td></tr>
+  <tr><td>Carries the version</td><td class="yes">chip</td><td class="yes">chip + CTA</td><td class="yes">chip + CTA</td><td class="yes">chip</td></tr>
+  <tr><td>Ships with no backend work</td><td class="yes">yes</td><td class="yes">yes</td><td class="yes">yes</td><td class="no">no</td></tr>
+  <tr><td>Quick row reflows 3↔4</td><td class="no">yes</td><td class="yes">no</td><td class="yes">no</td><td class="no">yes</td></tr>
+</table>
+
+<p class="lede" style="margin-top:26px">
+  <strong>System B, and the measurement makes it lopsided.</strong> It was already the only system where nothing on the
+  card is ever disabled — an action appears exactly when it can run, and is simply absent when it can’t — and it spends
+  the loudest slot on the card at the one moment that slot is otherwise dead weight. The chip does the announcing in
+  both states, which is precisely the gap you spotted in #11.
+</p>
+<p class="lede">
+  What settles it is that <b>System B is the only one that holds the no-shift rule at the width the dashboard actually
+  renders at</b>. Four labelled buttons cost 34px of card height at 4-up, and a grid row stretches to its tallest item,
+  so a single updating card pads out every sibling beside it. That is the same objection that killed #8, arriving by a
+  different route.
+</p>
+<p class="lede">
+  Pair it with the <b>split chip</b> — solid where it has to be legible, frosted where it carries the version — so it
+  survives whatever cover art RAWG returns.
+</p>
+<p class="lede">
+  Two things I’d keep out of this decision. <b>System A</b> is the conventional runner-up and its one genuine advantage
+  is that the update action always lives in the same place; if that matters more to you than the row inflation, it’s a
+  defensible call, and I’d want to hear that rather than assume. <b>System D</b> is a behaviour change, not a visual
+  one — it needs a backend verb that owns the stop→update chain — so it deserves its own conversation instead of riding
+  in on a design pick.
+</p>
+
+<p class="foot">
+  Mock only — no network, no build step. Cover art is stood in with gradients. Colour, radius, type and every card rule
+  are copied from <code>src/styles/tokens.css</code>, <code>kit/dashboard.css</code>, <code>kit/hosts.css</code> and
+  <code>consumer.css</code>.
+</p>
+
+</div>
+
+<script>
+  const root = document.documentElement, btn = document.getElementById("themeBtn"), lbl = document.getElementById("themeLbl");
+  btn.addEventListener("click", () => {
+    const dark = root.getAttribute("data-theme") !== "light";
+    root.setAttribute("data-theme", dark ? "light" : "dark");
+    lbl.textContent = dark ? "Dark" : "Light";
+    btn.querySelector("use").setAttribute("href", dark ? "#i-moon" : "#i-sun");
+  });
+</script>
+
+</body>
+</html>

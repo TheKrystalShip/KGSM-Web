@@ -221,6 +221,55 @@
   pointer-events: none;
 }
 
+/* ---- Update CTA (ServerActionButton variant "cta") ---- */
+/* The primary button a server card promotes into this row when an update can actually be
+   applied — which is only ever on a stopped server, since kgsm won't rewrite files in use.
+   It takes the row rather than joining it: on a stopped server everything else here is
+   inert, so the loudest slot on the card is free at exactly the moment the update needs it.
+   Info-blue, never the green of Play, so a glance can't confuse "update this" with "join
+   this". Geometry is copied from .connect-tile so the row keeps its height either way. */
+.server-tile__update-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1;
+  height: 32px;
+  box-sizing: border-box;
+  border-radius: var(--r-sm);
+  background: var(--info);
+  /* Whatever reads on this theme's --info — see the token's note in tokens.css. */
+  color: var(--on-info);
+  border: 1px solid transparent;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter var(--d-fast) var(--ease-out);
+}
+
+.server-tile__update-cta:hover:not(:disabled):not(.is-armed):not(.is-pending) {
+  filter: brightness(1.08);
+}
+
+/* Armed inverts the page, the same way the tile's quick buttons and the hero's glass
+   buttons do — it fills with the primary text colour, so its own text is the canvas. */
+.server-tile__update-cta.is-armed {
+  background: var(--fg-1);
+  color: var(--canvas);
+}
+
+.server-tile__update-cta.is-pending {
+  cursor: progress;
+  filter: none;
+  opacity: 0.92;
+}
+
+.server-tile__update-cta:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ---- Server note (MOTD) — rendered inside the shared BriefCard shell ---- */
 /* BriefCard (.chat-brief) supplies the card chrome + titled header; these style
    only the body it wraps. */

@@ -108,9 +108,25 @@ the watchdog, the observed run state, and (for `update`) whether there is anythi
 deliberately does **not** check tier, which decides whether the control renders at all
 (`serverOperable`), a different question.
 
-⚠ A refused verb renders **disabled with its reason**, never hidden. kgsm-api's `CommandGate` 409s an
-update on a running server, so the button says "Server must be stopped before updating" before the
-click — hiding it would leave an operator hunting for a control that was there yesterday.
+⚠ A refused verb renders **disabled with its reason** wherever the control has a fixed home — the
+hero's chip row, the tile's quick row, an alert card's suggested action. kgsm-api's `CommandGate` 409s
+an update on a running server, so the button says "Server must be stopped before updating" before the
+click; hiding it there would leave an operator hunting for a control that was on that surface
+yesterday.
+
+**A PROMOTED control is the exception, and the server card's update CTA is the one.** It has no fixed
+home: it is a full-width button the card puts in its connect row only while `verbGuard` allows
+`update`, borrowing a row that is dead weight on a stopped server (nothing to join, no address to
+copy). Nothing is displaced and nothing goes missing, because the card's own announcement is the
+`.server-tile__update` chip on the artwork — present in **every** run state, carrying the target
+version, and carrying the guard's refusal in its tooltip when there is one. So the card states the
+fact always and offers the action only when it would work, and no control on it is ever disabled.
+The reason this lives on the artwork rather than in the body is measured, not stylistic: an update
+must not change the card's height, since a CSS grid row stretches to its tallest item and one taller
+card pads out every sibling in its row.
+
+`ServerActionButton`'s `cta` variant is that button, and its optional `label` prop is why it can read
+"Update to 2.0.55" while still reporting the verb's own words ("Updating…", "Confirm?") in flight.
 
 `AlertCard`'s `useAlertActions` resolves the backend's `actions[]` through the same guard. The
 backend chooses the **verb** (its catalog is shared with Web Push, so a crash cannot suggest Stop on

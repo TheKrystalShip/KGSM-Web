@@ -801,21 +801,59 @@
   }
 }
 
-.server-tile__update {
-  color: var(--info);
-  cursor: default;
-  line-height: 0;
-  width: 22px !important;
-  height: 22px !important;
+/* Update-available chip — the card's whole announcement that a newer build is waiting.
+   It sits in the artwork's empty top-left corner (the host pill and star own the right),
+   which is what makes it free: absolutely positioned, so a card with an update waiting is
+   pixel-identical in height to one without and nothing in the grid shifts. That matters
+   more than it sounds — a grid row stretches to its tallest item, so one taller card pads
+   out every sibling beside it.
 
-  svg {
-    width: 100%;
-    height: auto;
-  }
+   Two segments, because the chip has to survive whatever cover art the backend returns:
+   a SOLID label, which is legible over anything, and a FROSTED version, which carries the
+   figure on the same blurred scrim as .server-tile__host on the opposite corner. Solid
+   where it must be read, frosted where it holds data. */
+.server-tile__update {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: var(--r-pill);
+  overflow: hidden;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid color-mix(in srgb, var(--info) 40%, transparent);
+  /* A FIXED dark scrim, not --scrim-base. What is behind this chip is cover art, not the page,
+     so it cannot borrow a page colour: several light themes give --scrim-base a light value, and
+     the white version below would then sit on white. Media overlays hold the dark palette in
+     every theme here — the same reason lib/art.js keeps a separate dark placeholder for the
+     cinematic hero rather than the themed one. */
+  background: rgba(7, 10, 14, 0.72);
+  backdrop-filter: blur(5px);
+  box-shadow: var(--shadow-1);
+  cursor: default;
 }
 
-.server-tile__update:hover {
-  color: var(--info-fg);
+.server-tile__update-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px 3px 6px;
+  background: var(--info);
+  /* Whatever reads on THIS theme's --info — dark on a light blue, white on a dark one. Neither
+     --fg-inverse nor --btn-accent-fg answers that on its own: the first is light in the light
+     tribute themes, the second tracks the teal, and each leaves a filled info surface below 3:1
+     in a dozen-odd themes. See --on-info in tokens.css. */
+  color: var(--on-info);
+}
+
+/* Always white — it rides the fixed dark scrim above, which is dark in every theme. */
+.server-tile__update-ver {
+  padding: 3px 8px;
+  font-family: var(--font-mono);
+  color: #fff;
 }
 
 .server-tile__spark {

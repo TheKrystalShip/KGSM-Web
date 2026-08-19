@@ -91,7 +91,19 @@ function ServerTile({ server, onOpen, onAction, showHost }) {
   // One shared answer for whether each verb can run and why not (ServerActions.jsx),
   // so the tile, the hero and an alert card's suggested action never disagree.
   const guard = { start: verbGuard(server, "start"), stop: verbGuard(server, "stop"),
-                  restart: verbGuard(server, "restart") };
+                  restart: verbGuard(server, "restart"), update: verbGuard(server, "update") };
+  // An update waiting is announced in EVERY run state, by the chip on the artwork — a fact about the
+  // installed build, which stays true whether or not anything is running. It goes quiet only while the
+  // update is actually being applied, because the status pill is already saying "Updating…" and two
+  // colours reporting one event reads as two events.
+  //
+  // Acting on it is a separate question, and verbGuard owns it: kgsm can't rewrite files that are in
+  // use, so an update only runs on a STOPPED server. Rather than render a control that would just
+  // error, the card promotes a full-width CTA into its connect row exactly when the verb can run — a
+  // row that is dead weight on a stopped server anyway (there is nothing to join), so the loudest slot
+  // on the card costs nothing. Online, the row goes back to Play and the chip carries it alone.
+  const hasUpdate = !!server.update_available && server.status !== "updating";
+  const canUpdateNow = hasUpdate && !guard.update.disabled;
   // Players (viewer / consumer preview) can't operate this host — the quick
   // lifecycle row is replaced with a Join / connect button instead.
   const canOps = serverOperable(server);
@@ -120,6 +132,22 @@ function ServerTile({ server, onOpen, onAction, showHost }) {
   return (
     <div className="server-tile">
       <div className="server-tile__art" onClick={open} style={{ backgroundImage: art, backgroundSize: "cover", backgroundPosition: "center" }}>
+        {hasUpdate && (
+          <span className="server-tile__update"
+            title={"Update available" + (server.update_version ? " — version " + server.update_version : "")
+              + (guard.update.disabled && guard.update.reason ? " · " + guard.update.reason : "")}>
+            <span className="server-tile__update-label">
+              <Icon name="circle-arrow-up" size={11} strokeWidth={2.4} />
+              Update
+            </span>
+            {/* The version segment appears only when the engine named a build. It reported an update
+                without one, `update_available` holds a prose stand-in, and a sentence does not belong
+                in a mono badge — so the chip simply reads "Update". */}
+            {server.update_version && (
+              <span className="server-tile__update-ver">{server.update_version}</span>
+            )}
+          </span>
+        )}
         <div className="server-tile__corner">
           {host && <span className="server-tile__host"><Icon name="server" size={10} strokeWidth={2.2} />{host.name}</span>}
           <button
@@ -136,11 +164,6 @@ function ServerTile({ server, onOpen, onAction, showHost }) {
       <div className="server-tile__body">
         <div className="server-tile__head">
           <div className="server-tile__name" onClick={open}>{server.name}</div>
-          {server.update_available && (
-            <span className="server-tile__update" title="Update available">
-              <Icon name="circle-arrow-down" size={14} />
-            </span>
-          )}
           <span className={"server-tile__pill " + (watchdogDown ? "server-tile__pill--unknown" : "server-tile__pill--" + server.status)}
             title={watchdogDown ? "Watchdog down — server state can't be confirmed" : undefined}>
             <span className="dot"></span>
@@ -203,10 +226,20 @@ function ServerTile({ server, onOpen, onAction, showHost }) {
             <ServerActionButton verb="stop"    disabled={guard.stop.disabled}    reason={guard.stop.reason}    pendingVerb={pendingVerb} onRun={(v) => onAction(server.id, v)} />
           </div>
         )}
-        {/* Join / connect — shown to everyone (operators play too), below their
-            lifecycle controls. */}
+        {/* Join / connect — shown to everyone (operators play too), below their lifecycle controls.
+            An applicable update takes this row outright rather than sitting beside it: everything
+            ServerConnect would render here is inert on a stopped server (nothing to launch, no address
+            to copy), so pairing a live CTA with a disabled Play/Copy would only add noise. Players
+            can't operate the host, so they keep the connect row whatever the build says. */}
         <div className="server-tile__connect">
-          <ServerConnect server={server} variant="tile" />
+          {canOps && canUpdateNow
+            ? <ServerActionButton
+                verb="update"
+                variant="cta"
+                label={server.update_version ? "Update to " + server.update_version : "Update"}
+                pendingVerb={pendingVerb}
+                onRun={(v) => onAction(server.id, v)} />
+            : <ServerConnect server={server} variant="tile" />}
         </div>
       </div>
     </div>

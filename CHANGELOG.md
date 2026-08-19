@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — a server card says which update is waiting, and offers it when it can run
+
+A pending update is announced by a chip on the card's **artwork**, in the corner the host pill and
+star leave empty: a solid "Update" label fused to a frosted version segment, so it stays legible over
+whatever cover art the backend returns. It carries the target build (`2.0.55`) rather than pointing at
+one, and it shows in **every run state** — a newer build is a fact about the installed files, true
+whether or not anything is running. It goes quiet only while the update is being applied, because the
+status pill is already saying "Updating…" and two colours reporting one event reads as two events.
+
+Acting on it is a separate question, and `verbGuard` owns it. kgsm cannot rewrite files in use, so an
+update only runs on a stopped server — and there the card promotes a full-width **"Update to
+&lt;version&gt;"** into its connect row, which is dead weight on a stopped server anyway (nothing to
+join, no address to copy). Info-blue, never the green of Play. Online, the row goes back to Play and
+the chip carries it alone: **no disabled update control anywhere on the card**, because an action that
+cannot run is absent rather than greyed. It is the same button pressed everywhere else — one press
+arms it ("Confirm?"), the second issues `update`, and an in-flight job shows its spinner.
+
+The chip lives on the artwork so that a card carrying an update is **exactly as tall** as one without.
+That is load-bearing rather than tidy: a CSS grid row stretches to its tallest item, so anything that
+grew the body would pad out every sibling in the row. At a 4-up dashboard (295px columns, below the
+card's own 340px container query) a fourth quick button would have cost 34px per updating card.
+
+`ServerActionButton` gains a `cta` variant and an optional `label`, so a promoted button can name its
+target version while still reporting the verb's own words in flight. The adapter now also exposes
+`update_version` — the target build on its own — so a surface can render the figure without having to
+recognise the prose stand-in `update_available` falls back to when the engine names no build.
+
+### Added — `--on-info`, text on a filled info surface
+
+Both new surfaces are filled `--info`, and `--info` swings from a pale tint to a saturated blue across
+the theme pack, so no single foreground reads on all of them. `--on-info` defaults to `--fg-inverse`
+and is re-valued by the 17 themes where that pairing falls below AA — including every colour-vision
+theme, which is where it matters most. Measured in a browser across all 48 themes; worst is now
+4.64:1 (nord), where the worst was 2.34:1.
+
+⚠ The same gap remains for the other filled semantic surfaces (`.chat-action__go--success/--danger/
+--warning/--update` pair `--fg-inverse` with tokens that are light in the tribute light themes), and
+`.server-tile__host` hardcodes white on a `--scrim-base` that three light themes make light. Neither is
+touched here. The update chip sidesteps the second by scrimming itself with a fixed dark value: what is
+behind it is cover art, not the page, so it holds the dark palette in every theme — the same reasoning
+`lib/art.js` uses for the cinematic hero's placeholder.
+
 ### Added — an alert offers what to do about itself
 
 A firing alert card now carries the condition's own action beside "Ask assistant": an available

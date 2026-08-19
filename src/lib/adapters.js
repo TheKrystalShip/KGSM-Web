@@ -71,6 +71,11 @@ export function adaptServer(be) {
     // keeps reading a truthy string. Honest-null when the probe is cold or reported no update — NEVER
     // a fabricated false (the chip stays disabled with an honest reason, not lit as "no update").
     update_available: be.updateAvailable ? (be.latestVersion || "new version available") : null,
+    // The target version on its own, or null when the engine reported an update without naming a
+    // build. Kept separate from update_available so a surface can render the figure WITHOUT having to
+    // recognise the prose stand-in above — the tile's update chip shows its version segment only when
+    // there is a real version to put in it, rather than printing a sentence in a mono badge.
+    update_version: be.latestVersion ?? null,
     // When the update-check probe last ran for this instance (UTC ISO), or null until the first check.
     // Surfaced so freshness is visible ("checked N min ago"); never a fabricated timestamp.
     update_checked_at: be.updateCheckedAt ?? null,
