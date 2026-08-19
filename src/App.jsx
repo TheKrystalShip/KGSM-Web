@@ -12,7 +12,7 @@ import { alertBuckets, useAlerts } from "./components/NeedsAttention.jsx";
 import { Sidebar } from "./components/Sidebar.jsx";
 import { api, connectionStore } from "./lib/apiClient.js";
 import { KRYSTAL_LABELS } from "./lib/labels.js";
-import { canOn, homeKind, resolveRoute } from "./lib/persona.js";
+import { canOn, homeKind, resolveRoute, serverOperable } from "./lib/persona.js";
 import { KrystalRouter } from "./lib/router.js";
 import { sessionStore } from "./lib/sessionStore.js";
 import { useStore } from "./lib/store.js";
@@ -326,6 +326,9 @@ function AppInner({ user, setUser, route, setRoute }) {
 
   const sidebarCtx = {
     serverName: serverForRender ? serverForRender.name : null,
+    // The server's operator tabs are hidden from a player, and the page falls back to the overview
+    // for one — so the breadcrumb has to know, or it would name a tab that isn't on screen.
+    serverOperable: serverForRender ? serverOperable(serverForRender) : false,
     gameName: activeGame ? activeGame.name : null,
     hostName: route.hostId ? ((hosts.find(h => h.id === route.hostId) || {}).name || null) : null,
     // The leaf's display name is the services board's to give, and that board is host-scoped — a row

@@ -137,7 +137,10 @@ realtime: liveStream.js (fetch-SSE) ──adaptStreamMessage──▶ same store
   of the two. Mirror the `index.html` / `assistant.html` boot scripts when you
   change the list.
 - `formatting.js` / `labels.js` / `art.js` / `servers.js` / `leaves.js` —
-  formatting, display-label vocabulary, key-art helpers, server-shape helpers,
+  formatting, display-label vocabulary (including `ROUTE_TABS`, every tabbed
+  route's sub-tabs — read by the page that draws the strip AND by the breadcrumb
+  that names the tab in the URL, so the two cannot disagree), key-art helpers,
+  server-shape helpers,
   and the leaf vocabulary (run-state → tone+label, iconography, kind). `leaves.js`
   lives here rather than beside any one surface because the Services board, the
   leaf page and the leaf config page all read it — and because `components/`

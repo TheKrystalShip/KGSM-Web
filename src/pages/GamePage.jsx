@@ -6,6 +6,7 @@ import { instancesOfBlueprint, offeringHosts } from "../lib/servers.js";
 import { useStore } from "../lib/store.js";
 import { hostsStore, serversStore } from "../lib/stores.js";
 import { artBg } from "../lib/art.js";
+import { ROUTE_TABS } from "../lib/labels.js";
 import { GameOverview } from "./library/GameOverview.jsx";
 import { GameServersTab } from "./library/GameServersTab.jsx";
 
@@ -45,12 +46,11 @@ function GamePage({ game, tab: tabProp, onTabChange, onCreate, onOpenServer, onA
   // library grid/counts always agree (robust to per-instance ids like "rust-ab12").
   const instances = instancesOfBlueprint(game, servers);
 
-  const tabs = [
-    { id: "overview",  label: "Overview",  icon: "layout-grid" },
-    { id: "blueprint", label: "Blueprint", icon: "sliders-horizontal" },
-    { id: "servers",   label: "Servers",   icon: "server", ...(instances.length ? { badge: instances.length, badgeTone: "info" } : {}) },
-    ...(canReadFile ? [{ id: "file", label: "File", icon: "file-code" }] : []),
-  ];
+  // Names and order are shared with the breadcrumb (lib/labels.js); the instance count and the
+  // operator-only File tab are this page's to decide.
+  const tabs = ROUTE_TABS.game
+    .filter(t => t.id !== "file" || canReadFile)
+    .map(t => (t.id === "servers" && instances.length ? { ...t, badge: instances.length, badgeTone: "info" } : t));
   // Keeps a stale or forbidden tab in the URL from rendering an empty body.
   const tab = tabProp || "overview";
   const safeTab = tabs.some(t => t.id === tab) ? tab : "overview";

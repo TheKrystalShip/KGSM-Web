@@ -2059,13 +2059,41 @@ try {
   assert(legacyLeaf.kind === "leaf" && legacyLeaf.hostId === hmId && legacyLeaf.leaf === "monitor",
     "leaf route: the flat #/leaf/<host>/<leaf> word still resolves, so an older link still lands");
 
-  // ONE breadcrumb, and it mirrors the URL. The shell renders the trail for every route, so a page
-  // drawing its own would stack a second one under it — assert both the count and the sequence.
-  const leafHtml = await nav(`#/cluster/${hmId}/services/monitor/logs`);
-  const crumbRows = (leafHtml.match(/content__breadcrumb/g) || []).length;
-  const crumbText = (leafHtml.match(/class="content__breadcrumb">([\s\S]*?)<\/div>/) || ["", ""])[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-  assert(crumbRows === 1 && /Cluster \/ .+ \/ Services \/ Monitor$/.test(crumbText),
-    `leaf breadcrumb: exactly one trail, and it walks the URL ("${crumbText}")`);
+  // ONE breadcrumb, and it mirrors the URL — sub-tab included. The shell renders the trail for every
+  // route, so a page drawing its own would stack a second one under it: assert the count, and that the
+  // trail names every segment the hash carries down to the tab.
+  const crumbsOf = (html) => {
+    const rows = (html.match(/content__breadcrumb/g) || []).length;
+    const text = (html.match(/class="content__breadcrumb">([\s\S]*?)<\/div>/) || ["", ""])[1]
+      .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    return { rows, text };
+  };
+  const leafCrumb = crumbsOf(await nav(`#/cluster/${hmId}/services/monitor/logs`));
+  assert(leafCrumb.rows === 1 && /Cluster \/ .+ \/ Services \/ Monitor \/ Logs$/.test(leafCrumb.text),
+    `leaf breadcrumb: exactly one trail, and it walks the URL down to the tab ("${leafCrumb.text}")`);
+
+  // The node's own tabs are segments too, which is the case the trail used to stop short of.
+  const nodeTabCrumb = crumbsOf(await nav(`#/cluster/${hmId}/services`));
+  assert(nodeTabCrumb.rows === 1 && /Cluster \/ .+ \/ Services$/.test(nodeTabCrumb.text),
+    `node breadcrumb: a node's sub-tab is a crumb ("${nodeTabCrumb.text}")`);
+
+  // The default tab is left OUT of the hash, so it gets no crumb — the trail says exactly what the
+  // URL says and no more.
+  const nodeCrumb = crumbsOf(await nav(`#/cluster/${hmId}`));
+  assert(nodeCrumb.rows === 1 && /Cluster \/ [^/]+$/.test(nodeCrumb.text),
+    `node breadcrumb: the default tab is unnamed in the URL and uncrumbed in the trail ("${nodeCrumb.text}")`);
+
+  // A segment no tab answers to resolves back to the default tab, so naming it would announce a place
+  // that is not on screen.
+  const bogusCrumb = crumbsOf(await nav(`#/cluster/${hmId}/not-a-tab`));
+  assert(bogusCrumb.rows === 1 && !/not-a-tab/i.test(bogusCrumb.text),
+    `node breadcrumb: an unknown tab segment is left off rather than announced ("${bogusCrumb.text}")`);
+
+  // The node header carries no back control of its own — walking back up the cluster is the trail's job,
+  // and a second affordance for it was one the page had to keep in step with the URL.
+  const nodeHtml = await nav(`#/cluster/${hmId}`);
+  assert(!nodeHtml.includes("diag-back-btn") && !nodeHtml.includes("Back to all hosts"),
+    "node header: no back arrow beside the title (the breadcrumb is the way back up)");
 
   // The unit's facts live on the System tab and ONLY there. They used to be rendered three times over
   // — a strip above every tab, a card on the generic Overview, the config page's identity block — so

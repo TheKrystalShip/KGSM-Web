@@ -10,6 +10,7 @@ import { ServerHero } from "../components/ServerHero.jsx";
 import { ServerNotice } from "../components/ServerNotice.jsx";
 import { StatTiles } from "../components/StatTiles.jsx";
 import { serverOperable } from "../lib/persona.js";
+import { ROUTE_TABS } from "../lib/labels.js";
 import { serversStore } from "../lib/stores.js";
 import { BackupsList } from "./BackupsList.jsx";
 import { FileBrowser } from "./FileBrowser.jsx";
@@ -53,13 +54,9 @@ function ServerDetailPage({ server, onAction, tab: tabProp, onTabChange, onAsk, 
   const srvAlerts = anchoredAlerts(an => an.surface === "server" && an.serverId === server.id);
   const tabAlerts = (id) => srvAlerts.filter(a => (a.anchor.tab || "overview") === id);
   const badge = (id) => { const it = tabAlerts(id); return it.length ? { badge: it.length, badgeTone: alertsTone(it) } : {}; };
-  const allTabs = [
-    { id: "overview",    label: "Overview",    icon: "layout-grid", ...badge("overview") },
-    { id: "performance", label: "Performance", icon: "line-chart", ...badge("performance") },
-    { id: "files",       label: "Files",       icon: "folder" },
-    { id: "backups",     label: "Backups",     icon: "database" },
-    { id: "settings",    label: "Settings",    icon: "settings" },
-  ];
+  // Names and order are shared with the breadcrumb (lib/labels.js); the alert count on a tab is
+  // this page's to add.
+  const allTabs = ROUTE_TABS.server.map(t => ({ ...t, ...badge(t.id) }));
   // Files / Backups / Settings / Performance are operator surfaces — hidden for
   // players, not merely disabled. safeTab keeps a stale tab in the URL from
   // rendering an empty body when the tab isn't available to this user.

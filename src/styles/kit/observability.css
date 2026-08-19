@@ -994,37 +994,9 @@
 }
 
 /* ============= Diagnostics ============= */
-/* Deep-dive header row: the title aligns with the rest of the page (breadcrumb,
-   cards); the icon-only back button is pulled OUT of flow into the left gutter
-   so it doesn't indent the title. The header pushes the "Live" pill far right. */
-.diag-head-row {
-  position: relative;
-}
-
-.diag-back-btn {
-  position: absolute;
-  top: 6px;
-  right: 100%;
-  margin-right: 2px;
-  width: 22px;
-  height: 26px;
-  padding: 0;
-  border: none;
-  border-radius: var(--r-sm);
-  background: none;
-  color: var(--fg-3);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: color var(--d-fast) var(--ease-out), background var(--d-fast) var(--ease-out);
-}
-
-.diag-back-btn:hover {
-  color: var(--fg-1);
-  background: var(--surface-2);
-}
-
+/* Deep-dive header: the title aligns with the rest of the page (breadcrumb, cards),
+   and the header pushes the "Live" pill far right. Walking back up to the cluster is
+   the breadcrumb's job, so nothing sits in the left gutter. */
 .diag-head {
   display: flex;
   align-items: center;

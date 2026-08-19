@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the breadcrumb walks the whole URL, sub-tab included
+
+A trail stopped at the page and left the tab off, so `#/cluster/hotrod/services` read
+"Home / Cluster / Hotrod" — three crumbs for four segments, and the last one named a place
+the screen was not on. Every tabbed route now ends its trail with the tab the URL carries:
+`#/servers/Ketchup/files` reads "Home / Servers / Ketchup / Files", `#/settings/security`
+reads "Home / Settings / Security", and a leaf's own tab reads
+"Home / Cluster / DevTest / Services / Monitor / Logs". Each crumb but the last opens the
+prefix of the URL it sits at, so walking back up the trail walks back up the address.
+
+A crumb appears only for a tab the URL actually names and the page actually shows: a route's
+default tab is omitted from the hash and so has no crumb, a segment no tab answers to is left
+off rather than announced, and a server's operator tabs — which the page hides from a player,
+landing them on the overview — are uncrumbed for one.
+
+Tab names now come from `ROUTE_TABS` in `src/lib/labels.js`, read by the page drawing the strip
+and by the breadcrumb naming the segment, so the two cannot drift. Each page keeps what is its
+own: the badge counting its alerts, and which tabs the persona is offered.
+
+### Removed — the back arrow beside a node's name
+
+The node deep-dive's title carried an icon-only back button into the left gutter. The breadcrumb
+above it already walks back to the cluster, one crumb per segment, so the arrow was a second
+control for the same move — one the page had to keep in step with the URL by hand.
+
 ### Fixed — type on a filled semantic colour is legible in every theme
 
 A semantic colour is used two ways, and only one of them was ever tuned. As a **tint** behind muted

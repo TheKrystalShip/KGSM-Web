@@ -13,6 +13,7 @@ import { sessionStore } from "../lib/sessionStore.js";
 import { useStore } from "../lib/store.js";
 import { clusterStore, hostsStore, serversStore, subscribeHostMetrics } from "../lib/stores.js";
 import { pingStore, startPingLoop } from "../lib/stores/ui.js";
+import { ROUTE_TABS } from "../lib/labels.js";
 
 // Imports from extracted modules
 import { AddNodeModal } from "./diagnostics/AddNodeModal.jsx";
@@ -180,15 +181,10 @@ function ClusterPage({ focusHostId, tab: tabProp, onTabChange, onFocusHost, onAs
   if (sessionStore.isDenied(host.id)) {
     return (
       <>
-        <div className="diag-head-row">
-          <button className="diag-back-btn" onClick={() => onFocusHost(null)} title="All hosts" aria-label="Back to all hosts">
-            <Icon name="arrow-left" size={18} />
-          </button>
-          <div className="diag-head">
-            <div className="diag-head__title">
-              <h1>{host.name}</h1>
-              <div className="dash-head__sub">{host.hostname} · {host.region}</div>
-            </div>
+        <div className="diag-head">
+          <div className="diag-head__title">
+            <h1>{host.name}</h1>
+            <div className="dash-head__sub">{host.hostname} · {host.region}</div>
           </div>
         </div>
         <HostDeniedNotice host={host} embedded
@@ -199,17 +195,12 @@ function ClusterPage({ focusHostId, tab: tabProp, onTabChange, onFocusHost, onAs
   }
 
   const headerChrome = (
-    <div className="diag-head-row">
-      <button className="diag-back-btn" onClick={() => onFocusHost(null)} title="All hosts" aria-label="Back to all hosts">
-        <Icon name="arrow-left" size={18} />
-      </button>
-      <div className="diag-head">
-        <div className="diag-head__title">
-          <h1>{host.name}</h1>
-          <div className="dash-head__sub">{host.hostname} · {host.region} — host machine health, distinct from per-game-server metrics.</div>
-        </div>
-        {host.online && <HostConnection hostId={host.id} full />}
+    <div className="diag-head">
+      <div className="diag-head__title">
+        <h1>{host.name}</h1>
+        <div className="dash-head__sub">{host.hostname} · {host.region} — host machine health, distinct from per-game-server metrics.</div>
       </div>
+      {host.online && <HostConnection hostId={host.id} full />}
     </div>
   );
 
@@ -232,12 +223,10 @@ function ClusterPage({ focusHostId, tab: tabProp, onTabChange, onFocusHost, onAs
   const resourceAlerts = hostAlerts.filter(a => a.anchor.tab === "resources");
   const serviceAlerts  = hostAlerts.filter(a => a.anchor.tab === "services");
   const badge = (items) => items.length ? { badge: items.length, badgeTone: alertsTone(items) } : {};
-  const tabs = [
-    { id: "overview",  label: "Overview",  icon: "layout-grid" },
-    { id: "resources", label: "Resources", icon: "activity", ...badge(resourceAlerts) },
-    { id: "services",  label: "Services",  icon: "server-cog", ...badge(serviceAlerts) },
-    { id: "logs",      label: "Logs",      icon: "scroll-text" },
-  ];
+  // The strip's names and order are shared with the breadcrumb (lib/labels.js); what belongs to this
+  // page is the alert count each tab carries.
+  const tabBadges = { resources: badge(resourceAlerts), services: badge(serviceAlerts) };
+  const tabs = ROUTE_TABS.cluster.map(t => ({ ...t, ...(tabBadges[t.id] || {}) }));
 
   return (
     <>

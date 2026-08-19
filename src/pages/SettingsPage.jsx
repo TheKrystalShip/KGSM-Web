@@ -6,6 +6,7 @@ import { SettingsMemory } from "../components/SettingsMemory.jsx";
 import { signInMethodLabel } from "../components/host-helpers.jsx";
 import { useAssistantDock } from "../components/AssistantDockContext.jsx";
 import { capUsable } from "../lib/capabilities.js";
+import { ROUTE_TABS } from "../lib/labels.js";
 import { SettingsAccess } from "./SettingsAccess.jsx";
 import { SettingsIdentities } from "./SettingsIdentities.jsx";
 import { SettingsNotifications } from "./SettingsNotifications.jsx";
@@ -38,13 +39,8 @@ import { SettingsSessions } from "./SettingsSessions.jsx";
 // that provider's rendering of it, re-read at each login. Neither is a field this panel owns, so
 // neither is offered as one — an input that silently persists nowhere is worse than a plain value.
 
-const TABS = [
-  { id: "profile", label: "Profile", icon: "user" },
-  { id: "security", label: "Security", icon: "key-round" },
-  { id: "devices", label: "Devices", icon: "monitor-smartphone" },
-  { id: "memory", label: "Memory", icon: "brain" },
-  { id: "notifications", label: "Notifications", icon: "bell" },
-];
+// Shared with the breadcrumb, which names the tab the URL carries (lib/labels.js).
+const TABS = ROUTE_TABS.settings;
 
 function SettingsPage({ user, onLogout, tab, onTabChange }) {
   // Which door this session came through, derived from the handle the backend returned

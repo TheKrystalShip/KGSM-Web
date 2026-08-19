@@ -24,6 +24,7 @@ import { SubTabs } from "../../components/SubTabs.jsx";
 import { useStore } from "../../lib/store.js";
 import { fetchLeafCommands, hostsStore, servicesStore, subscribeHostServices } from "../../lib/stores.js";
 import { leafIcon, leafStatus } from "../../lib/leaves.js";
+import { ROUTE_TABS } from "../../lib/labels.js";
 import { AssistantOverview } from "./AssistantOverview.jsx";
 import { AssistantConversations } from "./AssistantConversations.jsx";
 import { ApiOverview } from "./ApiOverview.jsx";
@@ -115,14 +116,14 @@ function LeafPage({ hostId, leafId, tab, onSelectTab, onReviewConversation, onAu
       render: (p) => <LeafCommands {...p} />,
     }] : []),
   ];
-  // System and Logs are here for every leaf, not per-leaf like the map above: each one is a systemd
-  // unit, so each one has both a unit to report on and a journal.
+  // System, Logs and Settings are here for every leaf, not per-leaf like the map above: each one is a
+  // systemd unit, so each one has both a unit to report on and a journal. The shell's four come from
+  // the shared table the breadcrumb reads (lib/labels.js); a leaf's own tabs slot in after Overview.
+  const shell = ROUTE_TABS.leaf;
   const tabs = [
-    { id: "overview", label: "Overview", icon: "layout-dashboard" },
+    shell[0],
     ...extraTabs.map(t => ({ id: t.id, label: t.label, icon: t.icon })),
-    { id: "system", label: "System", icon: "server-cog" },
-    { id: "logs", label: "Logs", icon: "scroll-text" },
-    { id: "settings", label: "Settings", icon: "sliders-horizontal" },
+    ...shell.slice(1),
   ];
   const active = tabs.some(t => t.id === tab) ? tab : "overview";
 

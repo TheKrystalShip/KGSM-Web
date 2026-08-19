@@ -94,9 +94,9 @@
   transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* Edit mode: a full-height grip rail per band. Like the host page's back
-   button (.diag-back-btn), it's pulled OUT of flow into the content's left
-   gutter via right:100%, so it never indents or reflows the band content. */
+/* Edit mode: a full-height grip rail per band. It's pulled OUT of flow into the
+   content's left gutter via right:100%, so it never indents or reflows the band
+   content. */
 .dash-band__grip {
   position: absolute;
   top: 0;

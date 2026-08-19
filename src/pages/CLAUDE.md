@@ -76,7 +76,12 @@ folder** rather than another append.
 (a library blueprint) render sub-tabs via `route.tab` (`overview` is the default
 and is omitted from the URL). A tab the persona can't reach is left out of the
 strip and `safeTab` falls back to overview, so a stale URL never mounts an empty
-body — the game page's File tab is operator-only on that basis. Every server
+body — the game page's File tab is operator-only on that basis.
+
+**A tab's id, name and place in the strip come from `ROUTE_TABS` in `../lib/labels.js`**,
+because a tab is a URL segment and the breadcrumb above the page names it too. The page
+keeps what is its own — the badge counting its alerts, and which tabs this persona is
+offered — and decorates the shared row. Add a tab there, not in the page. Every server
 tab is backed by a real endpoint: `FileBrowser`, `ServerSettings`,
 `PerformanceTab` and `PlayersTab` all render measured data.
 
