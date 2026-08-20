@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the dashboard summary band is twelve tiles, six across
+
+Six on a desktop row and two on a phone (6x2 becoming 2x6), through 4- and 3-column steps that
+always leave whole rows. `KPI` gains a `compact` variant for it: same chrome and same tone accent,
+smaller type, and the header's "View →" becomes the arrow alone — at a sixth of the row the word is
+what overflows first.
+
+The split is by question. **What is happening** — servers running, players now (with the day's peak),
+distinct players this week, hours played, uptime, time-to-ready. **What needs me** — desired-state
+drift, crashes, updates, oldest backup, failed schedules, leaf health.
+
+Five of these are windowed, and that is the point: the capacity strip below already renders every
+node's CPU, RAM, disk and round trip, so nothing in the band restates an instantaneous machine
+reading. What the strip never shows is time.
+
+⚠ **A tile whose source is missing keeps its slot** and renders "—" with an honest sub-line. In a
+fixed grid a self-hiding tile reflows the whole band, and an absent measurement is worth saying.
+
+### Removed — the Ping tile
+
+It measured this browser's link, not the fleet, and the capacity strip already states each node's
+round trip on its collapsed line. The ping loop itself stays — the strip, the cluster constellation
+and diagnostics all read it, and it is started once from `stores/boot.js`.
+
+### Added — the figures behind the new tiles
+
+`lib/fleetStats.js` derives the windowed player and boot figures from the audit rows the app already
+holds; `lib/fleetOps.js` rolls up four per-node payloads that `stores/fleet.js` fetches on the
+dashboard's own lazy loop.
+
+⚠ **The audit store holds a capped page**, so a window can outrun the rows loaded. Every function
+reports the span it actually saw and the tiles qualify themselves ("partial feed", "in the loaded
+feed") rather than presenting a short count as a full one.
+
+⚠ **The peak-players figure is reconstructed backwards** from the live total. Forwards would need a
+starting count nobody recorded, and assuming zero would report every peak as the number of joins
+since the log began.
+
+⚠ **A session whose join fell outside the window is skipped, not clamped.** Clamping would
+manufacture exactly as much playtime as the window happens to be long; the tile counts those
+separately as "started earlier".
+
+### Fixed — `/servers/availability` was read as an instance
+
+`adaptResponse` matched it against the `/servers/{id}` rule and ran the report through `adaptServer`,
+which returned a server-shaped object with every field null — so the uptime tile read "—" against a
+backend answering correctly. It is now routed ahead of that rule and relayed verbatim.
+
 ### Changed — the dashboard's Cluster capacity card is one expandable row per node
 
 The row is progressive disclosure. Collapsed it answers *is anything wrong, and how busy is it?* —

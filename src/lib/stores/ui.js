@@ -29,7 +29,10 @@ favoritesStore.set = (id, on) => favoritesStore.setState(s => {
 });
 const useIsFavorite = (id) => useStore(favoritesStore, s => s.ids.includes(id));
 
-// ---- Link latency (dashboard Ping KPI) ----------------------------------
+// ---- Link latency -------------------------------------------------------
+// Client-measured round trip per node, read by the dashboard's capacity strip, the cluster
+// constellation and the diagnostics page. Started once from boot.js — a consumer mounting does
+// not start it, because several of them can be open at once and the loop is one per app.
 const pingStore = createStore({ byHost: {} });
 pingStore.record = (hostId, ms) =>
   pingStore.setState(s => ({ byHost: { ...s.byHost, [hostId]: { ms, at: Date.now() } } }));

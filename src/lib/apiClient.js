@@ -266,6 +266,11 @@ import("./stores.js").then((m) => {
     if (/^\/hosts\/[^/]+\/services$/.test(base)) return adapt.adaptServices(json); // before /hosts/{id} → adaptHost
     if (base === "/alerts") return adapt.adaptAlerts(json);
     if (base === "/me") return adapt.adaptMe(json);
+    // Before /servers/{id} → adaptServer, which would otherwise read this report as an instance and
+    // return a server-shaped object with every field null. Relayed verbatim: the backend already
+    // answers in the honest model this boundary exists to enforce — an unmeasurable availability is
+    // null there — so there is nothing for an adapter to protect against.
+    if (base === "/servers/availability") return json;
     if (/^\/servers\/[^/]+$/.test(base)) return adapt.adaptServer(json);
     if (/^\/hosts\/[^/]+$/.test(base)) return adapt.adaptHost(json);
     if (/^\/integrations\/[^/]+$/.test(base)) return adapt.adaptIntegration(json);
@@ -318,7 +323,9 @@ import("./stores.js").then((m) => {
     return liveFetch("GET", "/me", null, hostId, bearer ?? null).then((j) => adaptResponse("/me", j));
   }
 
-  // ---- latency probe (the dashboard Ping KPI) -----------------------------
+  // ---- latency probe ------------------------------------------------------
+  // Round trip to one node, read by the dashboard's capacity strip, the cluster constellation
+  // and diagnostics.
   // Measure the CLIENT-side round trip via a REST GET to /health on the host.
   // Returns the RTT in ms, or null on any failure → the KPI honestly reads "no
   // reading" (never a fabricated latency, never 0). Deliberately ISOLATED from

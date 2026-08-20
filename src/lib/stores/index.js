@@ -15,6 +15,7 @@ export { logsStore, logSourcesStore, leafLogsStore, servicesStore, subscribeHost
 export { fetchAssistantStats, fetchAssistantReviewUsers, fetchAssistantConversations, fetchAssistantTranscript } from "./assistantReview.js";
 export { favoritesStore, useIsFavorite, pingStore, startPingLoop, stopPingLoop } from "./ui.js";
 export { clusterStore } from "./cluster.js";
+export { AVAILABILITY_WINDOW, fleetOpsStore, startFleetOps, stopFleetOps } from "./fleet.js";
 
 // The data layer is started by the shell once there is a live session, and stopped when
 // there is not — importing this barrel hydrates nothing and opens no stream. See boot.js

@@ -24,6 +24,11 @@ import { Icon } from "./Icon.jsx";
 //                            green, "down" = solid red); a per-card signal light
 //   ledLabel               — optional compact age shown just LEFT of the LED
 //                            (e.g. "2m"), for the time since the feed dropped
+//   compact                — the dense variant, for a band of twelve rather than
+//                            four. Same card, smaller type, and the header's
+//                            "View →" becomes the arrow alone: at a sixth of the
+//                            row the word is what overflows first, and the card
+//                            is clickable in full either way.
 const KPI_TONE_COLOR = {
   ok:     "var(--success-fg)",
   info:   "var(--krystal-teal)",
@@ -33,11 +38,11 @@ const KPI_TONE_COLOR = {
   off:    "var(--fg-4)",
 };
 
-function KPI({ icon, label, value, unit, sub, tone = "muted", onView, barPct, barColor, className, led, ledLabel }) {
+function KPI({ icon, label, value, unit, sub, tone = "muted", onView, barPct, barColor, className, led, ledLabel, compact = false }) {
   return (
-    <div className={"chat-brief kpi kpi--" + tone + (className ? " " + className : "")}>
+    <div className={"chat-brief kpi kpi--" + tone + (compact ? " kpi--compact" : "") + (className ? " " + className : "")}>
       <div className="chat-brief__head">
-        <span className="chat-brief__title">{icon && <Icon name={icon} size={12} />} {label}</span>
+        <span className="chat-brief__title">{icon && <Icon name={icon} size={compact ? 11 : 12} />} {label}</span>
         {led && (
           <span className="led-group" title={led === "down" ? "No signal" : "Live"}>
             {ledLabel && <span className="led-group__age">{ledLabel}</span>}
@@ -45,7 +50,9 @@ function KPI({ icon, label, value, unit, sub, tone = "muted", onView, barPct, ba
           </span>
         )}
         {onView && (
-          <button className="dash-section__more" onClick={onView}>View <Icon name="arrow-right" size={11} strokeWidth={2.2} /></button>
+          <button className="dash-section__more" onClick={onView} aria-label={compact ? "View " + label : undefined}>
+            {!compact && "View "}<Icon name="arrow-right" size={11} strokeWidth={2.2} />
+          </button>
         )}
       </div>
       <div className="chat-brief__body kpi__body">

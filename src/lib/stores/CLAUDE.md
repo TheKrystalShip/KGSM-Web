@@ -30,7 +30,8 @@ cycle `sessionStore` → `stores.js` → `stores/index.js` → `boot.js` and bre
 | `diagnostics.js` | host logs, log sources, services, leaf provisioning/config (`logsStore`, `servicesStore`, `applyLeafConfig`) |
 | `files.js` | per-server working-dir file tree + editor cache (self-contained; only `api.host()`, no WS channel) |
 | `library.js` | the installable game catalog (mostly static; hydrate from `/library`) |
-| `ui.js` | client-local prefs: favorites (persisted) + link-latency ping KPI |
+| `ui.js` | client-local prefs: favorites (persisted) + the per-node link-latency probe the capacity strip, cluster constellation and diagnostics read |
+| `fleet.js` | the dashboard summary band's four per-node reads — availability, watchdog supervision, scheduler board, systemd services. Started by the DASHBOARD on mount rather than by `boot.js`: it is one page's data, and four requests per node on every login for a page nobody opened is four wasted. Each slice fails independently to `null`, which the tiles read as "not measured" and never as zero |
 | `cluster.js` | the converged cluster roster **and** node discovery — `discover()` asks any addressable connection for the roster and registers the peers it names, `startDiscovery()` runs it at boot and on a slow cadence. It is the roster's ONE owner: pages read `clusterStore`, they don't refresh it on mount (per-node peer *actions* still re-read the node they mutated) |
 | `boot.js` | `startDataLayer()` / `stopDataLayer()` — the hydrate, the ping loop, discovery and the SSE streams, started by the shell rather than at import |
 | `index.js` | the re-export barrel + boot import |

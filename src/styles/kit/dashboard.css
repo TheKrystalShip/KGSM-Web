@@ -179,10 +179,13 @@
   }
 }
 
+/* The summary band — twelve glance tiles. Six across on a desktop, two across on
+   a phone (6x2 becoming 2x6), and the intermediate steps keep the row count whole
+   so the band never ends in a half-empty row. */
 .dash-summary {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
 }
 
 /* KPI cards borrow the briefing-card chrome (titled header + divider + body)
@@ -281,6 +284,60 @@
 
 .dash-summary .kpi--danger::before {
   background: var(--danger-fg);
+}
+
+/* ---- The compact tile ------------------------------------------------------
+   Twelve of these sit where four used to, so every dimension the full-size card
+   spends on breathing room is spent on the number instead. Nothing structural
+   changes: same chrome, same header, same tone accent — only the scale, so the
+   band still reads as the same family of cards as the rest of the dashboard. */
+.kpi--compact .chat-brief__head {
+  padding: 7px 10px 6px;
+  gap: 6px;
+}
+
+.kpi--compact .chat-brief__title {
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  gap: 5px;
+  /* A twelve-column label has no room to wrap; a long one is clipped rather than
+     allowed to push the header onto a second line and unlevel the row. */
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kpi--compact .kpi__body {
+  padding: 9px 10px 11px;
+}
+
+.dash-summary .kpi--compact .tile__val {
+  font-size: 21px;
+  letter-spacing: -0.02em;
+}
+
+.dash-summary .kpi--compact .tile__val small {
+  font-size: 11px;
+}
+
+.kpi--compact .kpi__sub {
+  margin-top: 4px;
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+.kpi--compact .kpi__bar {
+  margin-top: 8px;
+  height: 3px;
+}
+
+/* The header affordance is the arrow alone at this size (KPI.jsx drops the word),
+   so it needs to stay a square target rather than collapsing to the glyph's width. */
+.kpi--compact .dash-section__more {
+  flex: none;
+  padding: 2px;
+  gap: 0;
 }
 
 /* Host capacity strip — shares the briefing card chrome (header bar + body) */

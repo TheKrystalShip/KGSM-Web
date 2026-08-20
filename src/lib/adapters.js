@@ -79,6 +79,11 @@ export function adaptServer(be) {
     // When the update-check probe last ran for this instance (UTC ISO), or null until the first check.
     // Surfaced so freshness is visible ("checked N min ago"); never a fabricated timestamp.
     update_checked_at: be.updateCheckedAt ?? null,
+    // How long the gap has been open, as the engine's own first notice dates it. Distinct from
+    // update_checked_at (when the check last RAN) — this is what makes an update overdue rather than
+    // merely pending. Null whenever nothing dates it: no update outstanding, an engine that emits no
+    // such event, or a notice older than the backend's walk. Never derived from the check time.
+    update_available_since: be.updateAvailableSince ?? null,
     // per-instance metrics (null when the monitor is absent/down):
     cpu: m ? round(m.cpuPctCore, 0) : null,           // % of one core (can exceed 100)
     ram: m ? { used: round(m.memBytes / 1e9, 2), max: null } : null,  // GiB; no per-instance max

@@ -10,12 +10,14 @@ import { ClusterReach } from "../components/host-helpers.jsx";
 import { Rail } from "../components/Rail.jsx";
 import { RecentActivity } from "../components/RecentActivity.jsx";
 import { capUsable } from "../lib/capabilities.js";
-import { parseTs } from "../lib/formatting.js";
+import { availabilityRollup, driftRollup, scheduleRollup, servicesRollup } from "../lib/fleetOps.js";
+import { crashes, playersPeak, sessionHours, timeToReady, uniquePlayers } from "../lib/fleetStats.js";
+import { fmtUntil } from "../lib/formatting.js";
 import { KRYSTAL_LABELS } from "../lib/labels.js";
 import { fleetSummary, instancesOfBlueprint } from "../lib/servers.js";
 import { useStore } from "../lib/store.js";
 import { auditStore, clusterStore, favoritesStore, hostsStore, libraryStore, pingStore, serversStore } from "../lib/stores.js";
-import { startPingLoop } from "../lib/stores/ui.js";
+import { AVAILABILITY_WINDOW, fleetOpsStore, startFleetOps, stopFleetOps } from "../lib/stores/fleet.js";
 import { DashFleetStrip } from "./dashboard/DashFleetStrip.jsx";
 import { buildClusterNodes } from "./diagnostics/clusterNodes.js";
 
@@ -90,7 +92,6 @@ function DashboardPage({ user, onOpenServer, onAction, onLibrary, onInstall, onA
   // is marked "local": which address this browser was pointed at first says
   // nothing about the cluster, so the rows sort by name and read as equals.
   const clusterNodesRaw = useStore(clusterStore, s => s.nodes);
-  React.useEffect(() => { startPingLoop(); }, []);
   const clusterNodes = React.useMemo(
     () => buildClusterNodes(hosts, clusterNodesRaw, pings, null),
     [hosts, clusterNodesRaw, pings]);
@@ -107,9 +108,18 @@ function DashboardPage({ user, onOpenServer, onAction, onLibrary, onInstall, onA
   const now = nowTick;
 
   // ---- KPIs ---------------------------------------------------------------
-  // Four glance cards, each reading data that isn't otherwise visible on the
-  // dashboard, each stateful, each drilling into the page that owns it.
+  // Twelve glance tiles in two rows. The split is by question, not by source: the
+  // first six ask "what is happening on the fleet", the second six "what needs me".
+  // Each reads something no other band on this page shows — the capacity strip
+  // below already renders per-node CPU/RAM/disk and round-trip, so nothing here
+  // restates an instantaneous machine reading. What the strip never does is TIME,
+  // which is why half of these are windowed.
+  //
+  // A tile whose source is missing keeps its slot and renders "—" with an honest
+  // sub-line. In a fixed grid a self-hiding tile would reflow the whole band, and
+  // an absent measurement is a thing worth saying rather than a gap to close.
   const HOUR = 3600000;
+  const DAY = 24 * HOUR;
   const fmtDur = (ms) => {
     const m = Math.max(0, Math.round(ms / 60000));
     if (m < 60) return m + "m";
@@ -118,23 +128,97 @@ function DashboardPage({ user, onOpenServer, onAction, onLibrary, onInstall, onA
     const d = Math.floor(h / 24), rh = h % 24;
     return rh ? `${d}d ${rh}h` : `${d}d`;
   };
-  // 1) Ping — operator's live link to the host(s). Lower is better; non-interactive.
-  // Client-measured round trip via WebSocket ping/pong (pingStore, keyed by host id).
-  // It's the WORST (max) across every node that has a reading — the slowest link,
-  // matching the other summary tiles' worst-case framing. No reading (probe failed /
-  // not yet measured) → null → "no reading" (never a fabricated latency).
-  const pingVals = hosts.map(h => pings[h.id]).filter(p => p && p.ms != null).map(p => p.ms);
-  const pingMs = pingVals.length ? Math.max(...pingVals) : null;
-  const pingMultiHost = pingVals.length > 1;
-  const pingTone = pingMs == null ? "muted" : pingMs < 60 ? "ok" : pingMs < 120 ? "warn" : "danger";
-  // 2) Updates available — servers on an older build, excluding ones already
-  //    mid-update. Actionable to-do, not an error → info tone.
+  // A duration in the units a person would say it in. Sub-minute stays in seconds
+  // because a server that boots in 40s and one that takes 3m are a different
+  // experience, and "1m" would flatten both.
+  const fmtSecs = (sec) => {
+    if (sec == null) return "—";
+    if (sec < 90) return Math.round(sec) + "s";
+    const m = Math.round(sec / 60);
+    return m < 60 ? m + "m" : Math.floor(m / 60) + "h " + (m % 60) + "m";
+  };
+  // "12 of 40 rows" phrasing for a figure some nodes could not contribute to. The
+  // count is then a floor, and every tile that can have one says so in its sub-line.
+  const partial = (n) => (n > 0 ? ` · ${n} node${n === 1 ? "" : "s"} unknown` : "");
+
+  // The four per-node payloads behind tiles 5, 7, 10, 11 and 12. Fetched on this
+  // page's own loop (stores/fleet.js) — they are nobody else's data.
+  const ops = useStore(fleetOpsStore, s => s.byHost);
+  const opsLoaded = useStore(fleetOpsStore, s => s.everLoaded);
+  React.useEffect(() => { startFleetOps(); return () => stopFleetOps(); }, []);
+
+  // ---- Row 1: the fleet and the people -------------------------------------
+
+  // 1) Servers running. The one tile that is purely a count of now, and the anchor
+  //    the rest of the band hangs off. The bar is the whole fleet in one line:
+  //    running, mid-transition, and stopped.
+  const runningCount = servers.filter(s => s.status === "online").length;
+  const transitional = servers.filter(s => ["starting", "restarting", "stopping", "updating", "installing"].includes(s.status)).length;
+  const runningPct = servers.length ? (runningCount / servers.length) * 100 : 0;
+
+  // 2) Players online now, and the most at once in the last day. The live total
+  //    excludes servers whose presence this host cannot see (players === null) —
+  //    the peak reconstruction excludes them for the same reason, since a server
+  //    that reports no roster emits no join/leave either.
+  const playersNow = servers.reduce((n, s) => n + (s.players ? s.players.current : 0), 0);
+  const unseenPresence = servers.filter(s => !s.players && s.status !== "offline").length;
+  const peak = playersPeak(auditScoped, playersNow, DAY, now);
+
+  // 3) How many different people played this week. The figure a community host
+  //    actually cares about, and the only one here that says whether the thing is
+  //    being used at all.
+  const uniqueWeek = uniquePlayers(auditScoped, 7 * DAY, now);
+
+  // 4) Time spent connected in the last day, summed across everybody. Sessions
+  //    whose start fell outside the loaded feed are excluded, not clamped — see
+  //    lib/fleetStats.js — so this is a floor whenever `unpaired` is non-zero.
+  const played = sessionHours(auditScoped, DAY, now);
+
+  // 5) Availability — uptime as a fraction of the time something WANTED each
+  //    server up, folded by the backend from the engine's own lifecycle events.
+  //    A deliberately stopped server lowers the denominator instead of the score,
+  //    so an idle fleet reads "—" rather than a flattering 100%.
+  const avail = availabilityRollup(ops);
+  const availPct = avail.pct == null ? null : avail.pct * 100;
+  const availTone = availPct == null ? "muted" : availPct >= 99.9 ? "ok" : availPct >= 99 ? "warn" : "danger";
+
+  // 6) How long a server takes to become connectable — start → ready, averaged.
+  //    Catches a boot regression after an update, which nothing else on this page
+  //    would show until somebody complained.
+  const ready = timeToReady(auditScoped, 7 * DAY, now);
+
+  // ---- Row 2: what needs me -------------------------------------------------
+
+  // 7) Desired-state drift — instances the supervisor was told to run that are
+  //    not running. A standing condition, deliberately separate from the crash
+  //    count beside it: a crash the watchdog recovered from leaves no drift, and
+  //    drift with no recent crash is the case nobody ever notices.
+  const drift = driftRollup(ops);
+  const driftTone = drift.count === 0 ? (drift.unknownNodes ? "muted" : "ok") : "danger";
+
+  // 8) Crashes in the last day. Detection is the watchdog's job, so a node whose
+  //    watchdog is down makes the whole count unstateable — a zero from a blind
+  //    fleet is a lie, not a clean bill of health.
+  const crash24h = crashes(auditScoped, DAY, now);
+  const scopedWatchdogDown = hosts.length > 0 && hosts.some(h => !capUsable(h, "watchdog"));
+  const crashTone = scopedWatchdogDown ? "muted" : crash24h.count === 0 ? "ok" : crash24h.count < 3 ? "warn" : "danger";
+
+  // 9) Updates available, and how long the oldest has been outstanding. The age
+  //    is what separates "a new build exists" from "this has been overdue a week";
+  //    it comes from the engine's own first notice, and is null until the backend
+  //    can date one (never derived from the check time).
   const updatable = servers.filter(s => s.update_available && s.status !== "updating");
-  // 3) Oldest backup — the MOST-OVERDUE server (worst-case insurance gap), not
-  //    the most recent, so the one actually at risk is what surfaces.
-  //    s.last_backup is the newest backup's manifest record; its createdAt is what dates it. A backup
-  //    whose manifest carries no timestamp can't be ranked by age, so it doesn't compete for "oldest"
-  //    (it would otherwise sort as either infinitely old or brand new — both fabrications).
+  const updateSince = updatable
+    .map(s => (s.update_available_since ? +new Date(s.update_available_since) : null))
+    .filter(t => t != null && Number.isFinite(t));
+  const oldestUpdate = updateSince.length ? Math.min(...updateSince) : null;
+
+  // 10) Backups, looking both ways: the worst-case gap behind us and the next run
+  //     ahead. The oldest is the MOST-overdue server, not the most recent — the
+  //     one actually at risk is what should surface.
+  //     s.last_backup is the newest backup's manifest; its createdAt is what dates it. A backup whose
+  //     manifest carries no timestamp can't be ranked by age, so it doesn't compete for "oldest" (it
+  //     would otherwise sort as either infinitely old or brand new — both fabrications).
   const backupTs = (s) => (s.last_backup?.createdAt ? +new Date(s.last_backup.createdAt) : null);
   const backedUp = servers.filter(s => backupTs(s) != null);
   const oldestBackup = backedUp.reduce((w, s) => (!w || backupTs(s) < backupTs(w)) ? s : w, null);
@@ -150,13 +234,17 @@ function DashboardPage({ user, onOpenServer, onAction, onLibrary, onInstall, onA
   // Only a server the backend has actually scanned and found empty counts as "no backups yet"; one that
   // hasn't been scanned is unknown, and the KPI says so rather than implying it is unprotected.
   const unscanned = servers.filter(s => s.backup_count == null && !s.last_backup).length;
+  const sched = scheduleRollup(ops, now);
+  const nextRun = sched.next ? fmtUntil(new Date(sched.next.at), new Date(now)) : null;
   const backupSub = neverBackedUp.length
     ? (neverBackedUp.length === 1 ? neverBackedUp[0].name : `${neverBackedUp.length} servers have none`)
-    : oldestBackup
-      ? oldestBackup.name
-      : servers.length && unscanned === servers.length
-        ? "not scanned yet"
-        : "no backups yet";
+    : nextRun
+      ? `next ${nextRun} · ${sched.next.name}`
+      : oldestBackup
+        ? oldestBackup.name
+        : servers.length && unscanned === servers.length
+          ? "not scanned yet"
+          : "no backups yet";
   // One unprotected server drills into it; several drill into the list, since picking one of them to
   // open would be arbitrary.
   const backupView = neverBackedUp.length > 1
@@ -164,15 +252,20 @@ function DashboardPage({ user, onOpenServer, onAction, onLibrary, onInstall, onA
     : neverBackedUp.length === 1
       ? () => onOpenServer(neverBackedUp[0].id)
       : oldestBackup ? () => onOpenServer(oldestBackup.id) : null;
-  // 4) Crashes / auto-restarts in the last 24h — caught by the watchdog at the
-  //    process level, so it's game-agnostic. Reads the same audit feed.
-  const crash24h = auditScoped.filter(ev => ev.action === "server.crash" && (now - parseTs(ev.ts)) <= 24 * HOUR);
-  const crashTone = crash24h.length === 0 ? "ok" : crash24h.length < 3 ? "warn" : "danger";
-  const lastCrash = crash24h[0];
-  // Crash detection is the watchdog's job — if ANY node's watchdog is down we
-  // can't claim the cluster is stable, so the KPI reads unknown rather than
-  // reporting a count that silently excludes that node.
-  const scopedWatchdogDown = hosts.length > 0 && hosts.some(h => !capUsable(h, "watchdog"));
+
+  // 11) Schedules that last ran badly. A silent failure class with no other
+  //     surface here: a backup schedule can fail every night and nothing on this
+  //     page would move, because the server itself is perfectly healthy.
+  //     Only an explicit false counts — a schedule that has never run is null.
+  const schedFailTone = sched.failures.length ? "danger" : sched.unknownNodes ? "muted" : "ok";
+
+  // 12) Leaves doing their job, counted by the same rule the Services board
+  //     renders — so a socket-activated leaf resting between calls reads healthy
+  //     here too rather than being counted as a fault.
+  const svc = servicesRollup(ops);
+  const svcTone = !svc.total ? "muted" : svc.unhealthy.length === 0 ? "ok"
+    : svc.unhealthy[0].tone === "down" ? "danger" : "warn";
+
   const greeting = (() => {
     const h = new Date().getHours();
     if (h < 5) return "Late one,";
@@ -202,32 +295,135 @@ function DashboardPage({ user, onOpenServer, onAction, onLibrary, onInstall, onA
     id: "summary", label: "Summary",
     node: (
       <div className="dash-summary">
-        <Kpi
-          icon="activity" label="Ping"
-          value={pingMs == null ? "—" : pingMs} unit={pingMs == null ? null : "ms"}
-          sub={pingMs == null ? "no reading" : (pingMultiHost ? `slowest of ${pingVals.length} hosts` : "your connection")}
-          tone={pingTone}
+        {/* ---- Row 1 · the fleet and the people ---- */}
+        <Kpi compact
+          icon="server" label="Running"
+          value={servers.length ? runningCount : "—"}
+          unit={servers.length ? "of " + servers.length : null}
+          sub={servers.length
+            ? (transitional ? `${transitional} in transition` : `${servers.length - runningCount} stopped`)
+            : "no servers yet"}
+          tone={!servers.length ? "muted" : runningCount ? "ok" : "muted"}
+          barPct={servers.length ? runningPct : null}
+          barColor="var(--success-fg)"
+          onView={() => onServers()}
         />
-        <Kpi
-          icon="circle-arrow-up" label="Updates available"
+        <Kpi compact
+          icon="users" label="Players now"
+          value={playersNow}
+          sub={peak.peak == null
+            ? "peak unknown"
+            : (peak.covered ? `peak ${peak.peak} today` : `peak ${peak.peak} in the loaded feed`)
+              + (unseenPresence ? ` · ${unseenPresence} unseen` : "")}
+          tone={playersNow > 0 ? "info" : "muted"}
+          onView={() => onServers()}
+        />
+        <Kpi compact
+          icon="user-round-check" label="Players · 7d"
+          value={uniqueWeek.count}
+          sub={uniqueWeek.count
+            ? `across ${uniqueWeek.servers} server${uniqueWeek.servers === 1 ? "" : "s"}`
+            + (uniqueWeek.covered ? "" : " · partial feed")
+            : "nobody connected"}
+          tone={uniqueWeek.count ? "info" : "muted"}
+          onView={onAudit}
+        />
+        <Kpi compact
+          icon="hourglass" label="Played · 24h"
+          value={played.hours >= 10 ? Math.round(played.hours) : Math.round(played.hours * 10) / 10}
+          unit="h"
+          sub={played.sessions
+            ? `${played.sessions} session${played.sessions === 1 ? "" : "s"}`
+            + (played.unpaired ? ` · ${played.unpaired} started earlier` : "")
+            : "no sessions"}
+          tone={played.hours > 0 ? "info" : "muted"}
+          onView={onAudit}
+        />
+        <Kpi compact
+          icon="shield-check" label={"Uptime · " + AVAILABILITY_WINDOW}
+          value={availPct == null ? "—" : (availPct >= 99.95 ? "100" : availPct.toFixed(2))}
+          unit={availPct == null ? null : "%"}
+          sub={availPct == null
+            ? (opsLoaded ? "nothing scheduled up" : "measuring…")
+            : (avail.outages
+              ? `${avail.outages} outage${avail.outages === 1 ? "" : "s"} · ${avail.counted} servers`
+              : `no outages · ${avail.counted} servers`) + partial(avail.unknownNodes)}
+          tone={availTone}
+          onView={onAudit}
+        />
+        <Kpi compact
+          icon="timer" label="Time to ready"
+          value={ready.avgSec == null ? "—" : fmtSecs(ready.avgSec)}
+          sub={ready.avgSec == null
+            ? "no boots recorded"
+            : ready.samples > 1
+              ? `slowest ${fmtSecs(ready.slowest.sec)} · ${ready.slowest.name}`
+              : `one boot · ${ready.slowest.name}`}
+          tone={ready.avgSec == null ? "muted" : "info"}
+          onView={onAudit}
+        />
+
+        {/* ---- Row 2 · what needs me ---- */}
+        <Kpi compact
+          icon="git-compare-arrows" label="Drift"
+          value={drift.unknownNodes && !drift.supervised ? "—" : drift.count}
+          sub={drift.unknownNodes && !drift.supervised
+            ? "supervisor unreachable"
+            : drift.count
+              ? drift.names.slice(0, 2).join(", ") + (drift.count > 2 ? ` +${drift.count - 2}` : "")
+              : `${drift.supervised} supervised` + partial(drift.unknownNodes)}
+          tone={driftTone}
+          onView={() => onServers()}
+        />
+        <Kpi compact
+          icon="server-crash" label="Crashes · 24h"
+          value={scopedWatchdogDown ? "—" : crash24h.count}
+          sub={scopedWatchdogDown
+            ? "watchdog down — not monitoring"
+            : crash24h.count ? `last: ${crash24h.last.target?.name || "server"}` : "all stable"}
+          tone={crashTone}
+          onView={onAudit}
+        />
+        <Kpi compact
+          icon="circle-arrow-up" label="Updates"
           value={updatable.length}
-          sub={updatable.length ? updatable.map(s => s.game).join(", ") : "all up to date"}
+          sub={!updatable.length
+            ? "all up to date"
+            : oldestUpdate != null
+              ? `oldest pending ${fmtDur(now - oldestUpdate)}`
+              : updatable.map(s => s.game).join(", ")}
           tone={updatable.length ? "info" : "muted"}
           onView={updatable.length ? () => onServers("updates") : null}
         />
-        <Kpi
+        <Kpi compact
           icon="database-backup" label="Oldest backup"
           value={neverBackedUp.length ? "never" : oldestBackup ? fmtDur(backupAgeMs) : "—"}
           sub={backupSub}
           tone={backupTone}
           onView={backupView}
         />
-        <Kpi
-          icon="server-crash" label="Crashes · 24h"
-          value={scopedWatchdogDown ? "—" : crash24h.length}
-          sub={scopedWatchdogDown ? "watchdog down — not monitoring" : (crash24h.length ? `last: ${lastCrash.target?.name || "server"}` : "all stable")}
-          tone={scopedWatchdogDown ? "muted" : crashTone}
-          onView={onAudit}
+        <Kpi compact
+          icon="calendar-x" label="Schedule fails"
+          value={sched.unknownNodes && !sched.scheduled ? "—" : sched.failures.length}
+          sub={sched.unknownNodes && !sched.scheduled
+            ? "scheduler unreachable"
+            : sched.failures.length
+              ? `${sched.failures[0].name} ${sched.failures[0].kind}`
+              : `${sched.scheduled} scheduled` + partial(sched.unknownNodes)}
+          tone={schedFailTone}
+          onView={onDiagnostics}
+        />
+        <Kpi compact
+          icon="boxes" label="Services"
+          value={svc.total ? svc.healthy : "—"}
+          unit={svc.total ? "of " + svc.total : null}
+          sub={!svc.total
+            ? (opsLoaded ? "not reported" : "measuring…")
+            : svc.unhealthy.length
+              ? `${svc.unhealthy[0].name} ${svc.unhealthy[0].label.toLowerCase()}`
+              : "all healthy" + partial(svc.unknownNodes)}
+          tone={svcTone}
+          onView={onDiagnostics}
         />
       </div>
     )
