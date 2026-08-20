@@ -4,9 +4,12 @@ import React from "react";
 // grid lines, anomaly bands, a comparison series (dashed), a "current value"
 // dot at the rightmost point, and a hover crosshair + tooltip.
 //
-// props.series    : [{ key, color, fill?, values: number[], label?, fmt? }]
+// props.series    : [{ key, color, fill?, values: (number|null)[], label?, fmt? }]
 //                   label/fmt are used by the hover tooltip (fmt(scaledValue)
 //                   → display string); they default to key / a plain number.
+//                   A non-finite value (null / undefined / NaN) is an ABSENT
+//                   measurement: it is left out of the y-domain, breaks the line
+//                   and its fill, and reads "—" in the tooltip. It is never a zero.
 // props.times     : optional number[] (epoch ms | s | ISO) parallel to the
 //                   primary series — the tooltip's timestamp header.
 // props.compare   : optional { label, values: number[] }  — drawn as a
@@ -30,6 +33,11 @@ const VB_W = 600;
 const PAD_L = 30, PAD_R = 12, PAD_T = 8, PAD_B = 22;
 
 const ChartHoverContext = React.createContext(null);
+
+// A measurement is present only when it is a finite number. null / undefined / NaN
+// mean "not measured", and every consumer below drops such a point rather than
+// drawing it — an absent sample must never appear on the axis as a zero.
+const isNum = (v) => typeof v === "number" && Number.isFinite(v);
 
 // Shared bus for a group of charts: one crosshair instant (frac) AND one zoom
 // window (zoom = [ms0, ms1] | null) across all of them, so dragging a region on
@@ -103,7 +111,9 @@ function TimeSeriesChart({ series, height = 120, range = "24h", yMin, yMax, yLab
   const plotW = W - padL - padR;
   const clipId = "tsc" + React.useId().replace(/:/g, "");   // per-chart clip (colon-free for url(#…))
 
-  const allVals = series.flatMap(s => s.values).concat(compare?.values || []);
+  // Domain over measured points only — an absent sample carries no magnitude and
+  // must not pull the axis toward zero.
+  const allVals = series.flatMap(s => s.values).concat(compare?.values || []).filter(isNum);
   const min = yMin != null ? yMin : Math.min(...allVals, 0);
   const max = yMax != null ? yMax : Math.max(...allVals, 1);
 
@@ -154,6 +164,21 @@ function TimeSeriesChart({ series, height = 120, range = "24h", yMin, yMax, yLab
   const gapThr = useTimeAxis && stepSec ? stepSec * 1000 * 2.5 : Infinity;
   const breaks = new Set();
   if (isFinite(gapThr)) for (let i = 1; i < N; i++) if (tms[i] - tms[i - 1] > gapThr) breaks.add(i);
+
+  // The drawable runs of a series: contiguous indices carrying a measured value.
+  // An unmeasured point is dropped and ends the run, so the line and its fill open
+  // a gap there instead of diving to the axis. Downtime (a `breaks` index) opens the
+  // same gap in every series; an unmeasured value opens it only where it occurs.
+  const runsOf = (values, applyGaps = true) => {
+    const segs = []; let cur = [];
+    for (let i = 0; i < values.length; i++) {
+      if (!isNum(values[i])) { if (cur.length) { segs.push(cur); cur = []; } continue; }
+      if (applyGaps && breaks.has(i) && cur.length) { segs.push(cur); cur = []; }
+      cur.push(i);
+    }
+    if (cur.length) segs.push(cur);
+    return segs;
+  };
 
   const leftInset = padL / W;
   const plotFrac = plotW / W;
@@ -258,8 +283,8 @@ function TimeSeriesChart({ series, height = 120, range = "24h", yMin, yMax, yLab
 
           {/* Comparison series — dashed, faded, sits below the main line. */}
           {compare && compare.values && (() => {
-            const d = compare.values
-              .map((v, i) => `${i === 0 ? "M" : "L"} ${sx(i)} ${sy(v)}`)
+            const d = runsOf(compare.values, false)
+              .map(seg => seg.map((i, k) => `${k === 0 ? "M" : "L"} ${sx(i)} ${sy(compare.values[i])}`).join(" "))
               .join(" ");
             return (
               <path d={d}
@@ -275,26 +300,38 @@ function TimeSeriesChart({ series, height = 120, range = "24h", yMin, yMax, yLab
 
           {/* Min/max band — filled polygon between the min and max arrays (rollup tier). */}
           {band && band.min && band.max && band.min.length === N && (() => {
-            const upper = band.max.map((v, i) => `${sx(i)} ${sy(v)}`).join(" L ");
-            const lower = band.min.map((v, i) => `${sx(i)} ${sy(v)}`).reverse().join(" L ");
-            return <path d={`M ${upper} L ${lower} Z`} fill={band.color || "var(--krystal-teal)"} opacity="0.10" />;
+            // One closed polygon per run of buckets that carry both bounds; a bucket
+            // missing either one ends the polygon, so the band opens the same gap the
+            // line does rather than spanning an unmeasured stretch.
+            const segs = []; let cur = [];
+            for (let i = 0; i < N; i++) {
+              if (isNum(band.min[i]) && isNum(band.max[i])) cur.push(i);
+              else if (cur.length) { segs.push(cur); cur = []; }
+            }
+            if (cur.length) segs.push(cur);
+            const d = segs.map(seg => {
+              const upper = seg.map(i => `${sx(i)} ${sy(band.max[i])}`).join(" L ");
+              const lower = seg.map(i => `${sx(i)} ${sy(band.min[i])}`).reverse().join(" L ");
+              return `M ${upper} L ${lower} Z`;
+            }).join(" ");
+            return <path d={d} fill={band.color || "var(--krystal-teal)"} opacity="0.10" />;
           })()}
 
           {/* Series — fills first so they sit under the lines. Both break at gaps
-              (downtime) instead of drawing a misleading line across the absent span. */}
+              (downtime and unmeasured points) instead of drawing a misleading line
+              across the absent span. */}
           {series.map((s, idx) => {
             if (!s.fill) return null;
-            const segs = []; let cur = [];
-            for (let i = 0; i < N; i++) { if (breaks.has(i) && cur.length) { segs.push(cur); cur = []; } cur.push(i); }
-            if (cur.length) segs.push(cur);
-            const d = segs.map(seg =>
+            const d = runsOf(s.values).map(seg =>
               seg.map((i, k) => `${k === 0 ? "M" : "L"} ${sx(i)} ${sy(s.values[i])}`).join(" ")
               + ` L ${sx(seg[seg.length - 1])} ${sy(min)} L ${sx(seg[0])} ${sy(min)} Z`
             ).join(" ");
             return <path key={"fill-" + idx} d={d} fill={s.color} opacity="0.12" />;
           })}
           {series.map((s, idx) => {
-            const d = s.values.map((v, i) => `${(i === 0 || breaks.has(i)) ? "M" : "L"} ${sx(i)} ${sy(v)}`).join(" ");
+            const d = runsOf(s.values).map(seg =>
+              seg.map((i, k) => `${k === 0 ? "M" : "L"} ${sx(i)} ${sy(s.values[i])}`).join(" ")
+            ).join(" ");
             return <path key={"ln-" + idx} d={d} fill="none" stroke={s.color} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" />;
           })}
 
@@ -306,9 +343,12 @@ function TimeSeriesChart({ series, height = 120, range = "24h", yMin, yMax, yLab
               stroke={toneColor(ev.tone)} strokeWidth="1" strokeDasharray="3 3" opacity="0.5" />;
           })}
 
-          {/* Current-value dot on the last point (hidden by the clip when zoomed past it). */}
+          {/* Current-value dot on the last point (hidden by the clip when zoomed past it).
+              A series whose last sample is unmeasured has no current value, so it gets
+              no dot rather than one parked on the axis. */}
           {series.map((s, idx) => {
             const v = s.values[s.values.length - 1];
+            if (!isNum(v)) return null;
             return (
               <circle key={"dot-" + idx} cx={sx(N - 1)} cy={sy(v)} r="3.5"
                 fill={s.color} stroke="var(--surface-1)" strokeWidth="2" />
@@ -354,7 +394,9 @@ function TimeSeriesChart({ series, height = 120, range = "24h", yMin, yMax, yLab
                     <div key={"tr" + i} className="tschart__tip-row">
                       <span className="tschart__tip-sw" style={{ background: s.color }} />
                       <span className="tschart__tip-lbl">{s.label || s.key}</span>
-                      <span className="tschart__tip-val">{s.fmt ? s.fmt(v) : defaultFmt(v)}</span>
+                      {/* An unmeasured sample reads "—"; a series formatter is only
+                          ever handed a number. */}
+                      <span className="tschart__tip-val">{!isNum(v) ? "—" : s.fmt ? s.fmt(v) : defaultFmt(v)}</span>
                     </div>
                   );
                 })}
@@ -389,11 +431,15 @@ function TimeSeriesChart({ series, height = 120, range = "24h", yMin, yMax, yLab
 // detectAnomalies — robust z-score over the visible window. Marks any
 // point > (mean + sigma·std) for at least `minRun` consecutive points.
 // Returns an array of windows {start, end, peakIdx, peakValue, mean, std, threshold}.
+// Unmeasured points take no part in the statistics and never join a run — the
+// window is described by what was actually sampled.
 function detectAnomalies(values, opts = {}) {
   const { sigma = 2, minRun = 2 } = opts;
   if (!values || values.length < 5) return [];
-  const mean = values.reduce((a, b) => a + b, 0) / values.length;
-  const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length;
+  const measured = values.filter(isNum);
+  if (measured.length < 5) return [];
+  const mean = measured.reduce((a, b) => a + b, 0) / measured.length;
+  const variance = measured.reduce((a, b) => a + (b - mean) ** 2, 0) / measured.length;
   const std = Math.sqrt(variance);
   // Flat-ish series — nothing to flag.
   if (std < Math.max(0.5, mean * 0.04)) return [];
@@ -401,7 +447,7 @@ function detectAnomalies(values, opts = {}) {
   const out = [];
   let run = null;
   for (let i = 0; i < values.length; i++) {
-    if (values[i] > threshold) {
+    if (isNum(values[i]) && values[i] > threshold) {
       if (!run) run = { start: i, end: i, peakIdx: i, peakValue: values[i] };
       else {
         run.end = i;

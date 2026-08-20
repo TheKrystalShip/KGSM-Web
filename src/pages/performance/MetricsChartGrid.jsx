@@ -33,6 +33,11 @@ function MetricsChartGrid({ series, tier, step, range, events = [], domain, comp
   const ioWriteSeries = series.ioWriteBps || [];
   const netRxSeries = series.rxBps || [];
   const netTxSeries = series.txBps || [];
+  // GPU, present only for an entity that reaches the card at all — most leaves never do, and a
+  // server has no GPU dimension. No card rather than an empty one, which is the same choice the
+  // chat-compact view makes everywhere else.
+  const gpuMemSeries = series.gpuMemBytes || [];
+  const gpuSmSeries = series.gpuSmPct || [];
 
   const cpuVals = cpuSeries.map(p => p.value);
   const cpuMin = isRollup ? cpuSeries.map(p => p.min ?? p.value) : null;
@@ -72,6 +77,23 @@ function MetricsChartGrid({ series, tier, step, range, events = [], domain, comp
   const netTimes = (netRxSeries.length ? netRxSeries : netTxSeries).map(p => p.ts);
   const netRxStats = netRxSeries.length ? seriesStats(netRxSeries.map(p => p.value)) : null;
   const netTxStats = netTxSeries.length ? seriesStats(netTxSeries.map(p => p.value)) : null;
+
+  // Video memory is charted in GiB throughout rather than switching units on the peak like host
+  // memory does: a model's footprint is the thing being watched, it is always gigabytes, and a
+  // card that silently changed unit between windows would make two ranges incomparable at a glance.
+  const gpuMemVals = gpuMemSeries.map(p => p.value);
+  const gpuMem = gpuMemVals.map(v => v / GiB);
+  const gpuMemTimes = gpuMemSeries.map(p => p.ts);
+  const gpuMemStats = gpuMemVals.length ? seriesStats(gpuMemVals) : null;
+
+  // Utilisation is sampled over a window, so a backend that did no work reports NOTHING for that
+  // bucket. The null is passed through untouched — TimeSeriesChart opens a gap where a measurement
+  // is absent, and coercing it to 0 here would draw an idle model as measured-and-busy-at-zero.
+  const gpuSmVals = gpuSmSeries.map(p => p.value);
+  const gpuSmTimes = gpuSmSeries.map(p => p.ts);
+  const gpuSmMeasured = gpuSmVals.filter(v => typeof v === "number" && Number.isFinite(v));
+  const gpuSmStats = gpuSmMeasured.length ? seriesStats(gpuSmMeasured) : null;
+  const gpuSmLast = [...gpuSmVals].reverse().find(v => typeof v === "number" && Number.isFinite(v));
 
   const cpuAnoms = detectAnomalies(cpuVals);
   const memAnoms = detectAnomalies(mem);
@@ -119,6 +141,36 @@ function MetricsChartGrid({ series, tier, step, range, events = [], domain, comp
           anomalies={memAnoms} range={range} times={memTimes} domain={domain} events={events} stepSec={step}
           band={memMinBand && memMaxBand ? { min: memMinBand, max: memMaxBand, color: "#FBBF24" } : undefined}
           legendNote={`${memUnit} used${isRollup ? " · band = min/max" : ""}`} />
+      )}
+
+      {gpuMem.length > 0 && (
+        <MetricChartCard icon="cpu" title="GPU memory" chartHeight={chartHeight}
+          value={<span className="chart-card__val">{fmtBytes(gpuMemVals[gpuMemVals.length - 1])}</span>}
+          stats={gpuMemStats && [
+            { label: "avg", value: fmtBytes(gpuMemStats.avg) },
+            { label: "peak", value: fmtBytes(gpuMemStats.max) },
+            { label: "min", value: fmtBytes(gpuMemStats.min) },
+          ]}
+          series={[{ key: "gpumem", label: "GPU memory", color: "#A78BFA", fill: true, values: gpuMem,
+                     fmt: v => fmtBytes(v * GiB) }]}
+          range={range} times={gpuMemTimes} domain={domain} events={events} stepSec={step}
+          legendNote="video memory held" />
+      )}
+
+      {gpuSmVals.length > 0 && (
+        <MetricChartCard icon="cpu" title="GPU compute" chartHeight={chartHeight}
+          value={gpuSmLast === undefined
+            ? <span className="chart-card__val" style={{ color: "var(--fg-3)" }}>—</span>
+            : <span className="chart-card__val">{gpuSmLast.toFixed(0)}<small>%</small></span>}
+          stats={gpuSmStats && [
+            { label: "avg", value: gpuSmStats.avg.toFixed(0) + "%" },
+            { label: "peak", value: gpuSmStats.max.toFixed(0) + "%" },
+          ]}
+          series={[{ key: "gpusm", label: "GPU compute", color: "#A78BFA", fill: true, values: gpuSmVals,
+                     fmt: v => v.toFixed(0) + "%" }]}
+          range={range} times={gpuSmTimes} domain={domain} events={events} stepSec={step}
+          yMin={0} yMax={100}
+          legendNote="gaps are idle — utilisation is sampled, and an unworked window reports nothing" />
       )}
 
       {ioAvail && (

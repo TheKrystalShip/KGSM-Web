@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — GPU cards on the performance grid
+
+An entity that reaches the card gets two more cards in the existing grid: **GPU memory** (video memory
+held) and **GPU compute** (utilisation, 0–100). They are the same `MetricChartCard` every other metric
+uses, fed from the same per-metric series map — `gpuMemBytes` and `gpuSmPct`, the names the monitor
+persists them under — so nothing new renders charts.
+
+An entity with no GPU gets **no card**, not an empty one. Most leaves never reach the card and a game
+server has no GPU dimension at all.
+
+⚠ **Gaps in the GPU compute chart are idleness, not missing data.** Utilisation is sampled over a
+window and a backend that did no work in one reports nothing for that bucket, so the series is
+genuinely shorter than the memory series beside it. The nulls are passed through untouched and the
+chart opens a gap; coercing them to 0 would draw an idle model as measured-and-busy-at-zero.
+
+Video memory is charted in GiB throughout rather than switching unit on the peak the way host memory
+does — a model's footprint is always gigabytes, and a card that silently changed unit between windows
+would make two ranges incomparable at a glance.
+
+### Fixed — an unmeasured sample opens a gap in a chart, never a dive to the axis
+
+`TimeSeriesChart` scales and draws whatever it is handed, and a null coerces to 0 in arithmetic — so
+a series carrying an absent measurement drew a line down to the axis and along it, which reads as a
+real zero. It now treats a non-finite value (null / undefined / NaN) as what it is: a point that was
+not measured.
+
+Such a point is left out of the y-domain, dropped from the line and its fill, dropped from the
+min/max band, excluded from the anomaly statistics, and reads `—` in the hover tooltip. A series
+whose newest sample is absent gets no current-value dot rather than one parked on the axis. The
+break reuses the same segmentation downtime already uses, with one difference that matters: a time
+gap breaks every series alike, an absent value breaks only the series carrying it.
+
+⚠ **A series formatter is only ever handed a number.** A card supplies its own `fmt` (`v =>
+v.toFixed(0) + "% core"`), and the tooltip called it on whatever sat under the cursor — hovering an
+absent sample threw and took the whole card to its error boundary.
+
+A single NaN or `undefined` anywhere in a series was worse than one point: `Math.min`/`Math.max`
+propagated it through the domain and every coordinate on the chart became NaN, blanking it entirely.
+
+A series with no absent values renders exactly as before.
+
 ### Added — the Reactor's Rules tab
 
 One card per rule: what wakes it, what it would do about that, how long it settles before judging,
