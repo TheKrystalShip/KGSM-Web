@@ -84,8 +84,10 @@ Five things about the smoke are load-bearing enough to state outright:
   note's verbatim round trip through a SOURCED config) lives in kgsm-api's `AuditJournalRelayTests`
   / `ServerNoteRoundTripTests`, which own a disposable fixture.
 - **It needs an AUTH-DISABLED backend.** It sends no bearer, so a real auth-enabled host
-  401s every gated read. The backend it expects is `scripts/visual-harness/dev-api.sh`
-  (`:8096`); the prod unit on `:8097` has auth ON, and the smoke refuses it up front with a
+  401s every gated read. The backend it expects is
+  `/home/heisen/tks/scripts/visual-harness/dev-api.sh` (`:8096`) — the harness lives at the
+  workspace root, outside every repo, so it is named absolutely and runs from whichever repo is
+  being worked in. The prod unit on `:8097` has auth ON, and the smoke refuses it up front with a
   message rather than degrading into a wall of failures. Run it as
   `KGSM_API=http://127.0.0.1:8096 npm run smoke`.
 - **The backend URL is written to `.env.development.local`, not `.env.local`.** The vite
