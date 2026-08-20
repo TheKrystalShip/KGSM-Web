@@ -13,7 +13,7 @@
 //
 // URL scheme
 //   #/                       home / dashboard
-//   #/servers                server list           (?status=offline entry filter)
+//   #/servers                server list           (?status=offline&node=<hostId> entry filters)
 //   #/servers/<id>           server detail (overview)
 //   #/servers/<id>/<tab>     server detail, a specific tab
 //   #/library                game library          (?filter=installed entry filter)
@@ -52,7 +52,12 @@
     if (!route || !route.kind) return "#/";
     switch (route.kind) {
       case "home":      return "#/";
-      case "servers":   return "#/servers" + (route.status ? "?status=" + enc(route.status) : "");
+      case "servers": {
+        const p = [];
+        if (route.status) p.push("status=" + enc(route.status));
+        if (route.node) p.push("node=" + enc(route.node));
+        return "#/servers" + (p.length ? "?" + p.join("&") : "");
+      }
       case "server": {
         let h = "#/servers/" + enc(route.id || "");
         if (route.tab && route.tab !== "overview") h += "/" + enc(route.tab);
@@ -118,7 +123,12 @@
           if (segs[2]) r.tab = dec(segs[2]);
           return r;
         }
-        return q.get("status") ? { kind: "servers", status: q.get("status") } : { kind: "servers" };
+        {
+          const r = { kind: "servers" };
+          if (q.get("status")) r.status = q.get("status");
+          if (q.get("node")) r.node = q.get("node");
+          return r;
+        }
       case "library":
         // "new" is the create page, so it is not addressable as a game id. Blueprint names are
         // slugs, so a game genuinely called "new" would be shadowed here — accepted: the create

@@ -110,6 +110,24 @@ function AssistantDockProvider({ hosts, setRoute, children }) {
     });
   }, [hosts]);
 
+  // Hand a NODE to the assistant, from the dashboard's capacity card. Same contract as
+  // every other seeded ask: the dock opens on that node's own assistant (per-host leaf, no
+  // central fallback) with an editable prompt the user sends — we never speak for them. The
+  // caller only offers this where the node HAS a usable assistant, and the capability check
+  // here is the second half of that, so a node that lost its leaf mid-session opens the dock
+  // on whatever the picker already had rather than pointing it somewhere that can't answer.
+  const askAboutHost = React.useCallback((hostId) => {
+    const h = hostId && hosts.find(x => x.id === hostId);
+    if (h && capUsable(h, "assistant")) setAssistantHostId(hostId);
+    setAssistantOpen(true);
+    setAssistantSeed({
+      prompt: "How is " + ((h && h.name) || hostId) + " doing right now \u2014 what's using its capacity, "
+        + "and is anything worth acting on?",
+      serverId: null,
+      nonce: Date.now(),
+    });
+  }, [hosts]);
+
   // Opening the dock with nothing in hand names no node. The target comes from
   // the subject — the server behind askAssistant, the blueprint behind
   // askCreateBlueprint, the node a picked conversation lives on — or, absent a
@@ -241,7 +259,7 @@ function AssistantDockProvider({ hosts, setRoute, children }) {
     tw, desktop, canPush, effPush, pushingPanel, railMode,
     assistantHostList, usableAssistants, assistantHost,
     dockResize, handleAssistantNavigate, openView,
-    askAssistant, askAboutAlert, askCreateBlueprint, openAssistant,
+    askAssistant, askAboutAlert, askAboutHost, askCreateBlueprint, openAssistant,
     review, openReview, exitReview,
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tw is a fresh-per-render literal with constant contents; depping it would rebuild the context value every render
   }), [
@@ -253,7 +271,7 @@ function AssistantDockProvider({ hosts, setRoute, children }) {
     desktop, canPush, effPush, pushingPanel, railMode,
     assistantHostList, usableAssistants, assistantHost,
     dockResize, handleAssistantNavigate, openView,
-    askAssistant, askAboutAlert, askCreateBlueprint, openAssistant,
+    askAssistant, askAboutAlert, askAboutHost, askCreateBlueprint, openAssistant,
     review, openReview, exitReview,
   ]);
 

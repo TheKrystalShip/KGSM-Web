@@ -30,7 +30,7 @@ import { buildClusterNodes } from "./diagnostics/clusterNodes.js";
 // The dashboard KPI card lives in KPI.jsx (KPI) and is shared with the
 // host diagnostics overview and the server-detail overview stats.
 
-function DashboardPage({ user, onOpenServer, onAction, onLibrary, onInstall, onAudit, onDiagnostics, onOpenHostDiagnostics, onAttention, onRunAlertAction, onServers, onViewAlerts, canCluster = true }) {
+function DashboardPage({ user, onOpenServer, onAction, onLibrary, onInstall, onAudit, onDiagnostics, onOpenHostDiagnostics, onAttention, onRunAlertAction, onServers, onOpenServersForNode, onOpenNodeLogs, onAskAboutNode, onViewAlerts, canCluster = true }) {
   // The dashboard is the CLUSTER's front page: every card reads every node. A
   // per-node view is a thing you navigate to (a node's page), not a mode this
   // one switches into.
@@ -194,7 +194,8 @@ function DashboardPage({ user, onOpenServer, onAction, onLibrary, onInstall, onA
   // The reorderable bands in their natural (default) order. Each carries a
   // stable id so a saved order survives content changes; conditional bands are
   // simply omitted when empty and the saved order absorbs the gap (merge-safe).
-  const capacityNode = <DashFleetStrip nodes={clusterNodes} onOpenDiagnostics={onDiagnostics} onOpenHost={onOpenHostDiagnostics} />;
+  const capacityNode = <DashFleetStrip nodes={clusterNodes} onOpenDiagnostics={onDiagnostics} onOpenHost={onOpenHostDiagnostics}
+    onOpenServersForNode={onOpenServersForNode} onOpenNodeLogs={onOpenNodeLogs} onAskAboutNode={onAskAboutNode} />;
 
   const bands = [];
   bands.push({

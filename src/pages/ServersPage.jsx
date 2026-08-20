@@ -127,7 +127,7 @@ function FavoritesSection({ items, onOpenServer, onAction }) {
   );
 }
 
-function ServersPage({ onOpenServer, onAction, onLibrary, initialStatus }) {
+function ServersPage({ onOpenServer, onAction, onLibrary, initialStatus, initialNode }) {
   // Every node's servers, always. The Node field below narrows THIS list and
   // nothing else.
   const servers = useStore(serversStore, s => s.list);
@@ -136,7 +136,9 @@ function ServersPage({ onOpenServer, onAction, onLibrary, initialStatus }) {
   const [status, setStatus] = React.useState(initialStatus || "all");
   const [game, setGame] = React.useState("all");
   // Node is a filter over THIS list, held locally like every other filter here.
-  const [node, setNode] = React.useState("all");
+  // An entry filter (arriving as ?node=<hostId>, the way ?status= does) seeds it,
+  // so "Servers on this node" lands on a list already narrowed to that node.
+  const [node, setNode] = React.useState(initialNode || "all");
   // Ordering. Status-first by default (online → in transition → crashed → offline) so
   // the page opens on the same triage order the dashboard uses; re-pick the
   // active key to flip direction. See ToolbarSort / sortByAccessor.

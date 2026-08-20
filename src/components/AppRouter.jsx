@@ -31,7 +31,7 @@ function AppRouter({ route, setRoute, user, activeGame, serverForRender,
   // router), so read it from context here rather than threading it down from the
   // shell. Data (servers/hosts/scope) is likewise read by the pages themselves from
   // the singleton stores — this router only owns ROUTING (route → page + callbacks).
-  const { askAboutAlert, askCreateBlueprint, openReview } = useAssistantDock();
+  const { askAboutAlert, askAboutHost, askCreateBlueprint, openReview } = useAssistantDock();
 
   return (
     <ErrorBoundary
@@ -50,6 +50,9 @@ function AppRouter({ route, setRoute, user, activeGame, serverForRender,
       onDiagnostics={() => setRoute({ kind: "cluster" })}
       onOpenHostDiagnostics={(id) => setRoute({ kind: "cluster", hostId: id })}
       onServers={(status) => setRoute({ kind: "servers", status })}
+      onOpenServersForNode={(hostId) => setRoute({ kind: "servers", node: hostId })}
+      onOpenNodeLogs={(hostId) => setRoute({ kind: "cluster", hostId, tab: "logs" })}
+      onAskAboutNode={askAboutHost}
       onViewAlerts={() => setRoute({ kind: "attention" })}
       onAttention={askAboutAlert}
       onRunAlertAction={(id, action) => handleAction(action, id)}
@@ -64,8 +67,9 @@ function AppRouter({ route, setRoute, user, activeGame, serverForRender,
       onRun={(id, action) => handleAction(action, id)}
     />}
     {route.kind === "servers" && <ServersPage
-      key={route.status || "all"}
+      key={(route.status || "all") + ":" + (route.node || "all")}
       initialStatus={route.status}
+      initialNode={route.node}
       onOpenServer={(id) => setRoute({ kind: "server", id })}
       onAction={(id, action) => handleAction(action, id)}
       onLibrary={() => setRoute({ kind: "library" })}

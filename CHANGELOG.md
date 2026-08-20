@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the dashboard's Cluster capacity card is one expandable row per node
+
+The row is progressive disclosure. Collapsed it answers *is anything wrong, and how busy is it?* —
+status dot, name, region, hostname, the **one worst signal stated in words**, servers running,
+players on, round trip. Opened it carries the whole reading: the three capacity meters **with their
+absolute values** (`load 3.2 · 16 cores`, `21.6 / 31.3 GB`, `/ · 274.8 / 915.3 GB`), then every disk
+by mount, swap, CPU model, OS, kernel, uptime, network both ways, the hottest sensor, a chip per leaf,
+and four actions.
+
+**A lone node opens by default.** With one node there is no list to scan and nothing to compare, so a
+collapsed row would be a chevron guarding a card with nothing else in it. The chevron still closes it,
+and the auto-open lapses the moment a second node joins.
+
+The actions land on surfaces that already exist: **Servers on this node** opens the server list
+narrowed to it (a new `?node=<hostId>` entry filter, the same shape as `?status=`), **Node logs** opens
+that node's Logs tab, **Ask about ‹node›** opens the dock with an editable prompt nobody has sent, and
+**Open node** is the drill the whole row used to be. Ask renders only where the node has a usable
+assistant — it is a per-host leaf with no central fallback, and a button that cannot work is worse
+than no button.
+
+The worst-meter verdict breaks a tie by how far past its **own** amber line each meter sits. The three
+lines are 60/70/80, so ranking by raw percentage names CPU 71% over memory 84% — both amber, only one
+nearly out of room.
+
+Repeated mounts of one filesystem collapse to a single row. The monitor reports every mount, and a
+bind or subvolume mount repeats the same figures under another path; three identical
+`274.8 / 915.3 GB` rows say nothing about three disks. The shortest path represents the filesystem and
+the others are named in its tooltip.
+
+Laid out with **container queries**, so the card reflows on its own width rather than the viewport's —
+the sidebar and the assistant dock resize this column without the window changing. Under ~620px the
+line folds to two rows at a 56px tap-target floor, the drawer's meters stack, its fact columns become
+one and its actions go full width. Measured identical in Chromium and Firefox.
+
+Readings that stopped updating are shown dimmed and labelled, never dropped and never refreshed into a
+lie; a node whose metrics leaf is down reports its capacity as **unknown**, not zero.
+
 ### Added — GPU cards on the performance grid
 
 An entity that reaches the card gets two more cards in the existing grid: **GPU memory** (video memory

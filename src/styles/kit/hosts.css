@@ -471,6 +471,31 @@
   color: var(--danger-fg);
 }
 
+/* The absolute reading under a bar (HostMeters `detail`) — "load 2.1 · 16 cores",
+   "18.2 / 62.7 GB", "/ · 392 / 953 GB". Mono, because these are figures being
+   compared down a column, and muted, because the percentage above is the headline. */
+.fleet-meter__sub {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  color: var(--fg-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fleet-meter__flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  color: var(--warning-fg);
+}
+
 .fleet-card__offline {
   display: flex;
   align-items: center;
@@ -1141,7 +1166,12 @@
   }
 }
 
-/* ---- Dashboard fleet strip ("All hosts" home capacity card) ---- */
+/* ---- The node row idiom (Cluster page node list) ----
+   `.dash-fleet-row*` is the Cluster page's node list (ClusterNodeList): one line
+   per node, meters in the middle, a chevron at the end. The dashboard's capacity
+   card renders `.dash-node*` below instead — a collapsed line that opens into a
+   drawer — and the two share only the `.dash-fleet__rows` container and the
+   `.fleet-meter` bars. ---- */
 .dash-fleet__rows {
   display: flex;
   flex-direction: column;
@@ -1322,4 +1352,452 @@
 
 .cluster-reach svg {
   flex: 0 0 auto;
+}
+
+/* ============================================================= */
+/* Dashboard "Cluster capacity" — the expandable node row         */
+/* ============================================================= */
+/* Progressive disclosure: a scannable collapsed line (verdict + counters) that
+   opens into the full reading (meters with their absolute values, the machine,
+   its storage, its link and leaves, the actions). Container-queried rather than
+   viewport-queried — the card sits in a dashboard column whose width the sidebar
+   and the assistant dock change without the viewport changing, so its own inline
+   size is the only honest thing to lay out against. */
+.dash-fleet__rows {
+  container-type: inline-size;
+}
+
+.dash-node {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.dash-node:first-child {
+  border-top: none;
+}
+
+.dash-node--ghost {
+  border-top-style: dashed;
+}
+
+/* ---- the collapsed line ---- */
+.dash-node__line {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: background var(--d-fast) var(--ease-out);
+}
+
+.dash-node__line:hover {
+  background: var(--surface-2);
+}
+
+.dash-node__line:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--krystal-teal-ring);
+}
+
+.dash-node.is-open > .dash-node__line {
+  background: var(--surface-2);
+}
+
+.dash-node__id {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dash-node__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--r-pill);
+  flex: none;
+}
+
+.dash-node__dot--success {
+  background: var(--success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 20%, transparent);
+}
+
+.dash-node__dot--warn {
+  background: var(--warning);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warning) 20%, transparent);
+}
+
+.dash-node__dot--danger {
+  background: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 20%, transparent);
+}
+
+.dash-node__dot--off {
+  background: var(--fg-4);
+}
+
+.dash-node__name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--fg-1);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-node__region {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--fg-3);
+  background: var(--surface-3);
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  flex: none;
+}
+
+/* The machine's own name, secondary to the node's label — first thing dropped
+   when the card narrows. */
+.dash-node__host {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--fg-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.dash-node__chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* The chip family. Muted is the default (a fact); the semantic variants take
+   their theme-tuned tint/ink PAIR, never a fill, so nothing here needs an
+   --on-* ink and every theme keeps its own contrast. */
+.dash-node__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+  background: var(--veil-1);
+  color: var(--fg-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dash-node__chip > svg {
+  color: var(--fg-3);
+}
+
+.dash-node__chip--ok {
+  background: var(--success-bg);
+  color: var(--success-fg);
+}
+
+.dash-node__chip--warn {
+  background: var(--warning-bg);
+  color: var(--warning-fg);
+}
+
+.dash-node__chip--danger {
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+}
+
+.dash-node__chip--ok > svg,
+.dash-node__chip--warn > svg,
+.dash-node__chip--danger > svg {
+  color: currentColor;
+}
+
+.dash-node__leaf-state {
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.dash-node__ping {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dash-node__ping > svg {
+  color: var(--fg-4);
+}
+
+.dash-node__chev {
+  color: var(--fg-4);
+  flex: none;
+  transition: transform var(--d-base) var(--ease-out), color var(--d-fast) var(--ease-out);
+}
+
+.dash-node__line:hover .dash-node__chev {
+  color: var(--krystal-teal);
+}
+
+.dash-node.is-open .dash-node__chev {
+  transform: rotate(90deg);
+  color: var(--krystal-teal);
+}
+
+/* ---- the drawer ---- */
+/* Indented to the node's name, so the open body reads as belonging to the row
+   above it rather than as a sibling block. */
+.dash-node__body {
+  background: var(--surface-2);
+  border-top: 1px solid var(--border-subtle);
+  padding: 14px 14px 13px 31px;
+  animation: k-rise var(--d-base) var(--ease-out);
+}
+
+.dash-node__meters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Readings that stopped updating are shown dimmed and labelled, never dropped —
+   the last measured value is still a fact, just not a current one. */
+.dash-node__meters--frozen {
+  opacity: 0.62;
+}
+
+.dash-node__note {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--fg-3);
+  font-size: 12.5px;
+  line-height: 1.45;
+  padding: 2px 0 12px;
+}
+
+.dash-node__note > svg {
+  color: var(--fg-4);
+  flex: none;
+}
+
+.dash-node__note--warn {
+  color: var(--warning-fg);
+  padding-top: 10px;
+}
+
+.dash-node__note--warn > svg {
+  color: currentColor;
+}
+
+.dash-node__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 2px 26px;
+  padding: 2px 0;
+}
+
+.dash-node__block-h {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+  margin: 12px 0 6px;
+}
+
+.dash-node__kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11.5px;
+  padding: 3.5px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.dash-node__kv:last-child {
+  border-bottom: none;
+}
+
+.dash-node__kv > span {
+  color: var(--fg-3);
+}
+
+.dash-node__kv > b {
+  color: var(--fg-1);
+  font-weight: 600;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.dash-node__leaves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+/* ---- the action row ---- */
+.dash-node__acts {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  padding-top: 13px;
+  margin-top: 11px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* One height, one shape, equal share of the row: the buttons are peers, and a
+   primary that hogged the width would read as the only one worth pressing. */
+.dash-node__act {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: var(--edge-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface-1);
+  color: var(--fg-2);
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--d-fast) var(--ease-out), color var(--d-fast) var(--ease-out),
+    border-color var(--d-fast) var(--ease-out);
+}
+
+.dash-node__act:hover {
+  background: var(--surface-3);
+  color: var(--fg-1);
+  border-color: var(--border-strong);
+}
+
+.dash-node__act:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-focus);
+}
+
+.dash-node__act > svg {
+  flex: none;
+  opacity: 0.85;
+}
+
+/* The primary action FILLS with the accent and takes --on-accent, the ink stated
+   per theme for exactly this case. A teal TINT with teal type reads the same on a
+   dark theme and measures 3.6:1 on the light one — the accent is only legible as
+   type where it isn't also the background. */
+.dash-node__act--primary {
+  background: var(--krystal-teal);
+  border-color: var(--krystal-teal);
+  color: var(--on-accent);
+}
+
+.dash-node__act--primary:hover {
+  background: var(--krystal-teal-hover);
+  border-color: var(--krystal-teal-hover);
+  color: var(--on-accent);
+}
+
+.dash-node__act--primary > svg {
+  opacity: 1;
+}
+
+/* ---- narrow card: the line folds, the drawer stacks ---- */
+/* 620px is where the chips stop fitting beside the identity block. The line
+   becomes two rows at a 56px floor so the whole thing stays a comfortable tap
+   target, and every action button goes full width. */
+@container (max-width: 620px) {
+  .dash-node__line {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 10px;
+    padding: 11px 12px;
+    min-height: 56px;
+  }
+
+  .dash-node__id {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .dash-node__chev {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .dash-node__chips {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  .dash-node__ping {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+  }
+
+  /* The machine name is the one identity field with a home elsewhere (it is the
+     first row of the drawer's Machine block), so it is what gives up the space. */
+  .dash-node__host {
+    display: none;
+  }
+
+  .dash-node__body {
+    padding: 12px;
+  }
+
+  .dash-node__meters {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding-bottom: 12px;
+  }
+
+  .dash-node__grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .dash-node__acts {
+    flex-direction: column;
+  }
+
+  .dash-node__act {
+    width: 100%;
+    height: 36px;
+    flex: none;
+  }
+}
+
+/* A card this narrow has no room for a second identity pill; the name and the
+   signal are what survive. */
+@container (max-width: 340px) {
+  .dash-node__region {
+    display: none;
+  }
 }

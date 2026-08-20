@@ -132,7 +132,10 @@ function nodeFilterOptions(hosts) {
 
 // ---------- Capacity meters (from DiagnosticsPage.jsx) ----------
 
-// Derive the three capacity meters from a host record.
+// Derive the three capacity meters from a host record. `warnAt` is each meter's own
+// amber threshold, carried so a reader ranking meters against each other can ask how
+// far past its OWN line each one is — three meters that turn amber at 60/70/80 are not
+// comparable by raw percentage (see hostHealth's `worst`).
 function hostCapacityMeters(host) {
   if (!host || !host.cpu || !host.ram || !host.ram.total_gb) return [];
   const ramPct = Math.round((host.ram.used_gb / host.ram.total_gb) * 100);
@@ -148,20 +151,20 @@ function hostCapacityMeters(host) {
       key: "cpu", icon: "cpu", label: "CPU", pct: host.cpu.usage_pct,
       value: host.cpu.usage_pct + "%",
       detail: "load " + host.cpu.load_avg[0].toFixed(1) + " \u00b7 " + host.cpu.cores + " cores",
-      tone: statusTone(host.cpu.usage_pct, 60, 80),
+      tone: statusTone(host.cpu.usage_pct, 60, 80), warnAt: 60,
     },
     {
       key: "ram", icon: "memory-stick", label: "Memory", pct: ramPct,
       value: ramPct + "%",
       detail: host.ram.used_gb.toFixed(1) + " / " + host.ram.total_gb + " GB",
-      tone: statusTone(ramPct, 70, 85),
+      tone: statusTone(ramPct, 70, 85), warnAt: 70,
       flag: swapRatio > 0.3 ? "swap rising" : null,
     },
     {
       key: "disk", icon: "database", label: "Disk", pct: diskPct,
       value: diskPct + "%",
       detail: fullest.disk ? fullest.disk.mount + " \u00b7 " + fullest.disk.used_gb + " / " + fullest.disk.total_gb + " GB" : "\u2014",
-      tone: statusTone(diskPct, 80, 90),
+      tone: statusTone(diskPct, 80, 90), warnAt: 80,
       flag: fullest.disk && fullest.disk.smart && fullest.disk.smart !== "ok" ? "SMART " + fullest.disk.smart : null,
     },
   ];
