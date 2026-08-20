@@ -1566,7 +1566,7 @@
 .dash-node__body {
   background: var(--surface-2);
   border-top: 1px solid var(--border-subtle);
-  padding: 14px 14px 13px 31px;
+  padding: 14px;
   animation: k-rise var(--d-base) var(--ease-out);
 }
 
