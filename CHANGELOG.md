@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.135.0] - 2026-08-21
+
+### Added — the status pill carries how long the run has lasted
+
+A server card's status pill splits into two segments: the state, and how long it has been in it.
+`online · 12h 44m`, `offline · 2d 8h`. The construction is the update chip's — two halves sharing one
+pill radius under `align-items: stretch` + `overflow: hidden` — with the label filled and the figure
+in mono beside it. The one difference is the ink: the update chip is solid because it rides cover art
+and has to survive any image, while this sits on the card body, so its figure half is the status
+colour's own tint rather than a scrim.
+
+**It splits only when something dates the run.** With no timestamp the markup is exactly the
+single-segment pill that shipped before, which is what keeps the transitional states (Starting,
+Updating…, Restarting…) and a server nothing has dated from needing a special case.
+
+Both timestamps come off the DTO, joined by the backend from the run-state authority — the watchdog's
+persisted spawn time and its durable run ledger — never derived from the audit feed, which is a capped
+page and would report a different answer depending on how much history happened to be loaded.
+
+### Added — the alerts card says what it is watching
+
+When nothing is firing, the card lists the rules the engine is armed against instead of a green tick,
+with the 24h resolved count in its foot. The card therefore always renders a list: firing conditions
+when there are any, armed rules when there are not.
+
+A rule the host's threshold policy reports as switched **off** keeps its row and loses its dot. That is
+the point — an alert engine that is quiet and one that is not watching are indistinguishable from a
+tick, and only the dot tells them apart. The rules come from the node's own policy, so a rule added on
+the backend appears here with no rebuild. The policy is operator-gated; a viewer sees the previous
+all-clear placeholder.
+
+### Fixed — the audit card reported the store's page cap as a total
+
+The header count read `1000` because that is `AUDIT_CAP`, the audit store's page size, rendered as if
+it were a total. It read the same figure on a fleet of any size. It now states the window it covered
+(`70+ in 24h`), and whether that figure is exact is decided by the cursor rather than the row count: a
+walk that reached the end of the log left no cursor, so what is loaded is everything and the count is
+complete; a cursor still standing means older rows exist and the count is a floor, marked with a `+`.
+
+### Added — a catalog card says whether this node has room for the blueprint
+
+An uninstalled Library card's foot states the verdict: **Room for this**, **Tight fit**, or the
+**Steam account** gate that outranks both. The node's free memory is stated once in the toolbar rather
+than on every card — it is a fact about a machine, and printing it per card repeats one number across
+the whole grid.
+
+⚠ It is a comparison of two measured figures, never a promise: free memory moves the moment anything
+else starts. Hence "Tight fit" rather than "Won't fit", and no card ever refuses to deploy. A blueprint
+that declares no recommended memory gets no verdict at all rather than one computed against a guess.
+
+### Fixed — two dead spots on the Library card
+
+Every uninstalled card's foot rendered the word **"Added"** followed by nothing: `addedAt` is not on
+the library DTO, so the label resolved to an empty string. That slot now carries the fit verdict.
+
+A blueprint that declares no player capacity rendered an icon with no value beside it — true of 8 of
+the 32 on this host — which reads as a broken card rather than an unknown figure. It renders an
+em-dash.
+
 ### Changed — the dashboard summary band is twelve tiles, six across
 
 Six on a desktop row and two on a phone (6x2 becoming 2x6), through 4- and 3-column steps that

@@ -13,6 +13,8 @@ import { Icon } from "./Icon.jsx";
 //   icon, title            — header (icon + label)
 //   count, countTone       — optional pill after the title; countTone "neutral"
 //                            for a quiet grey chip, omit for the default accent
+//   countTitle             — optional tooltip on that pill, for a count that has to
+//                            qualify itself (a window, a floor)
 //   meta                   — optional muted sub-strip under the header (cadence,
 //                            retention, "5 of 10 slots used", …)
 //   onViewAll, viewAllLabel— convenience right-side affordance ("View all →")
@@ -22,7 +24,7 @@ import { Icon } from "./Icon.jsx";
 //   onToggle                 toggle and the body is unmounted when shut. Left
 //                            uncontrolled the card renders exactly as before.
 //   className, children
-function BriefCard({ icon, title, count, countTone, meta, onViewAll, viewAllLabel = "View all", action,
+function BriefCard({ icon, title, count, countTone, countTitle, meta, onViewAll, viewAllLabel = "View all", action,
   collapsible = false, open = true, onToggle, className = "", children }) {
   const right = action !== undefined
     ? action
@@ -39,7 +41,8 @@ function BriefCard({ icon, title, count, countTone, meta, onViewAll, viewAllLabe
       <span className="chat-brief__title">
         {icon && <Icon name={icon} size={13} />} {title}
         {count != null && count !== false && (
-          <span className={"chat-brief__count" + (countTone ? " chat-brief__count--" + countTone : "")}>{count}</span>
+          <span className={"chat-brief__count" + (countTone ? " chat-brief__count--" + countTone : "")}
+            title={countTitle}>{count}</span>
         )}
       </span>
       {right}

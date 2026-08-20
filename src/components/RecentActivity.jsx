@@ -3,6 +3,7 @@ import { AuditEventRow } from "./AuditEventRow.jsx";
 import { auditEventHost } from "../lib/stores.js";
 import { BriefCard } from "./BriefCard.jsx";
 import { Icon } from "./Icon.jsx";
+import { parseTs } from "../lib/formatting.js";
 import { useStore } from "../lib/store.js";
 import { auditInScope, auditStore, hostsStore } from "../lib/stores.js";
 
@@ -23,6 +24,26 @@ function RecentActivity({ hostId, serverId, onViewAll, max = 3, title = "Recent 
     [auditList, hostId, serverId]
   );
   const recent = scoped.slice(0, max);
+  // The header count states the WINDOW it covered, not how many rows the store happens to be holding.
+  // `scoped.length` is bounded by the store's page cap, so rendering it reports the cap as a total on
+  // any fleet busier than one page — the same figure whatever actually happened.
+  //
+  // Exactness is decided by the cursor, not by the row count: a walk that reached the end of the log
+  // left no cursor, so what is loaded IS everything and the count is complete. A cursor still standing
+  // means there are older rows behind it, so the count is a floor and says so with a "+".
+  const nextCursor = useStore(auditStore, s => s.nextCursor);
+  const inWindow = React.useMemo(() => {
+    const since = Date.now() - 24 * 3600 * 1000;
+    return scoped.filter(ev => {
+      const t = parseTs(ev.ts);
+      return t && t.getTime() >= since;
+    }).length;
+  }, [scoped]);
+  const truncated = !!nextCursor;
+  const countLabel = scoped.length === 0 ? 0 : inWindow + (truncated ? "+" : "") + " in 24h";
+  const countTitle = truncated
+    ? "At least " + inWindow + " events in the last 24 hours — older rows have not been loaded"
+    : inWindow + " events in the last 24 hours";
   const [, setClock] = React.useState(0);
   React.useEffect(() => {
     const t = setInterval(() => setClock(c => c + 1), 1000);
@@ -33,7 +54,8 @@ function RecentActivity({ hostId, serverId, onViewAll, max = 3, title = "Recent 
     <BriefCard
       icon="scroll-text"
       title={title}
-      count={scoped.length}
+      count={countLabel}
+      countTitle={countTitle}
       countTone="neutral"
       onViewAll={onViewAll}
     >

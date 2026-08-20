@@ -8,7 +8,7 @@ import { Toolbar, ToolbarButton, ToolbarCount, ToolbarFilters, ToolbarSearch, To
 import { fmtFootprintMb } from "../lib/formatting.js";
 import { KRYSTAL_LABELS } from "../lib/labels.js";
 import { can } from "../lib/persona.js";
-import { instancesOfBlueprint, offeringHosts } from "../lib/servers.js";
+import { fleetHeadroom, instancesOfBlueprint, offeringHosts } from "../lib/servers.js";
 import { useStore } from "../lib/store.js";
 import { hostsStore, libraryStore, serversStore } from "../lib/stores.js";
 
@@ -123,7 +123,7 @@ function groupVisual(gkey, key) {
 }
 function section_is_every_host(key) { return key === "On every host"; }
 
-function LibraryGroup({ gkey, section, collapsed, onToggle, onOpenGame, onDeploy, now, isInstalled }) {
+function LibraryGroup({ gkey, section, collapsed, onToggle, onOpenGame, onDeploy, now, isInstalled, headroom }) {
   const vis = groupVisual(gkey, section.key);
   const installedHere = section.items.filter(isInstalled).length;
   // "N installed" is noise when the grouping IS status — the header already says so.
@@ -145,7 +145,7 @@ function LibraryGroup({ gkey, section, collapsed, onToggle, onOpenGame, onDeploy
       </button>
       {!collapsed && (
         <div className="game-grid lib-group__grid">
-          {section.items.map(g => <GameCard key={g.id} game={g} onPick={onOpenGame} onDeploy={onDeploy} addedNow={now} />)}
+          {section.items.map(g => <GameCard key={g.id} game={g} onPick={onOpenGame} onDeploy={onDeploy} addedNow={now} headroom={headroom} />)}
         </div>
       )}
     </section>
@@ -187,6 +187,10 @@ function Library({ onOpenGame, onDeploy, initialFilter, onCreateBlueprint }) {
     setCollapsed(next);
     try { localStorage.setItem(LIB_COLLAPSE_KEY, JSON.stringify([...next])); } catch {}
   };
+  // The headroom every card compares against, resolved ONCE: it is a fact about a machine, so asking
+  // per card would print the same number thirty-two times. Null when no node reports its memory, in
+  // which case no card renders a fit verdict at all.
+  const headroom = React.useMemo(() => fleetHeadroom(allHosts), [allHosts]);
   const [refreshing, setRefreshing] = React.useState(false);
   // Debounce the search so we filter + re-paginate only after a 250ms quiet
   // window, not on every keystroke. `searchPending` drives the input spinner.
@@ -309,6 +313,16 @@ function Library({ onOpenGame, onDeploy, initialFilter, onCreateBlueprint }) {
           </ToolbarButton>
         )}
         <ToolbarCount shown={filtered.length} total={all.length} unit="games" />
+        {headroom && (
+          <span className="lib-headroom"
+            title={"Free memory on " + (headroom.host ? headroom.host.name : "this node")
+              + " right now. A card's fit line compares a blueprint's recommended memory against it — "
+              + "a comparison of two measured figures, not a guarantee."}>
+            <Icon name="gauge" size={13} />
+            Room on {headroom.host ? headroom.host.name : "this node"}:
+            <b>{headroom.freeGb} GB</b>
+          </span>
+        )}
         <ToolbarButton
           icon="refresh-cw"
           onClick={refresh}
@@ -327,7 +341,7 @@ function Library({ onOpenGame, onDeploy, initialFilter, onCreateBlueprint }) {
         />
       )}
       <div className="game-grid">
-        {!grouping && pageItems.map(g => <GameCard key={g.id} game={g} onPick={onOpenGame} onDeploy={onDeploy} addedNow={now} />)}
+        {!grouping && pageItems.map(g => <GameCard key={g.id} game={g} onPick={onOpenGame} onDeploy={onDeploy} addedNow={now} headroom={headroom} />)}
       </div>
       {grouping && (
         <div className="lib-groups">
@@ -342,6 +356,7 @@ function Library({ onOpenGame, onDeploy, initialFilter, onCreateBlueprint }) {
               onDeploy={onDeploy}
               now={now}
               isInstalled={isInstalled}
+              headroom={headroom}
             />
           ))}
         </div>

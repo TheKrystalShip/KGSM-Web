@@ -4,7 +4,7 @@ import { useStore } from "../lib/store.js";
 import { hostsStore, serversStore } from "../lib/stores.js";
 import { artBg } from "../lib/art.js";
 import { fmtFootprintMb } from "../lib/formatting.js";
-import { hostAvailabilityLabel, instancesOfBlueprint } from "../lib/servers.js";
+import { blueprintFit, hostAvailabilityLabel, instancesOfBlueprint } from "../lib/servers.js";
 
 // GameCard.jsx — the catalog game card, extracted from LibraryPage.jsx.
 // Used by LibraryPage and DashboardPage.
@@ -32,7 +32,7 @@ function fmtAddedLabel(addedAt, now) {
   return date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
-function GameCard({ game, onPick, onDeploy, addedNow, compact }) {
+function GameCard({ game, onPick, onDeploy, addedNow, compact, headroom }) {
   const servers = useStore(serversStore, s => s.list);
   const allHosts = useStore(hostsStore, s => s.list);
   const instances = instancesOfBlueprint(game, servers);
@@ -73,6 +73,18 @@ function GameCard({ game, onPick, onDeploy, addedNow, compact }) {
   const installed = count > 0;
   const hostLabel = hostAvailabilityLabel(game, allHosts);
   const canDeploy = !installed && !!onDeploy && can("server.create");
+  // What this card can say in its one status slot, in precedence order.
+  // `steamAccountRequired` is a real boolean from the blueprint, so an unknown (null) is NOT a gate —
+  // only an explicit true is, and the card stays quiet rather than warning about a requirement nobody
+  // stated.
+  const gate = game.steamAccountRequired === true
+    ? { label: "Steam account", title: "Installing " + game.name + " needs Steam credentials on this host" }
+    : null;
+  const fit = installed || gate ? null : blueprintFit(game, headroom);
+  const fitTitle = !fit ? undefined
+    : "Recommends " + fit.needGb.toFixed(fit.needGb < 10 ? 1 : 0) + " GB"
+      + (fit.hostName ? " · " + fit.hostName : "") + " has " + fit.freeGb + " GB free right now"
+      + " — a comparison of two measured figures, not a guarantee";
 
   return (
     <article
@@ -100,8 +112,10 @@ function GameCard({ game, onPick, onDeploy, addedNow, compact }) {
       </div>
 
       <div className="bp-card__specs">
-        <div className="bp-spec">
-          <span className="bp-spec__val"><Icon name="users" size={12} strokeWidth={2} /> {game.players}</span>
+        <div className={"bp-spec" + (game.players == null ? " bp-spec--unknown" : "")}>
+          {/* A blueprint that declares no capacity says so. Rendering the null left an icon with
+              nothing beside it, which reads as a broken card rather than an unknown figure. */}
+          <span className="bp-spec__val"><Icon name="users" size={12} strokeWidth={2} /> {game.players ?? "—"}</span>
           <span className="bp-spec__lbl">Players</span>
         </div>
         <div className="bp-spec">
@@ -122,9 +136,20 @@ function GameCard({ game, onPick, onDeploy, addedNow, compact }) {
               : <>Idle · not running</>}
           </span>
         ) : (
-          <span className="bp-card__status">
-            <Icon name="clock" size={11} /> Added {fmtAddedLabel(game.addedAt, now)}
-          </span>
+          /* One slot, one precedence: a GATE outranks a fit, because a blueprint you cannot install
+             without credentials is a different kind of answer from one that would be a squeeze.
+             An installed card never shows a fit at all — the question is already settled. */
+          gate ? (
+            <span className="bp-card__status bp-card__status--gate" title={gate.title}>
+              <Icon name="lock" size={11} /> {gate.label}
+            </span>
+          ) : fit ? (
+            <span className={"bp-card__status bp-card__status--" + (fit.tight ? "tight" : "fits")}
+              title={fitTitle}>
+              <Icon name={fit.tight ? "triangle-alert" : "circle-check"} size={11} />
+              {fit.tight ? "Tight fit" : "Room for this"}
+            </span>
+          ) : <span className="bp-card__status"></span>
         )}
         {canDeploy ? (
           <button

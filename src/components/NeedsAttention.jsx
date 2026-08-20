@@ -6,6 +6,11 @@ import { KrystalAlerts } from "../lib/alertsApi.js";
 import { useAlertActions } from "./AlertCard.jsx";
 import { ServerActionButton } from "./ServerActions.jsx";
 import { askAssistantUsable } from "../lib/capabilities.js";
+import { watchedRules } from "../lib/fleetOps.js";
+import { fmtRelative } from "../lib/formatting.js";
+import { useStore } from "../lib/store.js";
+import { serversStore } from "../lib/stores.js";
+import { fleetOpsStore } from "../lib/stores/fleet.js";
 
 // NeedsAttention — compact FIRING-alerts panel, plus the client hooks over the
 // server alert feed (KrystalAlerts, see alertsApi.js).
@@ -85,6 +90,45 @@ function BriefAlertRow({ item, onPick, onRun, actionLabel }) {
   );
 }
 
+
+// The all-clear body: what the engine is armed against, instead of a tick.
+//
+// The card therefore ALWAYS renders a list — firing conditions when there are any, the armed rules
+// when there are not — which is one behaviour rather than two, and no new component vocabulary.
+//
+// A rule the policy reports as switched OFF keeps its row and loses its dot. That is the whole point
+// of the panel: an alert engine that is quiet and one that is not watching look identical from a
+// green tick, and only the dot tells them apart.
+const RULES_SHOWN = 5;
+
+function WatchedRules({ rules, resolved }) {
+  const shown = rules.slice(0, RULES_SHOWN);
+  const more = rules.length - shown.length;
+  const newest = resolved && resolved.length ? resolved[0] : null;
+  return (
+    <>
+      <div className="alert-rules">
+        {shown.map(r => (
+          <div className="alert-rules__row" key={r.key}
+            title={r.armed ? "Watching " + r.scopeLabel : "This rule is switched off in the host's threshold policy"}>
+            <span className={"alert-rules__dot" + (r.armed ? "" : " alert-rules__dot--off")}></span>
+            <span className="alert-rules__name">{r.label}</span>
+            <span className="alert-rules__scope">{r.armed ? r.scopeLabel : "off"}</span>
+          </div>
+        ))}
+      </div>
+      <div className="chat-brief__foot">
+        <span>
+          {newest
+            ? <><b>{resolved.length}</b> resolved in the last 24h · last {fmtRelative(new Date(newest.resolvedAt), new Date())}</>
+            : "Nothing resolved in the last 24h"}
+        </span>
+        {more > 0 && <span>{more} more rule{more === 1 ? "" : "s"}</span>}
+      </div>
+    </>
+  );
+}
+
 // `max` caps how many firing alerts are listed (header count still shows the
 // true total). `emptyState` opts into the dashboard behaviour: instead of
 // collapsing to null when nothing's firing, render the card with a calm
@@ -100,8 +144,17 @@ function BriefAlertRow({ item, onPick, onRun, actionLabel }) {
 function NeedsAttention({ onPick, onRun, actionLabel = "Ask", onViewAll, className = "", max = Infinity, emptyState = false, hostId, serverId, title = "Alerts" }) {
   useAlerts();
   const [hidden, setHidden] = React.useState(false);
-  const { active } = alertBuckets(hostId != null ? hostId : "all", serverId);
+  const { active, resolved } = alertBuckets(hostId != null ? hostId : "all", serverId);
   const shown = active.slice(0, max);
+  // What the engine is watching, for the all-clear state. Scoped to the surface that asked for a
+  // balanced card (the dashboard): the host deep-dive and the server Performance tab ask about one
+  // subject, and a fleet-wide rule list is not an answer about it.
+  const ops = useStore(fleetOpsStore, s => s.byHost);
+  const servers = useStore(serversStore, s => s.list);
+  const watched = React.useMemo(
+    () => (emptyState && !hostId && !serverId ? watchedRules(ops, servers.length) : { rules: [], unknownNodes: 0 }),
+    [emptyState, hostId, serverId, ops, servers.length]);
+  const rules = watched.rules;
   if (hidden) return null;
   if (active.length === 0 && !emptyState) return null;
 
@@ -116,16 +169,19 @@ function NeedsAttention({ onPick, onRun, actionLabel = "Ask", onViewAll, classNa
       className={className}
       icon="triangle-alert"
       title={title}
-      count={active.length > 0 ? active.length : null}
+      count={active.length > 0 ? active.length : (rules.length > 0 ? "all clear" : null)}
+      countTone={active.length > 0 ? undefined : "ok"}
       onViewAll={onViewAll}
       action={action}
     >
       {active.length === 0 ? (
-        <div className="chat-brief__empty">
-          <Icon name="circle-check" size={20} />
-          <span className="chat-brief__empty-title">No active alerts</span>
-          <span className="chat-brief__empty-sub">Everything's running clean right now.</span>
-        </div>
+        rules.length > 0 ? <WatchedRules rules={rules} resolved={resolved} /> : (
+          <div className="chat-brief__empty">
+            <Icon name="circle-check" size={20} />
+            <span className="chat-brief__empty-title">No active alerts</span>
+            <span className="chat-brief__empty-sub">Everything's running clean right now.</span>
+          </div>
+        )
       ) : (
       <div className="chat-brief__list">
         {shown.map(it => <BriefAlertRow key={it.id} item={it} onPick={onPick} onRun={onRun} actionLabel={actionLabel} />)}

@@ -1,4 +1,4 @@
-// stores/fleet.js — the dashboard summary band's four extra reads, per node.
+// stores/fleet.js — the dashboard's per-node reads that no other store holds.
 //
 // The band's other eight tiles derive from stores the app already holds (the roster, the audit
 // feed, the host capability block). These four have no such source and are all slow-moving
@@ -25,7 +25,7 @@ const AVAILABILITY_WINDOW = "7d";
 const REFRESH_MS = 60_000;
 
 const fleetOpsStore = createStore({
-  byHost: {},          // hostId -> { availability, supervision, schedules, services }
+  byHost: {},          // hostId -> { availability, supervision, schedules, services, thresholds }
   status: "loading",
   everLoaded: false,
 });
@@ -45,9 +45,16 @@ function readHost(hostId) {
     .get("/hosts/" + hostId + "/services")
     .then(rows => adaptServices(Array.isArray(rows) ? rows : []))
     .catch(() => null);
+  // What the node is watching its own numbers against — the monitor's threshold policy, which the API
+  // relays rather than owns. It is OPERATOR-gated, so a viewer gets a 403 here and the alerts card
+  // falls back to saying only that nothing is firing. That is the right degradation: the rule list
+  // exists to prove the engine is armed, and someone who cannot read the policy cannot be shown it.
+  const thresholds = api.host(hostId)
+    .get("/hosts/" + hostId + "/thresholds")
+    .catch(() => null);
 
-  return Promise.all([availability, supervision, schedules, services])
-    .then(([a, sup, sch, svc]) => ({ availability: a, supervision: sup, schedules: sch, services: svc }));
+  return Promise.all([availability, supervision, schedules, services, thresholds])
+    .then(([a, sup, sch, svc, th]) => ({ availability: a, supervision: sup, schedules: sch, services: svc, thresholds: th }));
 }
 
 let _gen = 0;

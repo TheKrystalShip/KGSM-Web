@@ -145,4 +145,75 @@ function servicesRollup(byHost) {
   return { healthy, total, unhealthy, unknownNodes };
 }
 
-export { availabilityRollup, driftRollup, scheduleRollup, servicesRollup };
+
+// ---- What the alert engine is watching ------------------------------------------------------
+//
+// The rules the fleet's conditions are raised from, for the alerts card's all-clear state. Two
+// families, and they are not the same kind of thing:
+//
+//   - METRIC rules come from each node's threshold policy, which the monitor owns and the API
+//     relays. They carry an `enabled` flag, so a rule that is switched OFF is reported as such
+//     rather than omitted — an unarmed rule is exactly what somebody reading this card needs to
+//     see, and dropping the row would make it indistinguishable from one that is watching.
+//   - LIFECYCLE rules (a crash loop, an update waiting) are not configurable and have no policy
+//     row; they are on whenever the node has the leaf that observes them.
+//
+// A node whose policy could not be read contributes nothing and is counted in `unknownNodes`, so
+// the card can say the list is partial instead of presenting it as the whole truth.
+
+// The human name for each policy key. A key with no entry still renders — under its own key —
+// so a rule the monitor grows later is a plain row rather than a missing one.
+const RULE_LABEL = {
+  "host-disk": "Disk headroom",
+  "host-mem": "Memory pressure",
+  "host-swap": "Swap pressure",
+  "host-load": "CPU load",
+  "host-temp": "Temperature",
+  "host-gpu-mem": "GPU memory",
+  "srv-pids": "Process count",
+  "srv-mem": "Server memory",
+  "srv-cpu": "Server CPU",
+};
+
+function watchedRules(byHost, serverCount) {
+  const hosts = Object.keys(byHost || {});
+  const merged = new Map();   // key -> { key, label, scope, enabledOn, totalOn }
+  let unknownNodes = 0;
+
+  for (const id of hosts) {
+    const policy = byHost[id] ? byHost[id].thresholds : null;
+    const rules = policy && Array.isArray(policy.rules) ? policy.rules : null;
+    if (!rules) { unknownNodes++; continue; }
+    for (const r of rules) {
+      if (!r || !r.key) continue;
+      const prev = merged.get(r.key) || {
+        key: r.key,
+        label: RULE_LABEL[r.key] || r.key,
+        // A `srv-` rule is evaluated per server; everything else is about the machine.
+        scope: r.key.startsWith("srv-") ? "server" : "node",
+        enabledOn: 0,
+        totalOn: 0,
+      };
+      prev.totalOn++;
+      if (r.enabled) prev.enabledOn++;
+      merged.set(r.key, prev);
+    }
+  }
+
+  const nodeCount = hosts.length - unknownNodes;
+  const metric = [...merged.values()].map(r => ({
+    ...r,
+    // Armed on at least one node it was readable on. A rule off everywhere reads as unarmed.
+    armed: r.enabledOn > 0,
+    scopeLabel: r.scope === "server"
+      ? (serverCount === 1 ? "1 server" : serverCount + " servers")
+      : (nodeCount === 1 ? "1 node" : nodeCount + " nodes"),
+  }));
+
+  // Sorted armed-first so the card's visible rows are the ones actually watching, with anything
+  // switched off surfacing in the overflow count rather than pushing a live rule out of view.
+  metric.sort((a, b) => (b.armed ? 1 : 0) - (a.armed ? 1 : 0) || a.label.localeCompare(b.label));
+  return { rules: metric, unknownNodes, readNodes: nodeCount };
+}
+
+export { availabilityRollup, driftRollup, scheduleRollup, servicesRollup, watchedRules };

@@ -6,7 +6,7 @@ import { serverCapUsable } from "../lib/capabilities.js";
 import { serverOperable } from "../lib/persona.js";
 import { favoritesStore, hostsStore, serversStore, useIsFavorite } from "../lib/stores.js";
 import { artBg } from "../lib/art.js";
-import { PHASE_LABEL, serverStatusLabel } from "../lib/servers.js";
+import { PHASE_LABEL, serverRunDuration, serverStatusLabel } from "../lib/servers.js";
 import { formatBps, formatBytes, fmtBytesTight } from "../lib/formatting.js";
 import { useRosterMetrics } from "../lib/hooks/useRosterMetrics.js";
 
@@ -129,6 +129,15 @@ function ServerTile({ server, onOpen, onAction, showHost }) {
   // The chips trade precision for a still row (see fmtBytesTight), so the tooltip carries the figure
   // they rounded — and says nothing at all when there was nothing to round.
   const exact = (bytes) => (bytes == null ? "" : " · " + formatBytes(bytes));
+  // How long this run has been going, or how long since the last one ended. Suppressed while the
+  // watchdog is down: that pill already says the state cannot be confirmed, and a duration beside it
+  // would be dating a state nobody can vouch for.
+  const runFor = watchdogDown ? null : serverRunDuration(server);
+  const runTitle = !runFor ? undefined
+    : server.status === "online"
+      ? "Running for " + runFor + " (since " + new Date(server.startedAt).toLocaleString() + ")"
+      : "Stopped " + runFor + " ago (last run ended " + new Date(server.stoppedAt).toLocaleString() + ")";
+
   return (
     <div className="server-tile">
       <div className="server-tile__art" onClick={open} style={{ backgroundImage: art, backgroundSize: "cover", backgroundPosition: "center" }}>
@@ -164,10 +173,19 @@ function ServerTile({ server, onOpen, onAction, showHost }) {
       <div className="server-tile__body">
         <div className="server-tile__head">
           <div className="server-tile__name" onClick={open}>{server.name}</div>
-          <span className={"server-tile__pill " + (watchdogDown ? "server-tile__pill--unknown" : "server-tile__pill--" + server.status)}
-            title={watchdogDown ? "Watchdog down — server state can't be confirmed" : undefined}>
-            <span className="dot"></span>
-            {watchdogDown ? "unknown" : serverStatusLabel(server)}
+          {/* The pill carries how long the server has been in this state as a SECOND SEGMENT, built the
+              way the update chip on the artwork above is: two halves sharing one pill radius, the label
+              solid and the figure beside it. It splits only when something dates the run — with no
+              duration it is exactly the single-segment pill that has always shipped, which is what keeps
+              the transitional states and an undated server from needing a special case. */}
+          <span className={"server-tile__pill " + (watchdogDown ? "server-tile__pill--unknown" : "server-tile__pill--" + server.status)
+            + (runFor ? " server-tile__pill--split" : "")}
+            title={watchdogDown ? "Watchdog down — server state can't be confirmed" : runTitle}>
+            <span className="server-tile__pill-state">
+              <span className="dot"></span>
+              {watchdogDown ? "unknown" : serverStatusLabel(server)}
+            </span>
+            {runFor && <span className="server-tile__pill-time">{runFor}</span>}
           </span>
         </div>
         {server.notice

@@ -391,6 +391,31 @@
   text-overflow: ellipsis;
 }
 
+/* The foot's status slot on an UNINSTALLED card: whether this host has room for the
+   blueprint, or the credential gate that outranks that question. Same line, same
+   metrics, so a card carrying a verdict is exactly as tall as one that is not. */
+.bp-card__status--fits svg {
+  color: var(--success-fg);
+}
+
+.bp-card__status--tight {
+  color: var(--warning-fg);
+}
+
+.bp-card__status--tight svg {
+  color: var(--warning-fg);
+}
+
+.bp-card__status--gate svg {
+  color: var(--warning-fg);
+}
+
+/* A blueprint that declares no player capacity — the figure is an em-dash, and it
+   reads as muted rather than as a measured number. */
+.bp-spec--unknown .bp-spec__val {
+  color: var(--fg-4);
+}
+
 .bp-card__status--on {
   color: var(--fg-2);
 }
@@ -1426,4 +1451,26 @@ a.game-fact:hover {
 .bp-editor__host-opt--active {
   color: var(--krystal-teal);
   font-weight: 600;
+}
+/* The node's free memory, stated ONCE in the toolbar. Every card's fit line compares
+   against this figure, so printing it per card would repeat one machine fact across
+   the whole grid. */
+.lib-headroom {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--fg-3);
+  white-space: nowrap;
+}
+
+.lib-headroom svg {
+  color: var(--fg-3);
+  flex-shrink: 0;
+}
+
+.lib-headroom b {
+  font-family: var(--font-mono);
+  font-weight: var(--w-semibold);
+  color: var(--fg-1);
 }

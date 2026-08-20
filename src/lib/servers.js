@@ -1,3 +1,4 @@
+import { uptimeShort } from "./formatting.js";
 // servers.js — shared server-related pure helpers, extracted from page files.
 
 // ---------- Blueprint matching ----------
@@ -64,6 +65,69 @@ function hostAvailabilityLabel(game, allHosts) {
   return off.length + " of " + all.length + " hosts";
 }
 
+
+// ---------- How long a server has been in its current run-state ----------
+
+// The duration the status pill carries as its second segment, or null when nothing dates the run —
+// in which case the pill renders as the single-segment one that has always shipped.
+//
+// Both timestamps come off the DTO, joined by the backend from the run-state AUTHORITY: the watchdog's
+// persisted spawn time for a running instance, and its durable run ledger for a stopped one. That is
+// deliberately not the audit feed — the feed is a capped page, so deriving a duration from it would
+// quietly stop dating any server that has been down longer than the page reaches back, and would report
+// a different answer depending on how much history happened to be loaded.
+//
+// Only the two settled states are dated. A transitional one (Starting, Updating…, Restarting…) is
+// measured in seconds and reporting its age is noise, not information.
+function serverRunDuration(server) {
+  if (!server) return null;
+  const ts = server.status === "online" ? server.startedAt
+    : server.status === "offline" ? server.stoppedAt
+      : null;
+  if (!ts) return null;
+  const ms = Date.now() - new Date(ts).getTime();
+  // A timestamp in the future, or one that does not parse, dates nothing — say so by not splitting,
+  // rather than rendering "—" inside a pill where it would read as a measured value.
+  if (!isFinite(ms) || ms < 0) return null;
+  return uptimeShort(ts);
+}
+
+
+// ---------- Can this node run that blueprint ----------
+
+// The node with the most free memory, as { host, freeGb }, or null when nothing reports it.
+// One figure for the whole page: the headroom is a fact about a MACHINE, so stating it per card would
+// print the same number once per blueprint. The page header says it once and the cards compare to it.
+function fleetHeadroom(allHosts) {
+  let best = null;
+  for (const h of allHosts || []) {
+    const freeGb = h && h.ram ? h.ram.free_gb : null;
+    if (freeGb == null) continue;
+    if (!best || freeGb > best.freeGb) best = { host: h, freeGb };
+  }
+  return best;
+}
+
+// How a blueprint's recommended memory compares to that headroom, or null when either side is
+// unknown — a blueprint declaring no recommendation gets no verdict rather than one computed against
+// a guess.
+//
+// ⚠ This is a COMPARISON of two measured numbers, never a promise. Free memory moves the moment
+// anything else starts, so the loud case says "tight" rather than "won't fit", and no card ever
+// refuses to deploy on the strength of it.
+const FIT_TIGHT_RATIO = 0.85;
+function blueprintFit(game, headroom) {
+  const recMb = game && game.specs ? game.specs.recommendedRamMb : null;
+  if (recMb == null || !headroom) return null;
+  const needGb = recMb / 1024;
+  return {
+    needGb,
+    freeGb: headroom.freeGb,
+    hostName: headroom.host ? headroom.host.name : null,
+    tight: needGb > headroom.freeGb * FIT_TIGHT_RATIO,
+  };
+}
+
 // ---------- What a busy server's pill says ----------
 
 // The word for a run-state, including the derived busy ones the store folds a job
@@ -105,4 +169,4 @@ function serverStatusLabel(server) {
   return STATUS_LABEL[server.status] || server.status;
 }
 
-export { fleetSummary, hostAvailabilityLabel, instancesOfBlueprint, offeringHosts, playerTally, PHASE_LABEL, serverStatusLabel, STATUS_LABEL };
+export { blueprintFit, fleetHeadroom, fleetSummary, hostAvailabilityLabel, serverRunDuration, instancesOfBlueprint, offeringHosts, playerTally, PHASE_LABEL, serverStatusLabel, STATUS_LABEL };

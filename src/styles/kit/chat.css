@@ -2649,6 +2649,13 @@ a.ev-search__src:hover {
   color: var(--fg-3);
 }
 
+/* "all clear" — a state, not a count. The alerts card wears it whenever nothing is
+   firing and it is instead listing what the engine is armed against. */
+.chat-brief__count--ok {
+  background: var(--success-bg);
+  color: var(--success-fg);
+}
+
 .chat-brief__item-title--wrap {
   white-space: normal;
   font-weight: 500;

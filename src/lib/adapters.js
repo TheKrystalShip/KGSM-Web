@@ -48,6 +48,13 @@ export function adaptServer(be) {
     // dashboard counts the servers it cannot see and says so instead. `max` stays null: no instance
     // declares a capacity, so there is nothing honest to render a "x / y" against.
     players: be.onlinePlayers == null ? null : { current: be.onlinePlayers, max: null },
+    // When the current run started / when the last one ended, both ISO-UTC or null. The backend joins
+    // these from the run-state authority (the watchdog's persisted spawn time and its durable run
+    // ledger), so they survive a daemon restart and are not derived from the audit feed. A surface
+    // derives a duration from them against wall clock; null is an honest "nothing dates this run",
+    // never a zero.
+    startedAt: be.startedAt ?? null,
+    stoppedAt: be.stoppedAt ?? null,
     uptime: null,                  // not exposed by kgsm
     ip: null,                      // not exposed by kgsm
     // The newest backup's own manifest record ({ name, createdAt, version, sizeBytes, fileCount,

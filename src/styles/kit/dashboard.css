@@ -618,6 +618,81 @@
   gap: 5px;
 }
 
+/* ---- The split status pill --------------------------------------------------
+   The run duration as a SECOND SEGMENT of the pill, built the way
+   .server-tile__update is: two halves sharing one pill radius, meeting flush
+   under `align-items: stretch` + `overflow: hidden`, the label solid and the
+   figure beside it.
+
+   The one deliberate difference from the update chip is the ink. That chip is
+   solid because it rides COVER ART and has to survive whatever image the
+   backend returns, so its figure half is frosted glass and white. This sits on
+   the card body, where the surface is known — so the figure half is the status
+   colour's own tint rather than a scrim, and takes the theme's foreground for
+   that family.
+
+   The base .server-tile__pill still owns the shape; --split only re-lays it,
+   which is what lets a pill with nothing to date stay exactly as it ships. */
+.server-tile__pill--split {
+  padding: 0;
+  gap: 0;
+  align-items: stretch;
+  overflow: hidden;
+  /* the segments paint; the pill itself only clips them to its radius */
+  background: transparent;
+}
+
+.server-tile__pill-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px 3px 6px;
+}
+
+.server-tile__pill-time {
+  padding: 3px 8px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Online — the label takes the filled success surface, and its ink is the token
+   that answers "what reads ON this theme's --success" (29 themes re-value it). */
+.server-tile__pill--split.server-tile__pill--online .server-tile__pill-state {
+  background: var(--success);
+  color: var(--on-success);
+}
+
+.server-tile__pill--split.server-tile__pill--online .server-tile__pill-state .dot {
+  background: var(--on-success);
+  opacity: 0.7;
+  /* the filled half already reads as "live"; a pulsing dot on top of it is noise */
+  animation: none;
+}
+
+.server-tile__pill--split.server-tile__pill--online .server-tile__pill-time {
+  background: var(--success-bg);
+  color: var(--success-fg);
+}
+
+/* Offline — the same construction with no semantic colour to fill. A saturated
+   grey block would shout louder than a stopped server deserves, so the label
+   takes the strongest veil and the figure the faintest: the emphasis order of
+   the online pill, at the volume of the offline one. */
+.server-tile__pill--split.server-tile__pill--offline .server-tile__pill-state {
+  background: var(--veil-3);
+  color: var(--fg-2);
+}
+
+.server-tile__pill--split.server-tile__pill--offline .server-tile__pill-state .dot {
+  background: var(--fg-3);
+}
+
+.server-tile__pill--split.server-tile__pill--offline .server-tile__pill-time {
+  background: var(--veil-1);
+  color: var(--fg-3);
+}
+
 .server-tile__pill .dot {
   width: 6px;
   height: 6px;
@@ -1804,4 +1879,71 @@
   color: var(--fg-4);
   font-size: 11.5px;
   font-family: var(--font-mono);
+}
+
+/* ---- The alerts card's all-clear body: what the engine is armed against ------
+   The same row rhythm as the firing list above it, because it is the same card in
+   its other state — not a placeholder. A rule that is switched off keeps its row
+   and loses its dot, which is the one thing a green tick could never say. */
+.alert-rules {
+  display: flex;
+  flex-direction: column;
+}
+
+.alert-rules__row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.alert-rules__row:last-child {
+  border-bottom: 0;
+}
+
+.alert-rules__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--success);
+  flex-shrink: 0;
+}
+
+.alert-rules__dot--off {
+  background: var(--fg-4);
+}
+
+.alert-rules__name {
+  font-size: var(--text-xs);
+  color: var(--fg-2);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alert-rules__scope {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--fg-4);
+  flex-shrink: 0;
+}
+
+/* The card's foot strip — the 24h rear-view and the overflow count. */
+.chat-brief__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-4);
+  border-top: 1px solid var(--border-subtle);
+  font-size: 11px;
+  color: var(--fg-3);
+}
+
+.chat-brief__foot b {
+  color: var(--fg-2);
+  font-weight: var(--w-semibold);
 }
