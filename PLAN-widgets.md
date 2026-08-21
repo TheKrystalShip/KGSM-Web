@@ -99,6 +99,24 @@ registerWidget({
 component cannot be pinned as-is, that is a signal to fix the component — a page-owned, prop-fed,
 singleton-backed card is worse on its own page too.
 
+### Granularity: a tile is a widget
+
+Each of the twelve summary tiles is its own type, placeable alone. Anything coarser makes "the four
+numbers I care about" unbuildable and means the add-widget catalog can never offer a single figure.
+
+The cost is extracting twelve derivations out of `DashboardPage`, which is mechanical — they are
+already twelve separately commented `const` blocks over shared stores — and it retires a 555-line
+page in the process. Each tile recomputing from the same store is cheap: the data is already
+loaded, and the derivation is a reduce over an array in memory.
+
+### Surface scope: the home dashboard
+
+`ServerDetailPage`'s overview keeps its existing band reorder under its own key. Generalizing the
+grid to it, and to the node overview, is additive — the registry is already generic — but it needs
+a second idea first: params injected from **surface context**, so a `scope: "server"` widget binds
+to whichever server the page is about rather than to one named in the descriptor. That is worth
+doing deliberately, not as a side effect of the first surface.
+
 ## 5. `WidgetHost` — the wrapper
 
 One per widget, supplying everything the component should not have to own:
@@ -128,7 +146,32 @@ three shapes, all of which the repo already runs:
 | Keyed store | `filesStore.byServer`, `blueprintFileStore.byKey`, `pingStore.byHost` | Target-scoped data shared by several readers. |
 | Per-mount hook | `useLeafResource`, `usePlayerRoster` | A fetch cheap enough to own per instance. |
 
-Five stores need rekeying:
+### A loop is refcounted, never started and stopped by a mount
+
+`stores/fleet.js` exposes `startFleetOps()` / `stopFleetOps()`, and `DashboardPage` is its only
+caller: start on mount, stop on unmount. `stopFleetOps` clears the timer **unconditionally**.
+
+That is safe for exactly one consumer and breaks the moment there are twelve. Five of the summary
+tiles — uptime, drift, oldest backup, schedule failures, services — read `fleetOpsStore`, so as
+separate widgets each would start the loop on mount and stop it on unmount, and **the first one
+unpinned freezes the other four on their last value**. No error, no empty state: four tiles keep
+rendering a week-old availability figure as though it were live, which is the fabricated
+measurement the ecosystem forbids.
+
+So: **every shared loop is refcounted** — it runs while at least one consumer wants it and stops
+when the last leaves. The alternative the repo already uses is to hoist the loop into `boot.js`, as
+`startPingLoop` is, whose own comment gives the reason: *"a consumer mounting does not start it,
+because several of them can be open at once and the loop is one per app."* Refcounting is the
+better answer for fleet ops specifically, because it is five requests per node per minute and
+should not run when nobody is looking at it — and it composes with the visibility gating in §12,
+where a widget scrolled off-screen releases its count.
+
+`startDiscovery` and `startPingLoop` are already boot-owned and need nothing. `ConsolePanel` is
+already instance-safe: per-mount effects keyed on the server, its own subscribe and dispose.
+
+### Rekeying
+
+Five stores need it:
 
 | Store | Holds today | Target |
 |---|---|---|
@@ -184,9 +227,41 @@ dragged band pinned to the cursor during a wheel-scroll carries over unchanged.
 row units, previewed live through inline custom properties and committed on release. `minW`/`minH`
 from the registry stop a console being squeezed to two columns.
 
-**Responsive** collapses the column count (12 → 6 → 1) and clamps each widget to
-`min(w, columns)`. **One stored layout, not one per breakpoint** — spans are relative, so this
-reflows without a per-device layout matrix to keep in sync.
+### Reflow
+
+**One stored layout, not one per breakpoint.** The column count drops at the breakpoints the panel
+already uses, and each widget's span is resolved against it by two rules:
+
+```js
+w = Math.min(w, cols);
+if (w > cols / 2) w = cols;   // wider than half the grid takes the whole row
+```
+
+| | ≥1281 | ≤1280 | ≤1024 | ≤768 |
+|---|---|---|---|---|
+| **columns** | 12 | 8 | 6 | 4 |
+| KPI tile `w:2` | 6 across | 4 across | 3 across | 2 across |
+| half card `w:6` | half | full | full | full |
+| third card `w:4` | third | half | full | full |
+| rail `w:12` | full | full | full | full |
+
+The KPI row is the constraint that fixes the ladder. `.dash-summary` today collapses **6 → 4 → 3 →
+2 tiles**, hand-tuned so twelve divides evenly at every step and the numbers never get squeezed. A
+12 → 6 → 1 collapse cannot reproduce that; 12 → 8 → 6 → 4 columns against `w: 2` reproduces it
+exactly.
+
+The snap rule is what the second half of the table buys. Clamping alone leaves a half-width card at
+six of eight columns — a 75% widget with a quarter-column of dead space beside it — at the one
+breakpoint the KPI ladder needs.
+
+### Touch
+
+Horizontal gestures are already contested: edge-swipe opens the nav drawer and the assistant dock,
+and rails claim their own sideways scroll by marking themselves `[data-hswipe]`, which
+`useMobileSwipe` checks before tracking. The grid does not add a fourth claimant, because at four
+columns and below **horizontal resize is meaningless** — phone layout is a single column of
+full-width widgets, which is the vertical reorder that already works today. The grid's drag handles
+carry `data-hswipe` for the same reason the rails do.
 
 ## 9. The pin affordance
 
@@ -249,6 +324,37 @@ fallback; the server holds the durable record.
 The existing `krystal:dash:order` seeds the first layout — each band id maps to its widget type at
 `w: 12` — so an existing arrangement survives the switch.
 
+### What is a preference, and what is only local
+
+Thirty `krystal:*` keys exist. Most are not preferences and must never reach the store.
+
+| | Keys | |
+|---|---|---|
+| **Account** | `theme`, `favorites`, `dash:order` → `dashboard.layout`, `server:overview:order`, `chat:think`, `chat:actions` | Sync candidates. Follow the person. |
+| **Device** | `sidebar:collapsed`, `dock:open`, `dock:width`, `dock:pin`, `files:tree`, `console:history:*`, `node:last` | Window furniture and local recall — a function of the screen in front of you, never synced even when sync is on. |
+| **Neither** | `auth*`, `oauth:*`, `*session*`, `hostrefresh:*`, `assistant:*`, `hosts:registry`, `notifications` | Credentials, connection registry, tray history. Not preferences at all. |
+
+`hosts:registry` is worth naming explicitly: it is the set of nodes this browser connects to, and
+syncing it would push one machine's cluster view onto every other device the account touches.
+
+### ⚠ Theme sync cannot live in `theme.js`
+
+`scripts/check-assistant-bundle.mjs` walks the standalone assistant's import graph and **fails the
+build** when `lib/apiClient.js` is reachable from it. `src/assistant/main.jsx` imports
+`../lib/theme.js` directly. Any network call added to `theme.js` therefore breaks the assistant
+build — which is the check doing its job, since the standalone chat has no cluster and should not
+ship the panel's data layer.
+
+`theme.js` stays pure. A **panel-only** module syncs it, reading and writing the same
+`krystal:theme` key from outside. The assistant surface simply never syncs, which is correct: it is
+a different origin with its own session.
+
+There is a second reason the local key stays authoritative. The theme is resolved and written to
+`<html data-theme>` **before first paint**, by a boot script in `index.html`, so there is no flash.
+A value that has to be fetched cannot participate in that. The server record reconciles *after*
+boot and seeds the next load — so a theme changed on another device arrives one refresh later, and
+that is the honest ceiling on it.
+
 ### In a cluster
 
 A client reaches a cluster by knowing one node, and that entry node is where its preference writes
@@ -285,7 +391,23 @@ them.
 | **P3** | `useKeyedResource`; rekey the five singleton stores. | Leaf journals, host logs, the services board, per-node cards. **The leaf-logs case.** |
 | **P4** | Parameterized widgets: server console, performance charts, player roster, stat tiles, hero. | Per-server surfaces on the dashboard. |
 | **P5** | The kgsm-api preference store, the sync switch, the settings card; move the layout off raw `localStorage`. | Layouts that survive a browser, and sync across devices. |
-| **P6** | Empty-dashboard first run, per-persona defaults, stale-widget handling, mobile. | Somebody arriving at an empty dashboard knows what to do with it. |
+| **P6** | Per-persona seeded defaults, stale-widget handling, mobile. | A new account lands on a dashboard worth looking at. |
+
+### The default layout is a client-side constant
+
+A new account gets a **seeded layout chosen by persona** — admin, operator and viewer each start
+from a sensible set rather than a blank grid, and a viewer is never seeded widgets their capability
+would immediately hide.
+
+It must be a plain client-side constant, not a server seed, because of a constraint from an
+unexpected direction: **`scripts/smoke-live.mjs` runs unauthenticated** against an auth-disabled
+backend and asserts the dashboard renders real data. A layout that can only come from
+`GET /me/preferences` would leave the smoke with no dashboard to assert against. One constant
+serves both: the no-session default and the new-account seed.
+
+`FirstRunWelcome.jsx` exists and is **imported nowhere** — dead code sitting exactly where this
+onboarding would go. Either wire it or delete it; leaving an unreferenced welcome screen next to a
+new first-run path is how two of them end up shipping.
 
 P0–P2 is a working widget dashboard. P3 is what makes "pin the watchdog's journal" work.
 
