@@ -6,8 +6,10 @@ Pinned widgets are the real components — the leaf journal on the dashboard is 
 one the leaf page renders, bound to the same node and leaf and following the same live topic.
 
 The grid is **12-column flow**: a widget declares a column span and a row span, the grid packs them
-in order, and the user reorders by dragging and resizes by pulling an edge. No free 2D placement,
-no gaps to bookkeep, one stored layout that reflows honestly at every width.
+in order, and the user reorders by dragging and resizes by pulling an edge. No free 2D placement and
+no coordinates to keep consistent — one stored layout that reflows honestly at every width. Space a
+widget does not fill is still addressable: a row's spare tail is a drop target, and `layout.spacer`
+holds room open on purpose.
 
 Layout persists **server-side per device**, with an account-level **Sync** switch: off, every device
 keeps its own; turning it on makes the device that turned it on authoritative and overwrites the
@@ -87,7 +89,7 @@ registerWidget({
   cap:   "host.manage",                    // persona capability, checked at render
   params: ["hostId", "leaf"],              // what must be bound
   describe: (p) => leafLabel(p.leaf) + " · journal",
-  size: { w: 12, h: 5, minW: 6, minH: 3 },
+  size: { w: 12, h: 5, minPx: 380, minH: 3 },
   load: () => import("../../pages/leaf/LeafLogs.jsx").then(m => m.LeafLogs),
 });
 ```
@@ -214,28 +216,47 @@ once every consumer is on the context.
 
 ## 8. The grid — `WidgetGrid`
 
-CSS Grid, `repeat(12, 1fr)`, `grid-auto-rows: var(--widget-row)`. Each item takes
+CSS Grid, `repeat(12, 1fr)`, `grid-auto-rows: minmax(var(--widget-row), auto)`. Each item takes
 `grid-column: span w` and `grid-row: span h`. `grid-auto-flow` stays at its default — `dense`
-back-fills holes by reordering, which would move a widget the user did not touch.
+back-fills holes by reordering, which would move a widget the user did not touch. Filling a hole is
+something a person does, not something the grid does behind them.
 
 **Reorder** generalizes `DashLayout`'s existing model to two axes: snapshot every item's rect on
-grip-down, track the pointer 1:1 on the dragged item, decide the drop index by midpoint crossing
-against the snapshot centres, commit once on release. The scroll-delta folding that already keeps a
-dragged band pinned to the cursor during a wheel-scroll carries over unchanged.
+grip-down, track the pointer 1:1 on the dragged item, decide the drop target by nearest snapshot
+centre, commit once on release. The scroll-delta folding that already keeps a dragged band pinned to
+the cursor during a wheel-scroll carries over unchanged.
+
+**A row's spare tail is a drop target of its own.** Order is position, so a hole appears wherever the
+next widget is too wide for what is left of a row — and that hole is somewhere a person can aim.
+`measureRows` finds each tail and offers it alongside the cells whenever the dragged widget fits,
+drawing the space it would land in; its insert index is the first cell of the next row. Cells alone
+made a widget dropped onto obvious empty space take the nearest card's place instead.
 
 **Resize** is a pointer drag on the right, bottom and corner handles, snapping to whole column and
-row units, previewed live through inline custom properties and committed on release. `minW`/`minH`
-from the registry stop a console being squeezed to two columns.
+row units, previewed live through inline custom properties and committed on release. The registry's
+floor stops a console being squeezed until its toolbar overflows.
+
+**Empty space is itself a widget.** `layout.spacer` occupies room so the flow leaves it alone, which
+is the only way to state a hole in a model where a hole is otherwise a side effect. It is the one
+`repeatable` type and each copy carries its own `slot`, so N of them are N distinct targets.
 
 ### Reflow
 
 **One stored layout, not one per breakpoint.** The column count drops at the breakpoints the panel
-already uses, and each widget's span is resolved against it by two rules:
+already uses, and each widget's span is resolved against it by a clamp, the widget's own floor, and
+one snap:
 
 ```js
-w = Math.min(w, cols);
-if (w > cols / 2) w = cols;   // wider than half the grid takes the whole row
+out = clamp(w, 1, cols);
+out = Math.max(out, floor);                              // spanFloor: minPx → columns, or minW
+if (out < cols && cols - out < MIN_USEFUL_COLS) out = cols;   // a remainder nothing fits takes the row
 ```
+
+**A floor is a WIDTH, not a column count.** A console needs about 380px before its toolbar overflows;
+how many columns that buys depends entirely on the breakpoint, so `minPx` is converted against the
+grid's measured width by `columnsForPx`. A column floor means two different things at the two ends of
+the ladder — six columns is half a wide grid and the whole of a narrow one — which forced a card to
+the full row at every step below the widest.
 
 | | ≥1281 | ≤1280 | ≤1024 | ≤768 |
 |---|---|---|---|---|
@@ -250,9 +271,9 @@ The KPI row is the constraint that fixes the ladder. `.dash-summary` today colla
 12 → 6 → 1 collapse cannot reproduce that; 12 → 8 → 6 → 4 columns against `w: 2` reproduces it
 exactly.
 
-The snap rule is what the second half of the table buys. Clamping alone leaves a half-width card at
-six of eight columns — a 75% widget with a quarter-column of dead space beside it — at the one
-breakpoint the KPI ladder needs.
+The snap rule keeps a widget from leaving a remainder too narrow to hold anything: a single spare
+column beside a wide card is dead space no arrangement can use. A remainder that CAN hold something
+is left alone, because a gap is a drop target — the space is offered rather than abolished.
 
 ### Touch
 

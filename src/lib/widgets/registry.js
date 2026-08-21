@@ -25,7 +25,14 @@ const _types = new Map();
 ///             renders as such rather than mounting a component with an undefined target.
 ///   describe  (params) => the instance's own title. Two journals differ only by their params, so
 ///             the title has to be built from them or the dashboard shows the same name twice.
-///   size      { w, h, minW, minH } in columns/rows. w is in twelfths.
+///   size      { w, h, minPx, minW, minH }. `w` is a span in twelfths and `h` in row units.
+///             `minPx` is the floor as a WIDTH, which is what a component's constraint actually is —
+///             layout.js converts it to columns against the grid's measured width, so one number
+///             holds at every breakpoint. `minW` (columns) is for the few whose constraint really is
+///             a column count, like a KPI tile. Declare one or the other; the wider wins.
+///   repeatable  this type may appear more than once. Every other type is a toggle — a second copy
+///             of one card is the same card twice — so the store gives a repeatable one its own
+///             `slot` param per copy, keeping each a distinct target.
 ///   load      () => Promise<Component>. Lazy, so the dashboard's chunk does not contain every
 ///             page's code — the router already lazy-loads pages for the same reason.
 function registerWidget(entry) {

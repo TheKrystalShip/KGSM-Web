@@ -1,39 +1,50 @@
 import React from "react";
 
 import { WidgetHost } from "./WidgetHost.jsx";
-import { columnsAt, resolveSpan } from "../../lib/widgets/layout.js";
+import { GAP_PX, columnsAt, resolveSpan, spanFloor } from "../../lib/widgets/layout.js";
 import { getWidget } from "../../lib/widgets/registry.js";
 
 // WidgetGrid — the dashboard's 12-column flow.
 //
 // A widget declares a column span and a row span; the grid packs them in array order. There is no
-// x/y: ORDER IS POSITION, so a layout cannot describe a hole and a reorder cannot leave one.
+// x/y: ORDER IS POSITION. A layout therefore cannot *describe* a hole — but one still appears
+// whenever the next widget is too wide for what is left of a row, and that hole is a place a person
+// can drop something. So the drag offers two kinds of target: an existing cell (land on it, push it
+// along) and a GAP (land in the space itself). Without the second, a widget dragged onto obvious
+// empty space took the nearest card's place instead, which is the one gesture the grid has to get
+// right.
 //
 // `grid-auto-flow` stays at its default. `dense` back-fills gaps by pulling later items forward,
 // which moves widgets the person did not touch — the layout would rearrange itself as a side effect
-// of resizing something else.
+// of resizing something else. Filling a gap is a thing somebody DOES, not something the grid does
+// behind them.
 //
 // Drag and resize are pointer-based, the model DashLayout already proved for the vertical bands:
 // snapshot the geometry on pointer-down, transform live without re-rendering, decide the outcome
 // from the snapshot, commit once on release. Native HTML5 drag-and-drop fires dragenter/dragleave
 // erratically over a grid and cannot animate.
 
-const ROW_PX = 84;   // one row unit, matching --widget-row in dashboard.css
-const GAP_PX = 16;
+const ROW_PX = 84;   // one row unit, matching --widget-row in kit/widgets.css
 
-// The live column count. Measured from the grid element rather than the window, because the panel's
-// content width also changes with the sidebar collapsing and the assistant dock opening — neither
-// of which fires a window resize.
-function useColumns(ref) {
-  const [cols, setCols] = React.useState(() => columnsAt(typeof window === "undefined" ? 1400 : window.innerWidth));
+// The live column count AND the grid's measured width. Both are measured from the grid element
+// rather than the window, because the panel's content width also changes with the sidebar
+// collapsing and the assistant dock opening — neither of which fires a window resize. The width is
+// what turns a widget's pixel floor into a column count (layout.js), so it has to be real.
+function useGridMetrics(ref) {
+  const [m, setM] = React.useState(() => ({
+    cols: columnsAt(typeof window === "undefined" ? 1400 : window.innerWidth),
+    gridPx: 0,
+  }));
   React.useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return undefined;
     const measure = () => {
       // The breakpoints are expressed against viewport width, which is what the CSS ladder in
       // responsive.css keys off — so the two never disagree about which step we are on.
-      const next = columnsAt(window.innerWidth);
-      setCols(prev => (prev === next ? prev : next));
+      const cols = columnsAt(window.innerWidth);
+      const gridPx = el.clientWidth;
+      setM(prev => (prev.cols === cols && Math.abs(prev.gridPx - gridPx) < 1
+        ? prev : { cols, gridPx }));
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -41,23 +52,70 @@ function useColumns(ref) {
     window.addEventListener("resize", measure);
     return () => { ro.disconnect(); window.removeEventListener("resize", measure); };
   }, [ref]);
-  return cols;
+  return m;
+}
+
+// Where the rows break, and how much room is spare at the end of each.
+//
+// With non-dense flow a widget that does not fit the remainder wraps to the next row, so spare room
+// only ever appears at a row's END — which is why this looks at tails and nothing else.
+//
+// A gap's INSERT INDEX is the first cell of the next row. That is the array slot whose occupant
+// would sit in this gap if it were narrow enough, so moving something there is exactly "put it in
+// that space".
+function measureRows(nodes, gridRect, cols) {
+  const colPx = (gridRect.width - GAP_PX * (cols - 1)) / cols;
+  const rows = [];
+  nodes.forEach((n, i) => {
+    const r = n.getBoundingClientRect();
+    const row = rows[rows.length - 1];
+    // A new row starts where a cell's top clears the current row's — 1px of slack, because
+    // fractional track sizes do not land on whole pixels.
+    if (!row || r.top > row.top + 1) {
+      rows.push({ top: r.top, bottom: r.bottom, right: r.right, first: i });
+    } else {
+      row.right = Math.max(row.right, r.right);
+      row.bottom = Math.max(row.bottom, r.bottom);
+    }
+  });
+
+  const gaps = [];
+  for (let ri = 0; ri < rows.length; ri++) {
+    const row = rows[ri];
+    const px = gridRect.right - row.right - GAP_PX;
+    // Less than most of a column is rounding, not a gap somebody can aim at.
+    if (px < colPx * 0.6) continue;
+    gaps.push({
+      cols: Math.max(1, Math.round((px + GAP_PX) / (colPx + GAP_PX))),
+      index: ri + 1 < rows.length ? rows[ri + 1].first : nodes.length,
+      // Kept relative to the grid, because that is what the ghost is positioned against.
+      left: row.right + GAP_PX - gridRect.left,
+      top: row.top - gridRect.top,
+      width: px,
+      height: row.bottom - row.top,
+    });
+  }
+  return gaps;
 }
 
 function WidgetGrid({ layout, editing, onMove, onResize, onRemove }) {
   const gridRef = React.useRef(null);
-  const cols = useColumns(gridRef);
+  const { cols, gridPx } = useGridMetrics(gridRef);
 
   const [dragId, setDragId] = React.useState(null);
   const [sizingId, setSizingId] = React.useState(null);
+  const [ghost, setGhost] = React.useState(null);
   const drag = React.useRef(null);
   const size = React.useRef(null);
 
+  const floorOf = React.useCallback(
+    (type) => spanFloor(getWidget(type), cols, gridPx), [cols, gridPx]);
+
   // ---- Reorder ----------------------------------------------------------
-  // The dragged widget tracks the cursor 1:1. The drop index is decided by which snapshot CENTRE
-  // the cursor is nearest — in both axes, since a 12-column grid puts neighbours beside each other
-  // as often as below. Distance, not midpoint crossing: with mixed widths there is no single axis
-  // the order runs along, so "nearest centre" is the only rule that behaves the same everywhere.
+  // The dragged widget tracks the cursor 1:1. The drop target is whichever candidate CENTRE the
+  // cursor is nearest — every cell, plus every gap the dragged widget actually fits. Distance in
+  // both axes, not midpoint crossing: with mixed widths there is no single axis the order runs
+  // along, so "nearest centre" is the only rule that behaves the same everywhere.
   function onGripDown(id, e) {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     const grid = gridRef.current;
@@ -66,9 +124,14 @@ function WidgetGrid({ layout, editing, onMove, onResize, onRemove }) {
     const from = layout.findIndex(w => w.i === id);
     if (from < 0) return;
     const rects = nodes.map(n => n.getBoundingClientRect());
+    const gridRect = grid.getBoundingClientRect();
+    const span = resolveSpan(layout[from].w, cols, floorOf(layout[from].type));
 
     drag.current = {
-      id, from, to: from, nodes, rects,
+      id, from, target: { kind: "cell", i: from }, nodes, rects, gridRect,
+      // Only the gaps this widget can actually occupy. Offering one it would overflow would promise
+      // a landing the reflow then refuses, which is worse than not offering it.
+      gaps: measureRows(nodes, gridRect, cols).filter(g => span <= g.cols),
       startX: e.clientX, startY: e.clientY,
     };
     setDragId(id);
@@ -89,19 +152,29 @@ function WidgetGrid({ layout, editing, onMove, onResize, onRemove }) {
     const node = st.nodes[st.from];
     if (node) node.style.transform = "translate(" + dx + "px, " + dy + "px)";
 
-    // Nearest centre to where the cursor actually is.
-    let best = st.from, bestD = Infinity;
+    let best = { kind: "cell", i: st.from }, bestD = Infinity;
     for (let i = 0; i < st.rects.length; i++) {
       const r = st.rects[i];
-      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      const d = (e.clientX - (r.left + r.width / 2)) ** 2 + (e.clientY - (r.top + r.height / 2)) ** 2;
+      if (d < bestD) { bestD = d; best = { kind: "cell", i }; }
+    }
+    for (let i = 0; i < st.gaps.length; i++) {
+      const g = st.gaps[i];
+      const cx = st.gridRect.left + g.left + g.width / 2;
+      const cy = st.gridRect.top + g.top + g.height / 2;
       const d = (e.clientX - cx) ** 2 + (e.clientY - cy) ** 2;
-      if (d < bestD) { bestD = d; best = i; }
+      if (d < bestD) { bestD = d; best = { kind: "gap", i }; }
     }
-    if (best !== st.to) {
-      st.to = best;
-      // Preview the landing slot on the cell being displaced, so the drop is legible before release.
-      st.nodes.forEach((n, i) => n.classList.toggle("widget-cell--drop", i === best && best !== st.from));
-    }
+
+    if (best.kind === st.target.kind && best.i === st.target.i) return;
+    st.target = best;
+    // Preview the landing. A cell target outlines the cell being displaced; a gap target outlines
+    // the SPACE, so "it goes in here" and "it goes where that one is" do not look the same. The
+    // outline is the gap rather than the widget's own footprint: the gap is the thing being aimed
+    // at, and a small rectangle floating inside a large empty area reads as a second widget.
+    st.nodes.forEach((n, i) =>
+      n.classList.toggle("widget-cell--drop", best.kind === "cell" && i === best.i && i !== st.from));
+    setGhost(best.kind === "gap" ? st.gaps[best.i] : null);
   }
 
   function onDragUp() {
@@ -111,12 +184,23 @@ function WidgetGrid({ layout, editing, onMove, onResize, onRemove }) {
     window.removeEventListener("pointercancel", onDragUp);
     drag.current = null;
     setDragId(null);
+    setGhost(null);
     if (!st) return;
     st.nodes.forEach(n => {
       n.style.transform = ""; n.style.zIndex = ""; n.style.transition = "";
       n.classList.remove("widget-cell--drop");
     });
-    if (st.to !== st.from && onMove) onMove(st.from, st.to);
+    if (!onMove) return;
+
+    if (st.target.kind === "gap") {
+      // `move` splices out before it splices in, so an index measured in the ORIGINAL array is one
+      // too high once the dragged widget has left a slot ahead of it.
+      const gi = st.gaps[st.target.i].index;
+      const to = st.from < gi ? gi - 1 : gi;
+      if (to !== st.from) onMove(st.from, to);
+      return;
+    }
+    if (st.target.i !== st.from) onMove(st.from, st.target.i);
   }
 
   // ---- Resize -----------------------------------------------------------
@@ -131,7 +215,7 @@ function WidgetGrid({ layout, editing, onMove, onResize, onRemove }) {
     const cell = grid.querySelector('.widget-cell[data-id="' + id + '"]');
     if (!cell) return;
     const entry = getWidget(item.type);
-    const minW = (entry && entry.size && entry.size.minW) || 1;
+    const minW = spanFloor(entry, cols, gridPx);
     const minH = (entry && entry.size && entry.size.minH) || 1;
     const colPx = (grid.clientWidth - GAP_PX * (cols - 1)) / cols;
     // Rows are minmax(ROW_PX, auto), so a real track is at LEAST the nominal unit and often more —
@@ -143,10 +227,10 @@ function WidgetGrid({ layout, editing, onMove, onResize, onRemove }) {
 
     size.current = {
       id, edge, cell, minW, minH, colPx, rowPx,
-      startX: e.clientX, startY: e.clientY,
       // The span the gesture starts from is the RESOLVED one, not the stored one: dragging a widget
       // that is currently clamped to full width should widen from what is on screen, not from a
       // stored 12 the person cannot see.
+      startX: e.clientX, startY: e.clientY,
       startW: resolveSpan(item.w, cols, minW),
       startH: Math.max(1, item.h | 0),
       w: resolveSpan(item.w, cols, minW),
@@ -212,9 +296,7 @@ function WidgetGrid({ layout, editing, onMove, onResize, onRemove }) {
       style={{ "--widget-cols": cols }}
     >
       {layout.map((w) => {
-        const entry = getWidget(w.type);
-        const minW = (entry && entry.size && entry.size.minW) || 1;
-        const span = resolveSpan(w.w, cols, minW);
+        const span = resolveSpan(w.w, cols, floorOf(w.type));
         return (
           <div
             key={w.i}
@@ -238,6 +320,15 @@ function WidgetGrid({ layout, editing, onMove, onResize, onRemove }) {
           </div>
         );
       })}
+
+      {/* The space a gap drop would land in. Outside the grid FLOW (absolute), so previewing a
+          target never reflows the thing being previewed. */}
+      {ghost && (
+        <div
+          className="widget-gap-ghost"
+          style={{ left: ghost.left, top: ghost.top, width: ghost.width, height: ghost.height }}
+        />
+      )}
     </div>
   );
 }

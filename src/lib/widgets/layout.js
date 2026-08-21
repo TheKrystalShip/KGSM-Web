@@ -41,6 +41,15 @@ function makeWidget(type, params, size) {
 
 const COLUMNS = 12;
 
+// The gutter between cells, matching --widget-gap in kit/widgets.css. It lives here because the
+// pixel floor below has to convert a width in pixels into a count of columns, and that sum needs the
+// gap: n columns are n tracks PLUS n-1 gutters.
+const GAP_PX = 16;
+
+// The narrowest span worth leaving beside a widget. A KPI tile is two columns, so a remainder of two
+// can still hold something; anything less can hold nothing and is dead space.
+const MIN_USEFUL_COLS = 2;
+
 // The breakpoint ladder, widest first. These are the panel's existing breakpoints (responsive.css),
 // and the column counts are chosen so the summary band's hand-tuned tile ladder falls out of the
 // span rule rather than being restated: a KPI at w:2 reads 6, 4, 3 and 2 across, which is exactly
@@ -57,19 +66,48 @@ function columnsAt(width) {
   return BREAKPOINTS[BREAKPOINTS.length - 1].cols;
 }
 
+// How many columns it takes to be at least `px` wide, at this breakpoint.
+//
+// A component's real constraint is a WIDTH, not a column count: a console needs about 380px before
+// its toolbar stops fitting, and how many columns that buys depends entirely on how wide the grid
+// is. Expressing the floor in columns instead bakes one breakpoint's answer into every breakpoint —
+// six columns is half a wide grid and the whole of a narrow one, so the same number means two
+// different things at the two ends of the ladder.
+//
+// `gridPx` is the grid's own measured width. Without it (before the first layout pass) there is
+// nothing to convert against, so the caller falls back to the column floor.
+function columnsForPx(px, cols, gridPx) {
+  if (!px || !gridPx || !cols) return 1;
+  const colPx = (gridPx - GAP_PX * (cols - 1)) / cols;
+  if (!(colPx > 0)) return 1;
+  // n columns measure n*colPx + (n-1)*gap, so n >= (px + gap) / (colPx + gap).
+  const n = Math.ceil((px + GAP_PX) / (colPx + GAP_PX));
+  return Math.min(cols, Math.max(1, n));
+}
+
+// The floor for one registry entry, in columns: the wider of its pixel floor and any column floor
+// it declares. `minPx` is the honest one and what new entries should use; `minW` stays for the
+// widgets whose constraint really is "two columns, whatever that measures" — a KPI tile.
+function spanFloor(entry, cols, gridPx) {
+  const size = (entry && entry.size) || {};
+  const byPx = size.minPx ? columnsForPx(size.minPx, cols, gridPx) : 1;
+  const byCol = size.minW ? Math.min(size.minW, cols) : 1;
+  return Math.min(cols, Math.max(1, byPx, byCol));
+}
+
 // A stored span resolved against the columns actually available.
 //
-// Two rules. The clamp is obvious. The snap is not, and is what keeps the narrow end of the ladder
-// honest: a half-width card (w:6) clamped into an 8-column grid is six of eight — a 75% widget with
-// a quarter column of dead space beside it, which no other width produces and which reads as a
-// layout bug rather than a choice. Anything past half the grid takes the whole row instead.
+// Two rules. The clamp is obvious. The snap is not: it exists so a widget never leaves a remainder
+// too narrow for anything to sit in — a single spare column beside a wide card is dead space no
+// arrangement can use, and it reads as a layout bug rather than a choice. A remainder that CAN hold
+// something is left alone, because the dashboard can now drop a widget into it.
 //
-// `minW` is the widget's own floor, from the registry: a console squeezed to two columns is not a
-// smaller console, it is an unreadable one.
-function resolveSpan(w, cols, minW) {
+// `floor` is the widget's own minimum in columns, from `spanFloor`: a console squeezed to two
+// columns is not a smaller console, it is an unreadable one.
+function resolveSpan(w, cols, floor) {
   let out = Math.min(Math.max(1, w | 0), cols);
-  if (minW) out = Math.max(out, Math.min(minW, cols));
-  if (out > cols / 2) out = cols;
+  if (floor) out = Math.max(out, Math.min(floor, cols));
+  if (out < cols && cols - out < MIN_USEFUL_COLS) out = cols;
   return out;
 }
 
@@ -122,6 +160,7 @@ function findTarget(layout, target) {
 }
 
 export {
-  BREAKPOINTS, COLUMNS,
-  columnsAt, findTarget, makeWidget, normalizeLayout, resolveSpan, sameTarget, widgetId,
+  BREAKPOINTS, COLUMNS, GAP_PX, MIN_USEFUL_COLS,
+  columnsAt, columnsForPx, findTarget, makeWidget, normalizeLayout, resolveSpan, sameTarget,
+  spanFloor, widgetId,
 };

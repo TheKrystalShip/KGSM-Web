@@ -23,7 +23,11 @@ registerWidget({
   group: "Fleet",
   hidden: true,
   describe: () => "Fleet summary",
-  size: { w: 12, h: 2, minW: 4, minH: 2 },
+  // `minPx` rather than a column count: the constraint is a WIDTH. Below about 380px the console's
+  // toolbar, the services grid and a game card's title all overflow, and how many columns 380px
+  // buys depends on the breakpoint — six columns is half a wide grid and the whole of a narrow one.
+  // See layout.js `columnsForPx`.
+  size: { w: 12, h: 2, minPx: 380, minH: 2 },
   load: () => import("./widgets/FleetSummary.jsx").then(m => m.FleetSummary),
 });
 
@@ -64,7 +68,7 @@ registerWidget({
   // aggregate check is the right one — a viewer on one node has no business seeing the rest.
   cap: "nav.cluster",
   describe: () => "Node capacity",
-  size: { w: 12, h: 4, minW: 6, minH: 3 },
+  size: { w: 12, h: 4, minPx: 380, minH: 3 },
   load: () => import("./widgets/CapacityStrip.jsx").then(m => m.CapacityStrip),
 });
 
@@ -75,7 +79,7 @@ registerWidget({
   group: "Activity",
   cap: "nav.alerts",
   describe: () => "Alerts",
-  size: { w: 6, h: 4, minW: 4, minH: 3 },
+  size: { w: 6, h: 4, minPx: 380, minH: 3 },
   load: () => import("./widgets/FeedWidgets.jsx").then(m => m.AlertsLatest),
 });
 
@@ -86,7 +90,7 @@ registerWidget({
   group: "Activity",
   cap: "nav.audit",
   describe: () => "Recent activity",
-  size: { w: 6, h: 4, minW: 4, minH: 3 },
+  size: { w: 6, h: 4, minPx: 380, minH: 3 },
   load: () => import("./widgets/FeedWidgets.jsx").then(m => m.ActivityRecent),
 });
 
@@ -96,7 +100,7 @@ registerWidget({
   icon: "server",
   group: "Servers",
   describe: () => "Servers",
-  size: { w: 12, h: 4, minW: 4, minH: 3 },
+  size: { w: 12, h: 4, minPx: 380, minH: 3 },
   load: () => import("./widgets/ServersRail.jsx").then(m => m.ServersRail),
 });
 
@@ -107,8 +111,29 @@ registerWidget({
   group: "Servers",
   cap: "nav.library",
   describe: () => "Game catalog",
-  size: { w: 12, h: 4, minW: 4, minH: 3 },
+  size: { w: 12, h: 4, minPx: 380, minH: 3 },
   load: () => import("./widgets/CatalogRail.jsx").then(m => m.CatalogRail),
+});
+
+// ---- Layout ----------------------------------------------------------------
+
+// Deliberate empty room. The grid is a flow, so a gap exists only as a consequence of a widget not
+// fitting its row — this is the one way to say "leave this space alone" and have the flow respect it.
+//
+// `repeatable`, because a dashboard may want several and every other type is a single: pinning the
+// catalog twice would be two copies of one card, but two spacers are two different spaces. The store
+// gives each its own `slot` param so they are distinct targets rather than one widget added twice.
+registerWidget({
+  type: "layout.spacer",
+  label: "Empty space",
+  icon: "square-dashed",
+  group: "Layout",
+  repeatable: true,
+  describe: () => "Empty space",
+  // No floor at all: emptiness reads fine at any size, and a spacer that refused to be narrow
+  // could not do the one job it has.
+  size: { w: 2, h: 1, minH: 1 },
+  load: () => import("./widgets/Spacer.jsx").then(m => m.Spacer),
 });
 
 // ---- Bound widgets ---------------------------------------------------------
@@ -127,7 +152,7 @@ registerWidget({
   scope: "host",
   params: ["hostId", "leafId"],
   describe: (p) => (p.leafId || "leaf") + " · journal",
-  size: { w: 12, h: 5, minW: 6, minH: 3 },
+  size: { w: 12, h: 5, minPx: 380, minH: 3 },
   load: () => import("../leaf/LeafLogs.jsx").then(m => m.LeafLogs),
 });
 
@@ -140,7 +165,7 @@ registerWidget({
   scope: "server",
   params: ["serverId"],
   describe: (p) => (p.serverId || "server") + " · console",
-  size: { w: 6, h: 5, minW: 4, minH: 3 },
+  size: { w: 6, h: 5, minPx: 380, minH: 3 },
   load: () => import("./widgets/ServerWidgets.jsx").then(m => m.ServerConsoleWidget),
 });
 
@@ -153,7 +178,7 @@ registerWidget({
   scope: "host",
   params: ["hostId"],
   describe: (p) => (p.hostId || "node") + " \u00b7 journal",
-  size: { w: 12, h: 5, minW: 6, minH: 3 },
+  size: { w: 12, h: 5, minPx: 380, minH: 3 },
   load: () => import("./widgets/NodeWidgets.jsx").then(m => m.HostLogsWidget),
 });
 
@@ -166,7 +191,7 @@ registerWidget({
   scope: "host",
   params: ["hostId"],
   describe: (p) => (p.hostId || "node") + " \u00b7 services",
-  size: { w: 12, h: 5, minW: 6, minH: 3 },
+  size: { w: 12, h: 5, minPx: 380, minH: 3 },
   load: () => import("./widgets/NodeWidgets.jsx").then(m => m.HostServicesWidget),
 });
 
@@ -184,5 +209,5 @@ const SERVER_WIDGET = (type, label, icon, comp, size) => registerWidget({
 });
 
 SERVER_WIDGET("server.card", "Server", "server", "ServerCardWidget", { w: 3, h: 4, minW: 2, minH: 3 });
-SERVER_WIDGET("server.players", "Players", "users", "ServerPlayersWidget", { w: 6, h: 4, minW: 4, minH: 3 });
-SERVER_WIDGET("server.performance", "Performance", "activity", "ServerPerformanceWidget", { w: 12, h: 5, minW: 6, minH: 4 });
+SERVER_WIDGET("server.players", "Players", "users", "ServerPlayersWidget", { w: 6, h: 4, minPx: 380, minH: 3 });
+SERVER_WIDGET("server.performance", "Performance", "activity", "ServerPerformanceWidget", { w: 12, h: 5, minPx: 380, minH: 4 });

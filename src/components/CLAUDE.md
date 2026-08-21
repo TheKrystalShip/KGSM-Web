@@ -52,6 +52,19 @@ the widget system's own chrome, and `PinButton` is its only legitimate reader. A
 look different as a widget is a card that will diverge from itself the first time one path is
 touched — fix the host or the CSS instead.
 
+**Empty space is a widget.** `layout.spacer` is the one way to say "leave this room alone" — the grid
+is a flow, so a gap otherwise exists only as a consequence of a widget not fitting its row, and the
+flow closes anything nothing occupies. It is the one `repeatable` type: every other is a toggle,
+because a second copy of one card is the same card twice, while two spacers are two different spaces.
+The store gives each copy its own `slot` param, which is what keeps them distinct targets — identity
+here is `(type + params)`, so without it `isPinned` would report the second one already present and
+removing one would take them all.
+
+**A gap is a drop target.** Dragging a widget over empty space lands it THERE rather than displacing
+the nearest card: `WidgetGrid` measures each row's spare tail and offers it as a candidate alongside
+the cells, when the dragged widget is narrow enough to fit. A gap's insert index is the first cell of
+the next row — the array slot whose occupant would sit in that space.
+
 ⚠ The catalog of widget types is registered by **`App.jsx`**, eagerly. `DashboardPage` is lazy, so
 registering from there leaves the registry empty everywhere else and every pin silently draws
 nothing until the dashboard has been opened once.

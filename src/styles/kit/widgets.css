@@ -5,11 +5,15 @@
    The grid is 12-column FLOW: order is position, so there is no x/y and a
    layout cannot describe a hole. `grid-auto-flow` stays at its default —
    `dense` back-fills gaps by pulling later items forward, which would move
-   widgets nobody touched.
+   widgets nobody touched. A gap left by a widget that did not fit its row is
+   a DROP TARGET instead: the drag draws the landing footprint there, and the
+   person decides what goes in it.
    ============================================================ */
 
 .widget-grid {
   display: grid;
+  /* The gap ghost is positioned against this box. */
+  position: relative;
   /* --widget-cols is set inline by WidgetGrid from the measured breakpoint, so the
      JS span maths and the CSS track count can never disagree. */
   grid-template-columns: repeat(var(--widget-cols, 12), minmax(0, 1fr));
@@ -47,6 +51,18 @@
   border: 2px dashed var(--krystal-teal);
   border-radius: var(--r-md);
   pointer-events: none;
+}
+
+/* The empty space a gap drop would land in. Filled as well as outlined, where a
+   cell target gets only an outline, so "it goes into this space" and "it takes
+   that card's place" are told apart at a glance. */
+.widget-gap-ghost {
+  position: absolute;
+  border: 2px dashed var(--krystal-teal);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--krystal-teal) 12%, transparent);
+  pointer-events: none;
+  z-index: 2;
 }
 
 .widget-cell--dragging {
@@ -596,4 +612,38 @@
 .toolbar .pin-btn {
   opacity: 1;
   margin-left: auto;
+}
+
+/* ---- The spacer -------------------------------------------------------- */
+/* Deliberate empty room. It renders nothing at all when the dashboard is at
+   rest — the whole point is the space — so it is only drawn while Customize is
+   on, where it has to be visible enough to grab, move and resize.
+
+   Drawn from the HOST's own state (.widget--edit) rather than from anything the
+   component knows: a component never branches on where or how it is mounted. */
+.widget-spacer {
+  flex: 1;
+  min-height: 0;
+}
+
+.widget[data-widget-type="layout.spacer"] {
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+.widget--edit[data-widget-type="layout.spacer"] {
+  border: 1px dashed var(--line-soft, rgb(255 255 255 / 0.16));
+  border-radius: var(--r-md);
+  background: rgb(255 255 255 / 0.02);
+}
+
+/* How many of a repeatable type are already placed. Beside the label rather than
+   in the state slot, which stays the Add affordance — the count is a fact about
+   the dashboard, not the button's mode. */
+.widget-catalog__count {
+  margin-left: 6px;
+  font-size: var(--fs-xs);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
 }

@@ -8,8 +8,8 @@
 import { can } from "../persona.js";
 import { createStore } from "../store.js";
 import { PREF_KEYS, prefsStore } from "../stores/prefs.js";
-import { hasWidget } from "./registry.js";
-import { findTarget, makeWidget, normalizeLayout, sameTarget } from "./layout.js";
+import { getWidget, hasWidget } from "./registry.js";
+import { findTarget, makeWidget, normalizeLayout, sameTarget, widgetId } from "./layout.js";
 
 // The key this layout was written under before it was a preference. Read once, to carry an existing
 // arrangement across; never written again.
@@ -209,10 +209,19 @@ dashboardStore.replace = (layout) => commit(layout);
 
 /// Add a widget for a target, unless one is already pinned to it. Returns the instance id, or null
 /// when it was already there — the caller uses that to decide what to say.
+///
+/// A REPEATABLE type is exempt, and gets its own `slot` param per copy. Identity here is
+/// (type + params), which is what lets a pin button ask "is this thing pinned" without knowing which
+/// instance answers for it — so without a discriminator every spacer would be the same widget:
+/// `isPinned` would report the second one already present, and removing one would take them all.
 dashboardStore.pin = (type, params, size) => {
   const cur = dashboardStore.getState().layout;
-  if (findTarget(cur, { type, params })) return null;
-  const w = makeWidget(type, params, size);
+  const entry = getWidget(type);
+  const bound = entry && entry.repeatable
+    ? { ...(params || {}), slot: widgetId() }
+    : (params || {});
+  if (findTarget(cur, { type, params: bound })) return null;
+  const w = makeWidget(type, bound, size);
   commit([...cur, w]);
   return w.i;
 };

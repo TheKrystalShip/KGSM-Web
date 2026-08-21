@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dashboard layout
+
+- A row's spare tail is a **drop target**. Dragging a widget over empty space lands it there, with the
+  space outlined under the cursor, instead of taking the nearest card's place. `WidgetGrid` measures
+  each row's tail and offers it alongside the cells whenever the dragged widget fits; the tail's
+  insert index is the first cell of the next row.
+- A widget's size floor is a **width** (`minPx`), converted to columns against the grid's measured
+  width. One number holds at every breakpoint, where a column count meant half the row on a wide grid
+  and the whole of it on a narrow one. The content-heavy cards declare 380px — the width below which
+  the console toolbar, the services grid and a game card's title overflow — so three of them sit
+  across a wide row.
+- The span snaps to the full row only when the remainder is narrower than a KPI tile, i.e. when
+  nothing could be placed beside it.
+- **`layout.spacer`** holds room open on purpose — the one way to state a gap in a flow that would
+  otherwise close it. It is `repeatable`, and each copy carries its own `slot` so N spacers are N
+  distinct targets rather than one widget added N times.
+
 ## [1.142.0] - 2026-08-21
 
 ### Added — the dashboard layout is stored on the node

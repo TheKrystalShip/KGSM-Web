@@ -184,8 +184,14 @@ backend id, since the home node is addressed by that id.
   it lies about what happened.
 - `widgets/` — the dashboard's composability: `registry.js` (a type → component, params, capability,
   size; it holds no types itself, so `lib/` never imports a page), `layout.js` (the descriptor, the
-  breakpoint ladder, and the clamp-then-snap span rule) and `dashboardStore.js` (the layout, and the
-  only thing that writes it).
+  breakpoint ladder, and the span rule) and `dashboardStore.js` (the layout, and the only thing that
+  writes it).
+  **A size floor is a WIDTH (`minPx`), not a column count.** `columnsForPx` converts it against the
+  grid's measured width, so one number holds at every breakpoint — a column count means half the row
+  on a wide grid and the whole of it on a narrow one, which forces a card to full width exactly where
+  there was room for three. `minW` remains for the few whose constraint really is a column count (a
+  KPI tile); the wider of the two wins. The span then snaps to the full row only when the remainder
+  is narrower than `MIN_USEFUL_COLS`, i.e. when nothing could be placed beside it anyway.
 - `registerSW.js` — production-only PWA service-worker registration.
 - `push.js` — the browser half of Web Push: capability probe, subscribe/unsubscribe, device list.
   `support()` distinguishes **`needs-install`** from `unsupported`, because on iOS push works only

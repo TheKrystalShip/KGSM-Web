@@ -17,6 +17,11 @@ import { allWidgets } from "../../lib/widgets/registry.js";
 // is — that is where the binding comes from, and asking somebody to pick a node and then a leaf from
 // a dropdown would be a worse version of walking to the page. This sheet offers the fleet-wide
 // widgets, which are bound to nothing and therefore complete on their own.
+//
+// Most types are a TOGGLE: the card is either on the dashboard or it is not, and a second copy of
+// one catalog would be the same list twice. A `repeatable` type is the exception — two spacers are
+// two different spaces — so it stays an Add button however many are already there, and comes off
+// through its own remove control in Customize rather than from here.
 
 function AddWidgetSheet({ onClose }) {
   const layout = useStore(dashboardStore, s => s.layout);
@@ -34,6 +39,7 @@ function AddWidgetSheet({ onClose }) {
   }, {});
 
   const add = (entry) => dashboardStore.pin(entry.type, {}, entry.size);
+  const countOf = (type) => layout.reduce((n, w) => n + (w.type === type ? 1 : 0), 0);
 
   return (
     <Modal onClose={onClose}>
@@ -57,7 +63,8 @@ function AddWidgetSheet({ onClose }) {
             <div className="widget-catalog__group-title">{group}</div>
             <div className="widget-catalog__items">
               {groups[group].map(entry => {
-                const already = pinned.has(entry.type);
+                const already = !entry.repeatable && pinned.has(entry.type);
+                const many = entry.repeatable ? countOf(entry.type) : 0;
                 return (
                   <button
                     type="button"
@@ -66,7 +73,10 @@ function AddWidgetSheet({ onClose }) {
                     onClick={() => already ? dashboardStore.unpinTarget(entry.type, {}) : add(entry)}
                   >
                     <span className="widget-catalog__icon"><Icon name={entry.icon || "square"} size={16} /></span>
-                    <span className="widget-catalog__label">{entry.label}</span>
+                    <span className="widget-catalog__label">
+                      {entry.label}
+                      {many > 0 && <span className="widget-catalog__count">{"\u00d7" + many}</span>}
+                    </span>
                     <span className="widget-catalog__state">
                       {already
                         ? <><Icon name="check" size={13} strokeWidth={2.4} /> On</>
