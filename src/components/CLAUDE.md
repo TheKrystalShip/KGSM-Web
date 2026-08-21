@@ -96,11 +96,30 @@ interval as `useConfirmAction`, so the pause learned on a card is the pause here
 previews live while writing nothing**: arrowing sets `data-theme` on the document, `↵` calls
 `themeStore.set`, Escape puts the stored one back.
 
-It also **pins**, **backs up** and **launches an install**. The line those three sit on: an entry
-belongs here when it is one decision. Backing up is one, so it runs (armed, like anything that
-changes the host). Installing needs a node, a name and a port, so the entry opens the real form —
-it LAUNCHES, it does not act. Pinning and theme-switching are the two things that deliberately leave
-the palette open, because you do several in a row.
+It also **pins**, **backs up**, **copies a connect address** and **launches an install**. The line
+those four sit on: an entry belongs here when it is one decision. Backing up is one, so it runs
+(armed, like anything that changes the host). Copying an address is one, and it is the only entry a
+**viewer** can run — an address is what a player needs, so it is gated on nothing but the server
+being joinable, and it refuses in `ServerConnect`'s own words (`joinRefusal`, the counterpart to
+`verbGuard` and `moderationOffers`). Installing needs a node, a name and a port, so the entry opens
+the real form — it LAUNCHES, it does not act. Pinning and theme-switching are the two things that
+deliberately leave the palette open, because you do several in a row.
+
+**Nodes and filtered views are entries too.** A node by name, its journal, its resources and services
+tabs, and the servers it runs — the leaves above are reached *through* a node, so a palette that
+could not name one was missing the middle of a path it covered at both ends. The filtered
+destinations (offline servers, servers with updates, crashed, installed games, the audit log's
+warnings and failures) are the entry filters the router already addresses; each carries its count as
+a subtitle, and **a count of zero means no entry** rather than a row leading to an empty page.
+
+**Ranking learns, within a cap.** `palette/recents.js` holds a frecency table — a saturating use
+count decayed by a one-week half-life — and `rank` takes it as an optional `boostOf` so `score.js`
+keeps importing nothing. ⚠ The cap is the safety property: the boost can reorder entries whose text
+scores are close and outweigh any `weight` a source declares, but it cannot lift a weak match past a
+strong one, because a match at the start of a title is worth several times more on its own. Habit
+breaks ties; it never overrules what was typed. The snapshot is taken **once per open** — running
+something rewrites the table, and a boost that moved between keystrokes would reorder the list under
+a cursor that had not moved.
 
 **It moderates players, but only in scope.** Fleet-wide, "ban griefer123" has no target the palette
 could name; inside one server the candidate set is small and known. Which verbs each player is offered,

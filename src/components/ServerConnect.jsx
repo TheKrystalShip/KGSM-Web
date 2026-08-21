@@ -15,6 +15,29 @@ import { copyText } from "../lib/clipboard.js";
 // variant "tile"      → compact launch + copy pair for a server card.
 // variant "hero-bar"  → address pill + copy + Play CTA for the server detail hero.
 
+// The sentence a surface shows in place of an address, when there is one. Exported because the
+// command palette offers the same copy as an entry and has to refuse it in the same words — a
+// palette saying "Offline" over a server the card calls "Restarting…" would be two answers to one
+// question, the same reason `verbGuard` and `moderationOffers` are shared rather than restated.
+function offlineHint(server) {
+  const status = server && server.status;
+  // Launched but not yet joinable, shutting down, and bouncing each read as their own word:
+  // "Offline" would be a claim about a server that hasn't landed yet, or has not left.
+  if (status === "starting") return "Server is starting…";
+  if (status === "stopping") return "Server is shutting down…";
+  if (status === "restarting") return "Server is restarting…";
+  return "Server is offline";
+}
+
+const NO_ADDRESS = "The connect address isn’t available yet";
+
+/// Why this server cannot be joined right now, or null when it can.
+function joinRefusal(server, join) {
+  if (!join || !join.online) return offlineHint(server);
+  if (!join.address) return NO_ADDRESS;
+  return null;
+}
+
 function ServerConnect({ server, variant }) {
   const join = serverJoin(server);
   const [copied, setCopied] = React.useState(null); // null | "ok" | "fail"
@@ -23,17 +46,11 @@ function ServerConnect({ server, variant }) {
   // server can be joined, so this stays gated the same as offline; only the
   // copy changes so it doesn't misreport a booting server as "Offline".
   const starting = server && server.status === "starting";
-  // Shutting down: the process is still up but nobody should be sent to it. It reads as its own
-  // word rather than "Offline", which would be a claim about a server that hasn't landed yet.
   const stopping = server && server.status === "stopping";
-  // Bouncing — it will be joinable again shortly, which is a different thing to say than "offline".
   const restarting = server && server.status === "restarting";
   // The word this surface shows in place of the address when there is nothing to join.
   const offWord = starting ? "Starting…" : stopping ? "Stopping…" : restarting ? "Restarting…" : "Offline";
-  const offHint = starting ? "Server is starting…"
-    : stopping ? "Server is shutting down…"
-    : restarting ? "Server is restarting…"
-    : "Server is offline";
+  const offHint = offlineHint(server);
 
   // Only ever claims "Copied" once the write has actually resolved — a refused
   // clipboard says so instead, since a button that reports success over an empty
@@ -51,7 +68,7 @@ function ServerConnect({ server, variant }) {
   // The copy button's tooltip carries the whole instruction, since "Play" alone
   // doesn't tell you how you actually get in.
   const copyHint = !join.address
-    ? "The connect address isn’t available yet"
+    ? NO_ADDRESS
     : copied === "ok" ? "Copied"
     : copied === "fail" ? `Your browser blocked the copy — the address is ${join.address}`
     : join.isSteam
@@ -167,4 +184,4 @@ function ServerConnect({ server, variant }) {
   );
 }
 
-export { ServerConnect };
+export { ServerConnect, joinRefusal, offlineHint };

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Command palette — nodes, views, the connect address, and habit
+
+- **The cluster's machines are entries.** A node by name, its journal, its resources and services
+  tabs, and the servers it runs. Leaves were reachable through a node the palette could not name,
+  which left the middle of that path missing.
+- **Copy a server's connect address**, scoped or fleet-wide. The one entry here a viewer can run, and
+  it refuses in `ServerConnect`'s own words (`joinRefusal`, extracted and exported) so the palette
+  and the card cannot disagree about why a server can't be joined. The clipboard result is reported
+  honestly — `copyText` resolves false when the browser refuses, which an insecure LAN origin does.
+- **Filtered destinations**: offline servers, servers with updates, crashed servers, installed games,
+  and the audit log's warnings and failures. Each carries its count as a subtitle, and a count of
+  zero means no entry rather than a row leading to an empty page.
+- **Ranking learns.** `palette/recents.js` keeps a frecency table — a saturating use count decayed by
+  a one-week half-life — and `rank` takes it as an optional `boostOf`, so `score.js` stays
+  import-free and assertable outside a browser. The boost is capped below what a strong text match is
+  worth: habit breaks ties, it never overrules what was typed. The snapshot is taken once per open,
+  so running something cannot reorder the list under a cursor that has not moved.
+
+
 ### Command palette — players, and the navigation that was missing
 
 - **Kick, ban and unban from a scoped server.** Verbs and refusals come from `moderationOffers`, the

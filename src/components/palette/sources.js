@@ -1,9 +1,12 @@
 import { moderationOffers } from "../PlayerModeration.jsx";
 import { verbGuard } from "../ServerActions.jsx";
+import { joinRefusal } from "../ServerConnect.jsx";
 import { widgetPermitted } from "../widgets/WidgetHost.jsx";
 import { ROUTE_TABS } from "../../lib/labels.js";
 import { leafIcon } from "../../lib/leaves.js";
-import { can, canOn, serverOperable } from "../../lib/persona.js";
+import { can, canOn, serverJoin, serverOperable } from "../../lib/persona.js";
+import { copyText } from "../../lib/clipboard.js";
+import { toast } from "../../lib/toasts.js";
 import { backupServer, runServerAction } from "../../lib/serverActions.js";
 import { moderatePlayer } from "../../lib/stores.js";
 import { THEME_OPTS, resolveTheme, themeStore } from "../../lib/theme.js";
@@ -86,12 +89,40 @@ function consequenceOf(verb, server) {
   return null;
 }
 
+/// The connect address, as an entry. Not gated on a capability: an address is what a PLAYER needs,
+/// and the panel's own card offers it to anyone who can see the server.
+///
+/// It refuses in `ServerConnect`'s words (`joinRefusal`) rather than its own, so the palette and the
+/// card cannot disagree about why a server can't be joined. The clipboard is reported honestly —
+/// `copyText` resolves false when the browser refuses (an insecure origin is the ordinary case on a
+/// LAN), and a row claiming "Copied" over an empty clipboard sends somebody to paste nothing.
+///
+/// The toast is the right surface here for the reason toasts exist: the palette CLOSES on run, so
+/// there is no control left on screen to render the outcome beside.
+function copyAddressEntry(server, { id, title, weight }) {
+  const join = serverJoin(server);
+  const refusal = joinRefusal(server, join);
+  return {
+    id,
+    kind: "action", group: "Actions",
+    title,
+    sub: refusal ? null : join.address,
+    icon: "copy",
+    weight,
+    disabled: !!refusal, reason: refusal,
+    chin: refusal ? refusal : "Copy " + join.address + " to the clipboard",
+    run: () => copyText(join.address).then((ok) => (ok
+      ? toast.success("Address copied", { detail: join.address, serverId: server.id })
+      : toast.error("Your browser blocked the copy", { detail: "The address is " + join.address, serverId: server.id }))),
+  };
+}
+
 /// Build every entry the palette can offer.
 ///
 /// `scope` narrows to one server: its tabs and its verbs, and nothing else. That is what keeps ~200
 /// entries usable — past a certain size a flat list stops being searchable and starts being a
 /// haystack, so → stops searching the fleet and starts searching one thing.
-function buildEntries({ servers, library, services, players, themePref, scope, nav, openAssistant, onInstall }) {
+function buildEntries({ servers, hosts, library, services, players, themePref, scope, nav, openAssistant, onInstall }) {
   const out = [];
   const push = (e) => { if (e) out.push(e); };
 
@@ -136,6 +167,12 @@ function buildEntries({ servers, library, services, players, themePref, scope, n
         run: () => backupServer(server),
       });
     }
+
+    push(copyAddressEntry(server, {
+      id: "scope.copy",
+      title: "Copy connect address",
+      weight: 100,
+    }));
 
     for (const tab of ROUTE_TABS.server) {
       push({
@@ -231,6 +268,66 @@ function buildEntries({ servers, library, services, players, themePref, scope, n
     });
   }
 
+  // ---- views ---------------------------------------------------------------
+  // The filtered destinations the router already addresses (?status=, ?filter=, ?severity=). Each is
+  // a page somebody arrives at with a question already in mind — "what is down", "what needs
+  // updating" — and reaching one otherwise means landing on the list and then narrowing it.
+  //
+  // A count is the SUB, and a count of zero means no entry: a row promising offline servers on a
+  // fleet that is entirely up is a row that leads to an empty page.
+  if (can("nav.servers")) {
+    const counted = [
+      { id: "offline", status: "offline", title: "Offline servers", icon: "power-off",
+        n: (servers || []).filter((x) => x.status === "offline").length },
+      { id: "updates", status: "updates", title: "Servers with updates", icon: "circle-arrow-up",
+        n: (servers || []).filter((x) => x.update_available && x.status !== "updating").length },
+      { id: "crashed", status: "crashed", title: "Crashed servers", icon: "triangle-alert",
+        n: (servers || []).filter((x) => x.status === "crashed").length },
+    ];
+    for (const v of counted) {
+      if (!v.n) continue;
+      push({
+        id: "view." + v.id, kind: "nav", group: "Views",
+        title: v.title,
+        sub: v.n === 1 ? "1 server" : v.n + " servers",
+        icon: v.icon,
+        weight: 38,
+        chin: "Open " + v.title.charAt(0).toLowerCase() + v.title.slice(1),
+        run: () => nav.servers(v.status),
+      });
+    }
+  }
+
+  // The catalog filtered to what is already running somewhere. No count: whether a blueprint counts
+  // as installed is LibraryPage's own answer (an instance count per game), and restating it here
+  // would be a second implementation of it that could disagree.
+  if (can("nav.library")) {
+    push({
+      id: "view.installed", kind: "nav", group: "Views",
+      title: "Installed games",
+      sub: "Blueprints you are already running",
+      icon: "library",
+      weight: 36,
+      chin: "Open the catalog, filtered to what is installed",
+      run: () => nav.library("installed"),
+    });
+  }
+
+  // Warnings and failures only. The audit page calls this severity "attention"; the entry says what
+  // it contains, because "Alerts" is the board next door and naming it that here would point at the
+  // wrong page.
+  if (can("nav.audit")) {
+    push({
+      id: "view.audit.attention", kind: "nav", group: "Views",
+      title: "Audit log · Warnings and failures",
+      sub: null,
+      icon: "scroll-text",
+      weight: 34,
+      chin: "Open the audit log, filtered to warnings and failures",
+      run: () => nav.audit({ severity: "attention" }),
+    });
+  }
+
   // The assistant is a DOCK rather than a route, so it is reached by opening it rather than by
   // navigating. Offered as a destination only — a query that matches nothing is answered by saying
   // so, never by quietly handing what somebody typed to a language model.
@@ -281,6 +378,75 @@ function buildEntries({ servers, library, services, players, themePref, scope, n
         warn: !!consequence,
         run: () => runServerAction(v.verb, s),
       });
+    }
+  }
+
+  // ---- connect addresses ---------------------------------------------------
+  // Fleet-wide as well as scoped, because "copy factorio" is what somebody types when a friend asks
+  // for the address — and unlike a verb, this is something a viewer can do.
+  for (const s2 of servers || []) {
+    push(copyAddressEntry(s2, {
+      id: "copy." + s2.id,
+      title: "Copy " + s2.id + " address",
+      weight: 65,
+    }));
+  }
+
+  // ---- nodes ---------------------------------------------------------------
+  // The cluster's machines by name. Everything about a node is otherwise two hops away — Cluster,
+  // then the card — which is exactly the walk this exists to remove. The leaves above are reached
+  // through their node, so the node itself being absent was the gap in the middle.
+  if (can("nav.cluster")) {
+    for (const h of hosts || []) {
+      const label = h.hostname && h.hostname !== h.id ? h.hostname : null;
+      push({
+        id: "node." + h.id,
+        kind: "node", group: "Nodes",
+        title: h.id,
+        sub: label,
+        icon: "server-cog",
+        weight: 55,
+        boost: h.online ? 20 : 0,
+        state: { tone: h.online ? "run" : "stop", label: h.online ? "online" : "offline" },
+        chin: "Open " + h.id,
+        run: () => nav.openHost(h.id),
+      });
+      push({
+        id: "node." + h.id + ".logs",
+        kind: "nav", group: "Nodes",
+        title: h.id + " · Logs",
+        sub: "The host journal",
+        icon: "scroll-text",
+        weight: 46,
+        chin: "Open " + h.id + " · Logs",
+        run: () => nav.openHostLogs(h.id),
+      });
+      for (const tab of ROUTE_TABS.cluster) {
+        if (tab.id !== "resources" && tab.id !== "services") continue;
+        push({
+          id: "node." + h.id + "." + tab.id,
+          kind: "nav", group: "Nodes",
+          title: h.id + " · " + tab.label,
+          sub: null,
+          icon: tab.icon,
+          weight: 44,
+          chin: "Open " + h.id + " · " + tab.label,
+          run: () => nav.openHost(h.id, tab.id),
+        });
+      }
+      if (can("nav.servers")) {
+        const n = (servers || []).filter((x) => x.hostId === h.id).length;
+        push({
+          id: "node." + h.id + ".servers",
+          kind: "nav", group: "Nodes",
+          title: "Servers on " + h.id,
+          sub: n === 1 ? "1 server" : n + " servers",
+          icon: "server",
+          weight: 42,
+          chin: "List the servers on " + h.id,
+          run: () => nav.serversOnNode(h.id),
+        });
+      }
     }
   }
 

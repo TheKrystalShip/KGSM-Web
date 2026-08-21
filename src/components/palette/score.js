@@ -105,12 +105,16 @@ function segments(text, ranges) {
 /// put every server in the list whenever somebody typed a node.
 ///
 /// `entry.weight` is the type's own standing (an action outranks a theme at equal text score), and
-/// `entry.boost` is per-instance — a running server ahead of a stopped one, a recent destination
-/// ahead of one never visited.
+/// `entry.boost` is per-instance — a running server ahead of a stopped one.
+///
+/// `boostOf` is habit: an optional `id => number` (recents.js) that adds what an entry has earned by
+/// being used. It is an argument rather than an import because this file resolves a query against a
+/// list and nothing else — reading a browser's storage from inside the matcher would make ranking
+/// untestable outside a browser, which is the one thing this file is built to avoid.
 ///
 /// Ties break on the original order, which is the order the sources declared: deliberate, and stable
 /// across keystrokes so the selection does not jump between two equally good matches.
-function rank(query, entries, limit = 60) {
+function rank(query, entries, limit = 60, boostOf = null) {
   const q = String(query || "").trim();
   const out = [];
   for (let i = 0; i < entries.length; i++) {
@@ -129,7 +133,8 @@ function rank(query, entries, limit = 60) {
     } else {
       continue;
     }
-    out.push({ entry: e, score: s + (e.weight || 0) + (e.boost || 0), ranges, i });
+    const habit = boostOf ? (boostOf(e.id) || 0) : 0;
+    out.push({ entry: e, score: s + (e.weight || 0) + (e.boost || 0) + habit, ranges, i });
   }
   out.sort((a, b) => (b.score - a.score) || (a.i - b.i));
   return out.slice(0, limit);

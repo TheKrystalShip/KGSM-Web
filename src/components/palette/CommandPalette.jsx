@@ -5,9 +5,10 @@ import { Modal } from "../Modal.jsx";
 import { useAssistantDock } from "../AssistantDockContext.jsx";
 import { useNav } from "../NavContext.jsx";
 import { buildEntries, previewTheme, restoreTheme } from "./sources.js";
+import { boostSnapshot, noteUse, recentIds } from "./recents.js";
 import { rank, segments } from "./score.js";
 import { createStore, useStore } from "../../lib/store.js";
-import { libraryStore, servicesStore, serversStore } from "../../lib/stores.js";
+import { hostsStore, libraryStore, servicesStore, serversStore } from "../../lib/stores.js";
 import { dashboardStore } from "../../lib/widgets/dashboardStore.js";
 import { usePlayerRoster } from "../../lib/hooks/usePlayerRoster.js";
 import { useThemePref } from "../../lib/theme.js";
@@ -33,23 +34,6 @@ import { useThemePref } from "../../lib/theme.js";
 // after the same interval on purpose — a person who has learned the pause on a card should not have
 // to learn a different one here.
 const ARM_MS = 3500;
-
-const RECENT_KEY = "krystal:palette:recent";
-const RECENT_CAP = 5;
-
-function readRecent() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
-    return Array.isArray(raw) ? raw.filter((x) => typeof x === "string").slice(0, RECENT_CAP) : [];
-  } catch { return []; }
-}
-
-function noteRecent(id) {
-  try {
-    const next = [id, ...readRecent().filter((x) => x !== id)].slice(0, RECENT_CAP);
-    localStorage.setItem(RECENT_KEY, JSON.stringify(next));
-  } catch { /* storage blocked — recents are a nicety, not a feature to fail over */ }
-}
 
 // The opener. A store rather than a prop so anything can raise the palette — the hotkey below today,
 // a header button tomorrow — without the shell threading a callback to it.
@@ -119,6 +103,7 @@ function Palette({ onClose, onInstall }) {
   const dock = useAssistantDock();
   const openAssistant = dock && dock.openAssistant;
   const servers = useStore(serversStore, (s) => s.list);
+  const hosts = useStore(hostsStore, (s) => s.list);
   const library = useStore(libraryStore, (s) => s.list);
   const services = useStore(servicesStore, (s) => s.byHost);
   const themePref = useThemePref();
@@ -148,23 +133,30 @@ function Palette({ onClose, onInstall }) {
   // depending on it is what re-builds them when something is pinned from anywhere.
   const layout = useStore(dashboardStore, (s) => s.layout);
   const entries = React.useMemo(
-    () => buildEntries({ servers, library, services, players, themePref, scope, nav, openAssistant, onInstall }),
+    () => buildEntries({ servers, hosts, library, services, players, themePref, scope, nav, openAssistant, onInstall }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `layout` is a rebuild trigger, not an input
-    [servers, library, services, players, themePref, scope, nav, openAssistant, onInstall, layout]);
+    [servers, hosts, library, services, players, themePref, scope, nav, openAssistant, onInstall, layout]);
 
   // With nothing typed the palette shows where you have just been and then where you can go — it
   // never opens onto an empty box. Recents are resolved against the CURRENT entry set, so a server
   // that has since been uninstalled simply drops out rather than offering a dead row.
+  //
+  // What has been RUN before lifts what matches it, through a boost taken once when the palette
+  // opens (recents.js). Once, because running something rewrites the table — and a boost that moved
+  // between keystrokes would reorder the list under a cursor that had not moved. It is capped well
+  // below what a strong text match is worth: habit breaks ties, it never overrules what was typed.
+  const boostOf = React.useMemo(() => boostSnapshot(), []);
+
   const resting = !query.trim() && !scope;
   const ranked = React.useMemo(() => {
-    if (!resting) return rank(query, entries);
+    if (!resting) return rank(query, entries, undefined, boostOf);
     const byId = new Map(entries.map((e) => [e.id, e]));
-    const recent = readRecent().map((id) => byId.get(id)).filter(Boolean)
+    const recent = recentIds().map((id) => byId.get(id)).filter(Boolean)
       .map((e, i) => ({ entry: { ...e, group: "Recent" }, ranges: [], score: 0, i }));
     const go = entries.filter((e) => e.group === "Go to")
       .map((e, i) => ({ entry: e, ranges: [], score: 0, i: i + 100 }));
     return [...recent, ...go];
-  }, [resting, query, entries]);
+  }, [resting, query, entries, boostOf]);
 
   // Groups in rank order: a group appears where its best member landed, and members keep their own
   // order inside it. Grouping the ranking rather than ranking within fixed groups is what keeps the
@@ -251,7 +243,7 @@ function Palette({ onClose, onInstall }) {
     disarm();
     // The ask row is built fresh from whatever was typed and is not in the entry set, so recording
     // it would spend one of five recent slots on an id that can never resolve again.
-    if (!e.transient) noteRecent(e.id);
+    if (!e.transient) noteUse(e.id);
     // A theme and a pin both stay open: you try several themes in a row, and you pin three things in
     // a row, and re-opening between each is the friction this exists to remove. Everything else
     // closes first, so a navigation lands on a page with nothing over it.
