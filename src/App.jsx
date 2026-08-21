@@ -20,6 +20,7 @@ import { sessionStore } from "./lib/sessionStore.js";
 import { useStore } from "./lib/store.js";
 import { hostsStore, installServer, libraryStore, serversStore, servicesStore, startDataLayer, stopDataLayer } from "./lib/stores.js";
 import { AddHostPage } from "./pages/HostAccess.jsx";
+import { FirstRunWelcome, hasSeenWelcome } from "./pages/FirstRunWelcome.jsx";
 import AssistantFabIcon from "./components/AssistantFabIcon.jsx";
 import { Modal } from "./components/Modal.jsx";
 import { AuthGate } from "./components/AuthGate.jsx";
@@ -144,6 +145,12 @@ function AppInner({ user, setUser, route, setRoute }) {
     try { return localStorage.getItem("krystal:sidebar:collapsed") === "1"; } catch { return false; }
   });
   const [landingResolved, setLandingResolved] = React.useState(false);
+  // The one-time tour of the composable dashboard. Read once, at mount, so it cannot flicker back on
+  // when the modal writes the key and closes. It renders below, inside the app frame — past the
+  // sign-in screen, the approval wait, the add-a-host screen, the cold-start failure and the boot
+  // landing, all of which return earlier — so it only ever meets somebody who can reach the
+  // dashboard, never somebody mid-login.
+  const [showWelcome, setShowWelcome] = React.useState(() => !hasSeenWelcome());
 
   // The data layer runs exactly as long as the shell is mounted, which is exactly as long
   // as there is somebody signed in to run it for. It used to start at module load, so a
@@ -436,6 +443,10 @@ function AppInner({ user, setUser, route, setRoute }) {
       )}
 
       <Toasts />
+
+      {showWelcome && (
+        <FirstRunWelcome user={user} onClose={() => setShowWelcome(false)} />
+      )}
 
       {installing && (
         <InstallModal

@@ -1,0 +1,518 @@
+/* ============================================================
+   WELCOME TOUR — the one-time introduction to the composable dashboard.
+
+   Five cards, each a heading, one sentence and a small animation of the
+   gesture it describes. The animations are built from divs rather than
+   images: nothing to ship, nothing to 404, and they re-theme with the rest
+   of the app because every colour here is a token.
+
+   Every animation is decorative and every one stops under
+   prefers-reduced-motion (the block at the foot).
+   ============================================================ */
+
+.wtour__scrim {
+  backdrop-filter: blur(3px);
+}
+
+.wtour {
+  position: relative;
+  width: min(460px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 22px 18px;
+  text-align: center;
+}
+
+.wtour__close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--fg-3);
+  cursor: pointer;
+  z-index: 2;
+}
+
+.wtour__close:hover {
+  background: var(--surface-2);
+  color: var(--fg-1);
+}
+
+.wtour__hello {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--krystal-teal);
+  /* MARGIN, not padding: padding insets the text but leaves the element box
+     spanning the full width, still overlapping the close button in the corner.
+     Symmetric so the line stays centred. A display name can be any length, and on
+     a phone this ran straight under the X. */
+  margin: 0 34px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wtour__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 60px;
+}
+
+.wtour__title {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--fg-1);
+}
+
+.wtour__body {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--fg-3);
+}
+
+/* ---- The stage: a small mock of the panel ------------------------------ */
+
+.wtour__stage {
+  position: relative;
+  height: 168px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  border: var(--edge);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wtour__win {
+  position: relative;
+  width: 82%;
+  height: 76%;
+  border-radius: var(--r-sm);
+  background: var(--canvas);
+  border: var(--edge);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.wtour__winbar {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+
+.wtour__winbar i {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--fg-4);
+  opacity: 0.55;
+}
+
+.wtour__grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 1fr;
+  gap: 5px;
+  min-height: 0;
+}
+
+.wtour__card {
+  position: relative;
+  border-radius: 3px;
+  background: var(--surface-3);
+  border: 1px solid var(--border-1);
+}
+
+/* ---- 1 · the grid assembling ------------------------------------------ */
+
+.wtour__card--in {
+  opacity: 0;
+  animation: wtour-in 2.8s ease-in-out infinite;
+}
+
+.wtour__card--d0 { animation-delay: 0ms; }
+.wtour__card--d1 { animation-delay: 90ms; }
+.wtour__card--d2 { animation-delay: 180ms; }
+.wtour__card--d3 { animation-delay: 270ms; }
+.wtour__card--d4 { animation-delay: 360ms; }
+.wtour__card--d5 { animation-delay: 450ms; }
+
+@keyframes wtour-in {
+  0% { opacity: 0; transform: scale(0.82); }
+  18%, 76% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.82); }
+}
+
+/* ---- 2 · adding a widget ---------------------------------------------- */
+
+.wtour__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  flex: none;
+}
+
+.wtour__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 8px;
+  font-weight: 700;
+  background: var(--surface-3);
+  color: var(--fg-2);
+  border: 1px solid var(--border-1);
+}
+
+.wtour__btn--accent {
+  background: var(--krystal-teal);
+  color: var(--on-accent);
+  border-color: transparent;
+  animation: wtour-press 3s ease-in-out infinite;
+}
+
+@keyframes wtour-press {
+  0%, 24% { transform: scale(1); filter: none; }
+  30% { transform: scale(0.92); filter: brightness(1.25); }
+  38%, 100% { transform: scale(1); filter: none; }
+}
+
+/* The slot the new widget drops into. */
+.wtour__card--appear {
+  animation: wtour-appear 3s ease-in-out infinite;
+}
+
+@keyframes wtour-appear {
+  0%, 38% { opacity: 0; transform: scale(0.7); border-color: var(--krystal-teal); }
+  50% { opacity: 1; transform: scale(1.04); border-color: var(--krystal-teal); }
+  60%, 100% { opacity: 1; transform: scale(1); border-color: var(--border-1); }
+}
+
+.wtour__card--ghost {
+  border-style: dashed;
+  background: transparent;
+}
+
+/* ---- 3 · moving a widget ---------------------------------------------- */
+
+.wtour__grip {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 3px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--krystal-teal);
+}
+
+.wtour__card--lift {
+  z-index: 2;
+  animation: wtour-lift 3.2s ease-in-out infinite;
+}
+
+/* Moves one column right and back — the neighbour opens the slot as it goes. */
+@keyframes wtour-lift {
+  0%, 12% { transform: translate(0, 0) scale(1); box-shadow: none; }
+  26% { transform: translate(0, -3px) scale(1.05); box-shadow: 0 6px 14px rgb(0 0 0 / 0.35); }
+  55% { transform: translate(calc(100% + 5px), -3px) scale(1.05); box-shadow: 0 6px 14px rgb(0 0 0 / 0.35); }
+  70%, 100% { transform: translate(calc(100% + 5px), 0) scale(1); box-shadow: none; }
+}
+
+.wtour__card--shift {
+  animation: wtour-shift 3.2s ease-in-out infinite;
+}
+
+@keyframes wtour-shift {
+  0%, 30% { transform: translate(0, 0); }
+  58%, 100% { transform: translate(calc(-100% - 5px), 0); }
+}
+
+/* ---- 4 · resizing ------------------------------------------------------ */
+
+.wtour__grid--resize {
+  grid-template-columns: 1fr 1fr;
+}
+
+.wtour__handle {
+  position: absolute;
+  top: 30%;
+  bottom: 30%;
+  right: -3px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--krystal-teal);
+}
+
+.wtour__card--grow {
+  transform-origin: left center;
+  animation: wtour-grow 3s ease-in-out infinite;
+}
+
+@keyframes wtour-grow {
+  0%, 20% { transform: scaleX(1); }
+  55%, 78% { transform: scaleX(1.5); }
+  100% { transform: scaleX(1); }
+}
+
+.wtour__card--squeeze {
+  transform-origin: right center;
+  animation: wtour-squeeze 3s ease-in-out infinite;
+}
+
+@keyframes wtour-squeeze {
+  0%, 20% { transform: scaleX(1); }
+  55%, 78% { transform: scaleX(0.5); }
+  100% { transform: scaleX(1); }
+}
+
+/* ---- 5 · pinning from another page ------------------------------------ */
+
+.wtour__page {
+  flex: none;
+  display: flex;
+  justify-content: center;
+}
+
+.wtour__pagecard {
+  position: relative;
+  width: 46%;
+  height: 26px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  border: 1px solid var(--border-1);
+}
+
+.wtour__pin {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: inline-flex;
+  color: var(--krystal-teal);
+  animation: wtour-press 3.4s ease-in-out infinite;
+}
+
+/* The card travelling from the page to the grid. */
+.wtour__fly {
+  position: absolute;
+  top: 34px;
+  left: 50%;
+  width: 22px;
+  height: 12px;
+  margin-left: -11px;
+  border-radius: 2px;
+  background: var(--krystal-teal);
+  opacity: 0;
+  animation: wtour-fly 3.4s ease-in-out infinite;
+}
+
+@keyframes wtour-fly {
+  0%, 26% { opacity: 0; transform: translate(0, 0) scale(0.6); }
+  34% { opacity: 0.9; transform: translate(0, 0) scale(0.8); }
+  62% { opacity: 0.9; transform: translate(0, 62px) scale(1); }
+  70%, 100% { opacity: 0; transform: translate(0, 62px) scale(1); }
+}
+
+.wtour__grid--pin {
+  grid-template-columns: repeat(4, 1fr);
+  flex: none;
+  height: 34px;
+  margin-top: auto;
+}
+
+.wtour__card--landed {
+  animation: wtour-landed 3.4s ease-in-out infinite;
+}
+
+@keyframes wtour-landed {
+  0%, 60% { border-color: var(--border-1); background: var(--surface-3); }
+  68% { border-color: var(--krystal-teal); background: var(--surface-3); }
+  90%, 100% { border-color: var(--border-1); background: var(--surface-3); }
+}
+
+/* ---- The cursor -------------------------------------------------------- */
+
+.wtour__cursor {
+  position: absolute;
+  /* Above the lifted card, which raises itself to sit over its neighbours — a hand
+     pointing at a thing has to be in front of it. */
+  z-index: 3;
+  color: var(--fg-1);
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.5));
+  pointer-events: none;
+}
+
+.wtour__cursor--add {
+  top: 22px;
+  right: 34px;
+  animation: wtour-tap 3s ease-in-out infinite;
+}
+
+.wtour__cursor--move {
+  top: 44px;
+  left: 30%;
+  animation: wtour-drag 3.2s ease-in-out infinite;
+}
+
+.wtour__cursor--resize {
+  top: 74px;
+  left: 46%;
+  animation: wtour-pull 3s ease-in-out infinite;
+}
+
+@keyframes wtour-tap {
+  0%, 22% { transform: translate(6px, 6px); }
+  30% { transform: translate(0, 0); }
+  40%, 100% { transform: translate(6px, 6px); }
+}
+
+@keyframes wtour-drag {
+  0%, 12% { transform: translate(0, 0); }
+  26% { transform: translate(0, -3px); }
+  55% { transform: translate(52px, -3px); }
+  70%, 100% { transform: translate(52px, 0); }
+}
+
+@keyframes wtour-pull {
+  0%, 20% { transform: translate(0, 0); }
+  55%, 78% { transform: translate(38px, 0); }
+  100% { transform: translate(0, 0); }
+}
+
+/* ---- Foot: dots + actions ---------------------------------------------- */
+
+.wtour__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wtour__dots {
+  display: flex;
+  gap: 6px;
+}
+
+.wtour__dot {
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--fg-4);
+  opacity: 0.45;
+  cursor: pointer;
+  transition: opacity 140ms, background 140ms, width 140ms;
+}
+
+.wtour__dot:hover {
+  opacity: 0.8;
+}
+
+.wtour__dot--on {
+  width: 16px;
+  background: var(--krystal-teal);
+  opacity: 1;
+}
+
+.wtour__dot:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-focus);
+}
+
+.wtour__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wtour__skip {
+  border: 0;
+  background: transparent;
+  color: var(--fg-3);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.wtour__skip:hover {
+  color: var(--fg-1);
+  text-decoration: underline;
+}
+
+/* ---- Phone ------------------------------------------------------------- */
+
+@media (max-width: 480px) {
+  .wtour {
+    padding: 18px 16px 16px;
+    gap: 12px;
+  }
+
+  .wtour__stage {
+    height: 140px;
+  }
+
+  .wtour__foot {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .wtour__actions {
+    justify-content: center;
+  }
+
+  .wtour__dots {
+    justify-content: center;
+  }
+}
+
+/* ---- Reduced motion ----------------------------------------------------
+   Every animation here loops forever, which is exactly what somebody who asked
+   for less motion is asking not to have. The diagrams hold their END state, so
+   each still reads as a picture of the finished gesture rather than vanishing. */
+@media (prefers-reduced-motion: reduce) {
+  .wtour__card--in,
+  .wtour__card--appear,
+  .wtour__card--lift,
+  .wtour__card--shift,
+  .wtour__card--grow,
+  .wtour__card--squeeze,
+  .wtour__card--landed,
+  .wtour__btn--accent,
+  .wtour__pin,
+  .wtour__fly,
+  .wtour__cursor {
+    animation: none !important;
+  }
+
+  .wtour__card--in { opacity: 1; transform: none; }
+  .wtour__card--appear { opacity: 1; transform: none; }
+  .wtour__card--lift { transform: translate(calc(100% + 5px), 0); }
+  .wtour__card--shift { transform: translate(calc(-100% - 5px), 0); }
+  .wtour__card--grow { transform: scaleX(1.5); }
+  .wtour__card--squeeze { transform: scaleX(0.5); }
+  .wtour__fly { opacity: 0; }
+}

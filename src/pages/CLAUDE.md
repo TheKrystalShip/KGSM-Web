@@ -51,6 +51,22 @@ AppRouter: route.kind ──▶ the matching lazy <Page/>
 3. If it's gated, wire the capability in `../lib/persona.js` so `resolveRoute`
    protects it.
 
+## `FirstRunWelcome.jsx` — the one-time tour
+
+Five cards introducing the composable dashboard: one line of text each over a small animation of the
+gesture it describes, drawn from divs so there is nothing to ship and nothing to 404. The dashboard
+is composed rather than fixed and nothing on screen says so, which is the whole reason it exists.
+
+**Where it is mounted is the feature.** The shell renders it inside the app frame, past every gate —
+`AuthGate`, the pending-approval screen, `AddHostPage`, `ColdStartDown` and `BootLanding` all return
+earlier — so it can only meet somebody who is signed in, approved and one render away from the
+dashboard. Never mid-login.
+
+Seen-state is `krystal:welcome:v1` in localStorage, and **every way out records it**: Get started,
+Skip, the close button and Escape. Re-showing a modal somebody has closed, on every load, teaches
+them to close it faster rather than to read it. The key is versioned — bump it to re-show the tour
+after the mechanics change, and nobody has the new key.
+
 ## `auth/` — the screens in front of the app
 
 `auth/` is not on the router. `components/AuthGate.jsx` renders these instead of the shell,

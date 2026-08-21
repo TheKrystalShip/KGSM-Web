@@ -391,7 +391,7 @@ them.
 | **P3** ✅ | `useKeyedResource`; `leafLogsStore` keyed by (host, leaf); `logsStore`, `logSourcesStore` and `servicesStore` keyed by host. | Done. Two journals coexist, proven in a browser by `dash-pinning.mjs`, which also enforces that a card is identical pinned and on its page. |
 | **P4** ✅ | `server.card`, `server.players`, `server.performance`, `server.console`. Stat tiles dropped — they overlapped the card and had no header to carry a pin. | Done. Proven in a browser by `dash-server-widgets.mjs`, which also covers a widget whose target has been deleted. |
 | **P5** | The kgsm-api preference store, the sync switch, the settings card; move the layout off raw `localStorage`. | Layouts that survive a browser, and sync across devices. |
-| **P6** ◑ | Seeded defaults, stale-widget handling and the phone layout are **done**. Still owed: `FirstRunWelcome` wired to introduce the mechanic. | A new account lands on a dashboard worth looking at, and knows it can change it. |
+| **P6** \u2705 | Seeded defaults, stale-widget handling, the phone layout, and `FirstRunWelcome` as a five-card tour of the mechanics. | Done. A new account lands on a dashboard worth looking at and is shown, once, that it can change it. |
 
 ### The default layout is a client-side constant
 
@@ -405,9 +405,9 @@ backend and asserts the dashboard renders real data. A layout that can only come
 `GET /me/preferences` would leave the smoke with no dashboard to assert against. One constant
 serves both: the no-session default and the new-account seed.
 
-`FirstRunWelcome.jsx` exists and is **imported nowhere** — dead code sitting exactly where this
-onboarding would go. Either wire it or delete it; leaving an unreferenced welcome screen next to a
-new first-run path is how two of them end up shipping.
+`FirstRunWelcome.jsx` is that onboarding: a five-card tour of the mechanics, mounted by the shell
+inside the app frame so it is past every gate and can only meet somebody who can already reach the
+dashboard. Seen-state is a versioned localStorage key that every way out records.
 
 P0–P2 is a working widget dashboard. P3 is what makes "pin the watchdog's journal" work.
 

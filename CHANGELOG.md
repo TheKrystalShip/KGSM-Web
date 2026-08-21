@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.141.0] - 2026-08-21
+
+### Added — a one-time tour of the composable dashboard
+
+The dashboard is built from widgets and nothing on screen says so: somebody who never presses
+Customize sees a page that looks like a page. Five cards — your dashboard is yours, add what you
+want, move it anywhere, size it how you like, pin from anywhere — each one line of text over a small
+animation of the gesture it describes. The animations are built from divs, so there is nothing to
+ship, nothing to 404, and they re-theme with the rest of the app.
+
+**Where it is mounted is the feature.** It renders inside the app frame, past every gate — the
+sign-in screen, the pending-approval wait, the add-a-host screen, the cold-start failure and the
+boot landing all return earlier — so it only meets somebody who is signed in, approved and one
+render away from the dashboard. Never mid-login.
+
+Seen-state is `krystal:welcome:v1`, a new key, so every existing session sees it once on its next
+visit. **Every way out records it** — Get started, Skip, the close button, Escape — because
+re-showing a modal somebody has closed teaches them to close it faster rather than to read it.
+Clearing site data brings it back. The key is versioned, so bumping it re-shows the tour after the
+mechanics change.
+
+Arrow keys walk it, the dots jump, it fits a 390px phone, and every animation stops under
+`prefers-reduced-motion` holding its end state, so each diagram still reads as a picture of the
+finished gesture.
+
 ## [1.140.0] - 2026-08-21
 
 ### Added — a server's card, players, performance and console are pinnable
