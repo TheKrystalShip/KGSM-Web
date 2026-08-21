@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.136.0] - 2026-08-21
+
+### Added — the dashboard is a surface you compose
+
+The dashboard is a 12-column grid of WIDGETS. Each one is the same component its own page renders,
+reconstructed from a saved descriptor `{ type, params, w, h }` — not a dashboard-only copy of it. In
+Customize mode a widget is dragged by its grip to reorder and pulled by an edge to resize, and the
+arrangement is remembered per browser. An Add-widget catalog offers everything bound to nothing;
+removing every widget reaches an empty state that offers the defaults back.
+
+A new account is seeded a layout filtered by what its role may actually see, so a viewer is never
+given a widget their capability immediately hides. An existing `krystal:dash:order` is carried
+across, so an arrangement made when the dashboard had bands survives.
+
+Spans reflow by two rules — clamp to the column count, then take the whole row if wider than half
+of it. The column ladder is 12 / 8 / 6 / 4, chosen so the summary band's hand-tuned tile ladder
+falls out of the span rule rather than being restated: a KPI at `w: 2` reads 6, 4, 3 and 2 across,
+which is what `.dash-summary` collapsed to before there were widgets. One stored layout, no
+per-breakpoint matrix.
+
+### Added — navigation and lifecycle verbs a card can ask for
+
+`components/NavContext.jsx` (`useNav()`) and `lib/serverActions.js` (`runServerAction`). A pinned
+card has no page above it to be handed `onOpenServer` or `onAction`, and a surface offering a Start
+button has to do the optimistic patch, the rollback and the wording or it lies about what happened.
+Both are now asked for rather than threaded down. `AppRouter` keeps its explicit props for every
+other page; a card rendered both ways takes the prop and falls back to the context.
+
+### Fixed — a shared loop no longer stops while consumers still want it
+
+`startFleetOps`/`stopFleetOps` cleared the timer unconditionally, which is correct for one caller
+and wrong for several: the first consumer to unmount would freeze the rest on their last value, with
+no error and no empty state — a week-old availability figure still rendering as live. The loop is
+refcounted.
+
+### Fixed — widgets are neither clipped nor stretched
+
+Grid rows are `minmax(row, auto)`, so a row span is a minimum and a card taller than its cell grows
+the track instead of being cut off at the edge. A card with a natural height is no longer stretched
+to fill a taller cell, which had inflated the KPI tiles to 193px with the numbers floating in dead
+space.
+
+### Fixed — the Customize toolbar is reachable on a phone
+
+The bar was `flex-shrink: 0` with a `nowrap` hint inside a `.dash-head` that clips, so below about
+520px Reset and Done sat past the right edge — unreachable, and reporting no horizontal overflow
+anywhere to give it away. The row wraps and the hint is dropped at phone widths, where every widget
+is full width and there is no edge to pull anyway.
+
 ## [1.135.0] - 2026-08-21
 
 ### Added — the status pill carries how long the run has lasted

@@ -385,13 +385,13 @@ them.
 
 | | | Unlocks |
 |---|---|---|
-| **P0** | Registry, `WidgetHost`, `NavContext`. The dashboard still renders its five bands, but *through* the registry. | Nothing visible. Proves the seam with no behaviour change. |
-| **P1** | `WidgetGrid` — 12-column, reorder + resize — replacing `DashBandList` on the dashboard. Layout in `localStorage`. | The existing five bands become resizable widgets at `w: 12`. |
-| **P2** | Pin affordance on the five chokepoints; Add-widget catalog; register everything already fed by a global store. | KPIs, alerts, activity, servers, catalog, capacity — pinnable and composable. A real widget dashboard. |
+| **P0** ✅ | Registry, `WidgetHost`, `NavContext`, `lib/serverActions.js`. | Done. A card can be reconstructed from a descriptor, navigate without a parent, and run a lifecycle verb. |
+| **P1** ✅ | `WidgetGrid` — 12-column, reorder + resize. Layout in `localStorage` via `dashboardStore`. | Done. Drag to reorder, pull an edge to resize, both persisted. Proven in a browser by `scripts/visual-harness/dash-widgets.mjs`. |
+| **P2** ◑ | Add-widget catalog and the six global-store widgets are **done**. Still owed: the `pin` prop on `BriefCard`/`CardTable`/`Kpi`/`ConsoleView`/`Rail`, and splitting the summary into twelve tile types. | Pinning from the page a card lives on, and placing a single figure. |
 | **P3** | `useKeyedResource`; rekey the five singleton stores. | Leaf journals, host logs, the services board, per-node cards. **The leaf-logs case.** |
 | **P4** | Parameterized widgets: server console, performance charts, player roster, stat tiles, hero. | Per-server surfaces on the dashboard. |
 | **P5** | The kgsm-api preference store, the sync switch, the settings card; move the layout off raw `localStorage`. | Layouts that survive a browser, and sync across devices. |
-| **P6** | Per-persona seeded defaults, stale-widget handling, mobile. | A new account lands on a dashboard worth looking at. |
+| **P6** ◑ | Seeded defaults, stale-widget handling and the phone layout are **done**. Still owed: `FirstRunWelcome` wired to introduce the mechanic. | A new account lands on a dashboard worth looking at, and knows it can change it. |
 
 ### The default layout is a client-side constant
 

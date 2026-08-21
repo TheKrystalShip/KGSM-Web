@@ -5,7 +5,6 @@ import React from "react";
 import { Icon } from "../components/Icon.jsx";
 import { ContentError, ErrorBoundary } from "../components/ErrorBoundary.jsx";
 import { KrystalRouter } from "../lib/router.js";
-import { can } from "../lib/persona.js";
 import { serversStore } from "../lib/stores.js";
 import { useAssistantDock } from "./AssistantDockContext.jsx";
 import { ServerGate } from "../pages/ServerGate.jsx";
@@ -31,7 +30,7 @@ function AppRouter({ route, setRoute, user, activeGame, serverForRender,
   // router), so read it from context here rather than threading it down from the
   // shell. Data (servers/hosts/scope) is likewise read by the pages themselves from
   // the singleton stores — this router only owns ROUTING (route → page + callbacks).
-  const { askAboutAlert, askAboutHost, askCreateBlueprint, openReview } = useAssistantDock();
+  const { askAboutAlert, askCreateBlueprint, openReview } = useAssistantDock();
 
   return (
     <ErrorBoundary
@@ -39,24 +38,9 @@ function AppRouter({ route, setRoute, user, activeGame, serverForRender,
       fallback={(reset, error) => <ContentError error={error} onRetry={reset} onHome={() => setRoute({ kind: "home" })} />}>
     <React.Suspense fallback={<div style={{ textAlign: "center", padding: "64px 0", color: "var(--fg-3)" }}><span style={{ display: "inline-block", animation: "act-spin 1.4s linear infinite" }}><Icon name="loader-2" size={26} strokeWidth={1.7} /></span><div style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: "var(--fg-2)" }}>{"Loading\u2026"}</div></div>}>
     <div className="page" key={KrystalRouter.routeToHash(route)}>
-    {route.kind === "home" && <DashboardPage
-      user={user}
-      canCluster={can("nav.cluster")}
-      onOpenServer={(id) => setRoute({ kind: "server", id })}
-      onAction={(id, action) => handleAction(action, id)}
-      onLibrary={(filter) => setRoute({ kind: "library", filter })}
-      onInstall={openGame}
-      onAudit={() => setRoute({ kind: "audit" })}
-      onDiagnostics={() => setRoute({ kind: "cluster" })}
-      onOpenHostDiagnostics={(id) => setRoute({ kind: "cluster", hostId: id })}
-      onServers={(status) => setRoute({ kind: "servers", status })}
-      onOpenServersForNode={(hostId) => setRoute({ kind: "servers", node: hostId })}
-      onOpenNodeLogs={(hostId) => setRoute({ kind: "cluster", hostId, tab: "logs" })}
-      onAskAboutNode={askAboutHost}
-      onViewAlerts={() => setRoute({ kind: "attention" })}
-      onAttention={askAboutAlert}
-      onRunAlertAction={(id, action) => handleAction(action, id)}
-    />}
+    {/* The dashboard takes no navigation props: every card on it is a widget, and a widget reaches
+        the router through NavContext rather than through whatever the page above it was handed. */}
+    {route.kind === "home" && <DashboardPage user={user} />}
     {route.kind === "attention" && <AlertsPage
       key={route.serverId || "all"}
       initialServerId={route.serverId}

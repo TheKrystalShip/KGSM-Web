@@ -4,6 +4,7 @@ import { alertsTone, anchoredAlerts } from "./components/ContextualAlerts.jsx";
 import { ColdStartDown } from "./components/ErrorBoundary.jsx";
 import { ConnectivityBanner } from "./components/ConnectivityBanner.jsx";
 import { NodeAccessNotice } from "./components/host-helpers.jsx";
+import { NavProvider } from "./components/NavContext.jsx";
 import { KrystalFooter } from "./components/Footer.jsx";
 import { InstallModal } from "./components/InstallModal.jsx";
 import { Toasts } from "./components/Toasts.jsx";
@@ -14,9 +15,10 @@ import { api, connectionStore } from "./lib/apiClient.js";
 import { KRYSTAL_LABELS } from "./lib/labels.js";
 import { canOn, homeKind, resolveRoute, serverOperable } from "./lib/persona.js";
 import { KrystalRouter } from "./lib/router.js";
+import { runServerAction } from "./lib/serverActions.js";
 import { sessionStore } from "./lib/sessionStore.js";
 import { useStore } from "./lib/store.js";
-import { commandServer, hostsStore, installServer, libraryStore, serversStore, servicesStore, startDataLayer, stopDataLayer } from "./lib/stores.js";
+import { hostsStore, installServer, libraryStore, serversStore, servicesStore, startDataLayer, stopDataLayer } from "./lib/stores.js";
 import { AddHostPage } from "./pages/HostAccess.jsx";
 import AssistantFabIcon from "./components/AssistantFabIcon.jsx";
 import { Modal } from "./components/Modal.jsx";
@@ -70,10 +72,15 @@ function App() {
     return <AuthGate user={user} onUser={refreshUser} />;
   }
 
+  // NavProvider sits outside everything that renders a card, so a component can navigate by asking
+  // rather than by being handed a callback — which is what lets the same card render on its own page
+  // and pinned to the dashboard.
   return (
-    <AssistantDockProvider hosts={hosts} setRoute={setRoute}>
-      <AppInner user={user} setUser={setUser} route={route} setRoute={setRoute} />
-    </AssistantDockProvider>
+    <NavProvider setRoute={setRoute}>
+      <AssistantDockProvider hosts={hosts} setRoute={setRoute}>
+        <AppInner user={user} setUser={setUser} route={route} setRoute={setRoute} />
+      </AssistantDockProvider>
+    </NavProvider>
   );
 }
 
@@ -216,40 +223,13 @@ function AppInner({ user, setUser, route, setRoute }) {
     ? (libraryList.find(g => g.id === route.id) || null)
     : null;
 
+  // The verb itself — the optimistic patch, the rollback, the wording — lives in
+  // lib/serverActions.js, because a pinned card has no shell above it to be handed a callback. This
+  // only resolves WHICH server the shell means when a caller names none.
   const handleAction = (action, targetId) => {
     const s = targetId ? servers.find(x => x.id === targetId) || activeServer : activeServer;
     if (!s) return;
-    if (action === "start") {
-      const prevStatus = s.status;
-      serversStore.patch(s.id, { status: "starting" });
-      commandServer(s, action).catch(err => {
-        if (err && err.code === 401) noteAuthFailure(s.hostId);
-        // A 401 is already answered by the reauth modal; anything else has a
-        // reason the caller can act on (a port clash, a command already in
-        // flight) and used to die here silently.
-        else toast.fromError(err, "Couldn't start " + (s.name || s.id));
-        const cur = serversStore.find(s.id);
-        if (cur && cur.status === "starting") serversStore.patch(s.id, { status: prevStatus });
-      });
-      return;
-    }
-    if (action === "update" || action === "stop" || action === "restart") {
-      // All three run long enough to need showing: an update for minutes, a shutdown for as long as the
-      // game takes to drain and save, a restart for both plus the boot. Mark the server as owned by the job from the click rather than
-      // from the first frame that reports it, so the button that was just pressed never looks inert —
-      // and drop it again if the command is refused, since then nothing is running.
-      serversStore.patch(s.id, { job: { verb: action, state: "running" } });
-      commandServer(s, action).catch(err => {
-        if (err && err.code === 401) noteAuthFailure(s.hostId);
-        else toast.fromError(err, "Couldn't " + action + " " + (s.name || s.id));
-        serversStore.patch(s.id, { job: null });
-      });
-      return;
-    }
-    commandServer(s, action).catch(err => {
-      if (err && err.code === 401) noteAuthFailure(s.hostId);
-      else toast.fromError(err, "Couldn't " + action + " " + (s.name || s.id));
-    });
+    runServerAction(action, s);
   };
 
   const openGame = (game) => setRoute({ kind: "game", id: game.id });

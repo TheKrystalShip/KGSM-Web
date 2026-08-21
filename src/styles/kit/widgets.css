@@ -1,0 +1,494 @@
+/* ============================================================
+   WIDGETS — the composable dashboard: the grid, a widget's chrome,
+   the add-widget catalog, and the empty state.
+
+   The grid is 12-column FLOW: order is position, so there is no x/y and a
+   layout cannot describe a hole. `grid-auto-flow` stays at its default —
+   `dense` back-fills gaps by pulling later items forward, which would move
+   widgets nobody touched.
+   ============================================================ */
+
+.widget-grid {
+  display: grid;
+  /* --widget-cols is set inline by WidgetGrid from the measured breakpoint, so the
+     JS span maths and the CSS track count can never disagree. */
+  grid-template-columns: repeat(var(--widget-cols, 12), minmax(0, 1fr));
+  /* minmax(…, auto), NOT a fixed row: a row span is a MINIMUM, and a card that needs
+     more than it was given grows the row rather than being cut off at the cell edge.
+     Silently clipping a card is the one outcome worth ruling out — a capacity strip
+     missing its buttons looks like a card that has none. */
+  grid-auto-rows: minmax(var(--widget-row), auto);
+  gap: var(--widget-gap);
+  align-items: stretch;
+}
+
+:root {
+  --widget-row: 84px;
+  --widget-gap: 16px;
+}
+
+.widget-cell {
+  position: relative;
+  min-width: 0;   /* a grid item defaults to min-content, which a rail would blow out */
+  display: flex;
+}
+
+.widget-grid--dragging {
+  user-select: none;
+}
+
+/* The cell a drop would land on. A dashed outline rather than a moved neighbour:
+   with mixed spans the reflow is not a single slide, so previewing the TARGET is
+   legible where previewing the displacement would not be. */
+.widget-cell--drop::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border: 2px dashed var(--krystal-teal);
+  border-radius: var(--r-md);
+  pointer-events: none;
+}
+
+.widget-cell--dragging {
+  opacity: 0.92;
+  filter: drop-shadow(0 10px 26px rgb(0 0 0 / 0.28));
+}
+
+.widget-cell--sizing {
+  outline: 2px solid var(--krystal-teal);
+  outline-offset: 2px;
+  border-radius: var(--r-md);
+}
+
+/* ---- One widget -------------------------------------------------------- */
+
+.widget {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The host draws NO chrome outside edit mode: the card inside already has its own
+   header, and a second one would title every widget twice. The head only carries
+   the arrange controls, so it exists only while arranging. */
+.widget__head {
+  display: none;
+}
+
+.widget--edit .widget__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 2px 6px;
+}
+
+.widget__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.widget__grip,
+.widget__unpin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border: var(--edge);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--fg-2);
+  cursor: grab;
+}
+
+.widget__unpin {
+  margin-left: auto;
+  cursor: pointer;
+}
+
+.widget__grip:hover,
+.widget__unpin:hover {
+  background: var(--surface-3);
+  color: var(--fg-1);
+}
+
+.widget__unpin:hover {
+  color: var(--danger-fg);
+  border-color: var(--danger-fg);
+}
+
+.widget__grip:active {
+  cursor: grabbing;
+}
+
+.widget__grip:focus-visible,
+.widget__unpin:focus-visible {
+  outline: 2px solid var(--krystal-teal);
+  outline-offset: 2px;
+}
+
+.widget__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* A widget's card fills the cell it was given, so two widgets on one row line up
+   at the bottom regardless of how much each has to say. */
+.widget__body > * {
+  flex: 1;
+  min-height: 0;
+}
+
+/* While arranging, the card underneath must not swallow the drag or respond to a
+   click meant for the grid. Applied to the BODY only, so the grip and the handles
+   outside it stay live. */
+.widget--edit .widget__body {
+  pointer-events: none;
+  user-select: none;
+}
+
+/* A card whose content has a natural height must not have it stretched to fill a
+   taller cell. The KPI band is the case: it is a grid inside a grid, and left to
+   stretch it inflates two rows of tiles to fill whatever the cell was given, so the
+   numbers float in dead space. The slack goes to the bottom of the cell instead. */
+.widget__body .dash-summary {
+  align-content: start;
+}
+
+.widget__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 90px;
+  color: var(--fg-3);
+}
+
+.widget__loading svg {
+  animation: act-spin 1.4s linear infinite;
+}
+
+/* ---- Resize handles ---------------------------------------------------- */
+
+.widget__handle {
+  position: absolute;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  z-index: 3;
+}
+
+.widget__handle::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  border-radius: 999px;
+  background: var(--krystal-teal);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.widget__handle:hover::after,
+.widget__handle:focus-visible::after {
+  opacity: 0.85;
+}
+
+.widget__handle--e {
+  top: 20%;
+  bottom: 20%;
+  right: calc(var(--widget-gap) / -2 - 2px);
+  width: 10px;
+  cursor: ew-resize;
+}
+
+.widget__handle--e::after {
+  width: 4px;
+  height: 34px;
+}
+
+.widget__handle--s {
+  left: 20%;
+  right: 20%;
+  bottom: calc(var(--widget-gap) / -2 - 2px);
+  height: 10px;
+  cursor: ns-resize;
+}
+
+.widget__handle--s::after {
+  height: 4px;
+  width: 34px;
+}
+
+.widget__handle--se {
+  right: calc(var(--widget-gap) / -2 - 2px);
+  bottom: calc(var(--widget-gap) / -2 - 2px);
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+}
+
+.widget__handle--se::after {
+  width: 8px;
+  height: 8px;
+}
+
+/* ---- A widget that cannot render --------------------------------------- */
+
+.widget__unavailable {
+  height: 100%;
+  justify-content: center;
+}
+
+.widget__remove-btn {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border: var(--edge);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.widget__remove-btn:hover {
+  background: var(--surface-3);
+  color: var(--danger-fg);
+  border-color: var(--danger-fg);
+}
+
+/* ---- The add-widget catalog -------------------------------------------- */
+
+.widget-catalog {
+  width: min(560px, 92vw);
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px 16px;
+  overflow-y: auto;
+}
+
+.widget-catalog__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.widget-catalog__head-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--fg-1);
+}
+
+.widget-catalog__close {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: var(--edge);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.widget-catalog__close:hover {
+  background: var(--surface-3);
+  color: var(--fg-1);
+}
+
+.widget-catalog__lede {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--fg-3);
+}
+
+.widget-catalog__group-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+  margin-bottom: 8px;
+}
+
+.widget-catalog__items {
+  display: grid;
+  gap: 8px;
+}
+
+.widget-catalog__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: var(--edge);
+  border-radius: var(--r-sm);
+  background: var(--surface-1);
+  color: var(--fg-1);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.widget-catalog__item:hover {
+  background: var(--surface-2);
+  border-color: var(--krystal-teal);
+}
+
+.widget-catalog__item--on {
+  border-color: var(--success-fg);
+}
+
+.widget-catalog__icon {
+  display: inline-flex;
+  color: var(--fg-2);
+}
+
+.widget-catalog__item--on .widget-catalog__icon {
+  color: var(--success-fg);
+}
+
+.widget-catalog__label {
+  flex: 1;
+  min-width: 0;
+}
+
+.widget-catalog__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-3);
+}
+
+.widget-catalog__item--on .widget-catalog__state {
+  color: var(--success-fg);
+}
+
+.widget-catalog__empty {
+  font-size: 13px;
+  color: var(--fg-3);
+  padding: 20px 0;
+  text-align: center;
+}
+
+.widget-catalog__foot {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+/* ---- The emptied dashboard --------------------------------------------- */
+
+.dash-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 64px 24px;
+  border: 1px dashed var(--border-1);
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+}
+
+.dash-empty__icon {
+  color: var(--fg-3);
+}
+
+.dash-empty__title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--fg-1);
+}
+
+.dash-empty__sub {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--fg-3);
+  max-width: 46ch;
+}
+
+.dash-empty__cta {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ---- Phone -------------------------------------------------------------
+   At four columns and below every widget is full width, so horizontal resize
+   has nothing to express — the east and corner handles go, leaving vertical
+   sizing and the drag reorder that already worked here. This is also what
+   keeps the grid out of the edge-swipe argument the drawer and the dock are
+   already having. */
+@media (max-width: 768px) {
+  .widget__handle--e,
+  .widget__handle--se {
+    display: none;
+  }
+
+  :root {
+    --widget-gap: 12px;
+  }
+}
+
+/* ---- The Customize toolbar on a narrow screen --------------------------
+   `.dash-customize` is `flex-shrink: 0` and its hint is `white-space: nowrap`, so
+   the bar keeps its full width no matter how narrow the page gets — and because
+   `.dash-head` clips rather than scrolls, the buttons past the edge are not merely
+   off-screen but UNREACHABLE, with no horizontal overflow reported anywhere to
+   give it away. Wrapping the row is what puts Done back within reach.
+
+   The hint goes entirely: at four columns every widget is full width and the east
+   handle is hidden, so "pull an edge to resize" describes a gesture that phone
+   layout does not offer. */
+@media (max-width: 768px) {
+  .dash-head--actions {
+    flex-wrap: wrap;
+  }
+
+  .dash-customize {
+    flex-wrap: wrap;
+    flex-shrink: 1;
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .dash-customize__hint {
+    display: none;
+  }
+}

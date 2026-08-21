@@ -76,10 +76,21 @@ fleetOpsStore.refresh = () => {
 };
 
 let _timer = null;
+let _wanters = 0;
 
-// Started by the dashboard when it mounts, not by the boot sequence: this is one page's data, and
-// four requests per node on every login for a page nobody opened is four requests wasted.
+// Started by its consumers, not by the boot sequence: this is one surface's data, and five requests
+// per node on every login for a page nobody opened is five requests wasted.
+//
+// REFCOUNTED, because the consumers are many and independent. Several tiles read this store at once
+// and each mounts and unmounts on its own — an unconditional stop would let the first one to leave
+// clear the timer out from under the rest, which would then keep rendering their last value with no
+// error and no empty state. A week-old availability figure presented as live is a fabricated
+// measurement; the count is what makes that impossible.
+//
+// Balance every startFleetOps() with exactly one stopFleetOps() — an effect cleanup is the shape
+// that guarantees it.
 function startFleetOps() {
+  _wanters++;
   if (_timer) return;
   fleetOpsStore.refresh();
   _timer = setInterval(() => {
@@ -90,7 +101,8 @@ function startFleetOps() {
 }
 
 function stopFleetOps() {
-  if (!_timer) return;
+  if (_wanters > 0) _wanters--;
+  if (_wanters > 0 || !_timer) return;
   clearInterval(_timer);
   _timer = null;
 }

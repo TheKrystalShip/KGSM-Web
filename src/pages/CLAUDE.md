@@ -22,10 +22,20 @@ AppRouter: route.kind ──▶ the matching lazy <Page/>
 - **`persona.resolveRoute()` is the routing chokepoint** (`../lib/persona.js`): a
   forbidden route is remapped to the persona's home *before* it enters state or
   mounts. `App.setRoute` runs every route through it. Don't bypass it.
-- Pages receive **navigation callbacks** from `AppRouter` (`onOpenServer`,
+- Most pages receive **navigation callbacks** from `AppRouter` (`onOpenServer`,
   `onAction`, `onTabChange`, `onAsk`, …) — they don't call `setRoute`
   themselves. They read **domain data straight from the singleton stores** via
   `useStore(...)`, not from props threaded down the shell.
+- **A component that can be PINNED reaches the router through `useNav()`**
+  (`components/NavContext.jsx`) instead, because a widget on the dashboard has no
+  page above it to hand it anything. A card that is rendered both ways takes the
+  prop and falls back — `const open = onOpenServer || nav.openServer` — so it works
+  on its own page and pinned, with no call site changed. `DashboardPage` takes no
+  navigation props at all: every card on it is a widget.
+- **Lifecycle verbs are `lib/serverActions.js`**, not a callback. `runServerAction`
+  owns the optimistic patch, the rollback and the wording, so any surface offering a
+  Start button does all three. `App.jsx`'s `handleAction` only resolves WHICH server
+  the shell means when a caller names none.
 
 ### Adding a page/route
 
@@ -63,7 +73,7 @@ Four screens were too big and were broken into folders (root-`CLAUDE.md` refacto
 | `DiagnosticsPage.jsx` (290) | `diagnostics/` | `DiagOverview/Resources/Services/Logs`, host cards, `LeafConfigModal`, `diagHelpers` (the leaf card itself is `components/LeafCard.jsx`) |
 | `PerformanceTab.jsx` | `performance/` | `PerfCards`, `perfHelpers` |
 | `ServerSettings.jsx` | `serverSettings/` | `SettingsSections` |
-| `DashboardPage.jsx` | `dashboard/` | `DashFleetStrip` |
+| `DashboardPage.jsx` | `dashboard/` | `catalog.js` (the widget registrations), `widgets/` (the pinnable bodies), `fleetKpis.js` (the twelve figures), `DashFleetStrip`, `AddWidgetSheet`, `DashboardEmpty` |
 | `leafConfig/LeafConfigPage.jsx` | `leafConfig/` | `LeafConfigRow`, `LeafConfigReview`, `leafConfigHelpers` |
 | `GamePage.jsx` | `library/` | `GameOverview`, `GamePlacement`, `GameBlueprintTab`, `GameServersTab`, `BlueprintFileCard`, `BlueprintHostPicker`, `LibraryCreatePage` |
 
