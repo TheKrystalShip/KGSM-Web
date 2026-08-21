@@ -221,7 +221,9 @@ UserPreferenceEntity        PK (UserId, DeviceId, Key)
   DeviceId     dev_<uuid>, or "" for the synced record
   Key          "dashboard.layout"  (later "ui.theme", "ui.density")
   Value        json text
-  Updated
+  Version      monotonic per (UserId, Key) — the cluster's merge key
+  OriginDevice the device that wrote this version — the tiebreak at equal Version
+  Updated      display only, never a merge input
 
 UserSyncEntity              PK (UserId)
   Enabled
@@ -247,10 +249,31 @@ fallback; the server holds the durable record.
 The existing `krystal:dash:order` seeds the first layout — each band id maps to its widget type at
 `w: 12` — so an existing arrangement survives the switch.
 
-**Open:** which node holds the record in a cluster. Every routed call must name a node and there is
-no "home node" concept in `config.js`. The recommendation is the node serving the panel: prefs live
-with the account store you signed into, and a panel served by a different node is a different
-surface. Worth deciding before P5; it does not block P0–P4.
+### In a cluster
+
+A client reaches a cluster by knowing one node, and that entry node is where its preference writes
+land. The entry node is a **route, not an authority**: "home" is per-device (one browser entered via
+hotrod, another via node-b, both are somebody's home), so there is no single node to appoint, and
+appointing one would make a layout change fail whenever a machine the user is not talking to is
+down.
+
+Rows converge by **last-write-wins on a monotonic version**, not on a clock. Each write increments
+`Version` for its `(UserId, Key)`; a node compares versions and breaks a tie on the originating
+device id, lexically, so every node reaches the same answer. Wall-clock LWW would hand permanent
+victory to whichever node's clock runs fastest — a user on the losing device watches their layout
+revert with no error anywhere. `Updated` stays for display, where it is worth having: the Settings
+sync card can say which device last changed a preference and when.
+
+Propagation rides the cluster bus, which already carries `session.revoke` from `SessionController`:
+a `preferences.upsert` message type and one handler beside `SessionRevokeHandler`. The bus's
+at-least-once delivery with inbox dedupe is the right guarantee, because version-LWW is idempotent —
+a redelivered message carrying a stale version is a no-op.
+
+**Sequencing:** the cluster half does not block the rest. P5 ships preferences on the node serving
+the panel — the single-node case, which is the common one — and P5b adds the bus message and the
+handler. **`Version` ships in the schema from the start regardless**: retrofitting a
+conflict-resolution field onto rows that already exist means inventing a version for every one of
+them.
 
 ## 11. Phases
 
@@ -268,9 +291,23 @@ P0–P2 is a working widget dashboard. P3 is what makes "pin the watchdog's jour
 
 ## 12. Risks
 
-- **A dashboard of fifteen live widgets is fifteen subscriptions.** Gate hydration on visibility
-  with an `IntersectionObserver` and pause below the fold. A paused widget must **say** it is
-  paused — a stale frame presented as live is a fabricated measurement.
+- **A dashboard of fifteen live widgets is not fifteen round trips, and must not become them.** The
+  widgets fed by a global store add nothing — `startDataLayer` already hydrates those, and they are
+  most of a default dashboard. A keyed widget costs one hydrate **per distinct key**, not per
+  widget, and the SSE transport ref-counts dynamic topics, so fifteen widgets on
+  `hosts/<id>/logs` share one stream. What is left is a handful of REST calls at load.
+
+  This is why there is **no per-user aggregating endpoint**. One would make the API's response shape
+  depend on client layout state — a new widget type is zero backend work today, and that is the
+  property most worth keeping. It also collapses fifteen independent failures into one response that
+  has to decide what to do when three of them fail, in place of the honest per-widget empty states
+  that already exist. If load ever becomes a *measured* problem, the answer is a generic
+  `POST /batch { requests: [{ method, path }] }` — layout-agnostic, knowing nothing about widgets —
+  and not before there is a number.
+
+  The cost that is real is **liveness**: widgets below the fold hydrating and following at once.
+  Gate on visibility with an `IntersectionObserver` and pause off-screen. A paused widget must
+  **say** it is paused — a stale frame presented as live is a fabricated measurement.
 - **Heavy surfaces stay off the grid.** The Monaco blueprint editor, the file browser and the
   settings forms carry unsaved state, focus behaviour and sizing assumptions that a tile makes
   worse. They get a **shortcut tile** — a card that names the target and opens the page.
