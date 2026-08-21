@@ -15,6 +15,8 @@ import { Icon } from "./Icon.jsx";
 //   sub                    — quiet context line under the value
 //   tone                   — ok | info | warn | danger | muted (colors value;
 //                            surfaces add their own top-hairline accent in CSS)
+//   pin                    — optional header NODE (the panel's <PinButton/>), left of
+//                            the "View →" affordance
 //   onView                 — optional "View →" affordance in the header
 //   barPct, barColor       — optional progress meter under the value (used by
 //                            the server-overview stats: players / CPU / RAM)
@@ -38,7 +40,7 @@ const KPI_TONE_COLOR = {
   off:    "var(--fg-4)",
 };
 
-function KPI({ icon, label, value, unit, sub, tone = "muted", onView, barPct, barColor, className, led, ledLabel, compact = false }) {
+function KPI({ icon, label, value, unit, sub, tone = "muted", pin, onView, barPct, barColor, className, led, ledLabel, compact = false }) {
   return (
     <div className={"chat-brief kpi kpi--" + tone + (compact ? " kpi--compact" : "") + (className ? " " + className : "")}>
       <div className="chat-brief__head">
@@ -49,6 +51,7 @@ function KPI({ icon, label, value, unit, sub, tone = "muted", onView, barPct, ba
             <span className={"status-led status-led--" + led} aria-label={led === "down" ? "No signal" : "Live"}></span>
           </span>
         )}
+        {pin}
         {onView && (
           <button className="dash-section__more" onClick={onView} aria-label={compact ? "View " + label : undefined}>
             {!compact && "View "}<Icon name="arrow-right" size={11} strokeWidth={2.2} />

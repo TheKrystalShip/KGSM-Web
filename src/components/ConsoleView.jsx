@@ -177,6 +177,9 @@ const NEAR_BOTTOM = 24;
 //   sources  — optional [{ id, label, lines }] → a source dropdown in the head; the selected source's
 //              lines are shown (overrides `lines`). A single source shows a quiet label, none = no chip.
 //   pill     — optional { label, live } run-state / Live pill.
+//   pin      — optional header NODE (the panel's <PinButton/>), beside the count. Taken as a
+//              node rather than a descriptor for the same reason the other shells do it: a
+//              card shell must not have to know that widgets exist.
 //   count    — optional line count for the head ("N lines"); `loading` shows "connecting…".
 //   footer   — optional node under the body (a command input / a read-only note).
 //   resetKey — when it changes, the pop-out collapses and the find/follow state resets: a server or
@@ -191,7 +194,7 @@ const NEAR_BOTTOM = 24;
 //   onDownload — () => Promise, when the whole log can be had in one piece. `downloadName` labels it.
 function ConsoleView({
   title = "Console", icon = "terminal-square",
-  lines = [], sources, pill, count, loading = false,
+  lines = [], sources, pill, count, pin, loading = false,
   footer = null, emptyText = "— no output —", resetKey, initialSourceId,
   onLoadEarlier = null, loadingEarlier = false, onDownload = null, downloadName = null,
 }) {
@@ -453,6 +456,7 @@ function ConsoleView({
         ) : (sources && sources[0] && sources[0].label ? <span className="console-card__single">{sources[0].label}</span> : null)}
         {pill ? <span className={"console-card__live" + (pill.live ? "" : " console-card__live--idle")}>{pill.label}</span> : null}
         <span className="console-card__count">{headCount}</span>
+        {pin}
         <button type="button" className={"console-card__expand" + (finding ? " console-card__expand--on" : "")}
           onClick={() => (finding ? closeFind() : setFinding(true))}
           title="Find in console" aria-label="Find in console" aria-pressed={finding}>

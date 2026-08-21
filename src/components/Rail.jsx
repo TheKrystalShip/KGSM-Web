@@ -17,7 +17,7 @@ import { Icon } from "./Icon.jsx";
 // card is always cut off at the right edge. That peek is the primary "there is
 // more" affordance; the arrows and the edge fade are the secondary ones.
 //
-function Rail({ icon, title, count, onViewAll, viewAllLabel = "View all", items, renderItem, itemKey, disabled = false, variant, ariaLabel }) {
+function Rail({ icon, title, count, pin, onViewAll, viewAllLabel = "View all", items, renderItem, itemKey, disabled = false, variant, ariaLabel }) {
   const trackRef = React.useRef(null);
   // atStart/atEnd drive the arrows' disabled state and which edge fades;
   // `scrollable` is false when everything already fits, which hides the arrows
@@ -64,6 +64,7 @@ function Rail({ icon, title, count, onViewAll, viewAllLabel = "View all", items,
           {count != null && <span className="chat-brief__count chat-brief__count--neutral">{count}</span>}
         </span>
         <div className="rail__nav">
+          {pin}
           {showArrows && (
             <>
               <button

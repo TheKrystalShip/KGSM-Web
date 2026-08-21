@@ -492,3 +492,80 @@
     display: none;
   }
 }
+
+/* ---- The pin, on a card's own header -----------------------------------
+   Quiet until wanted: it sits at the header's opacity until the card is hovered
+   or it is focused, so a hundred pinnable cards do not read as a hundred
+   controls. Once a card IS pinned it stays lit, because that is state rather
+   than an affordance — and it is the same button that takes it off again. */
+.pin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  padding: 0;
+  border: var(--edge);
+  border-radius: var(--r-sm);
+  background: transparent;
+  border-color: transparent;
+  color: var(--fg-3);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms, background 120ms, border-color 120ms;
+}
+
+.chat-brief:hover .pin-btn,
+.console-card:hover .pin-btn,
+.card-table:hover .pin-btn,
+.pin-btn:focus-visible {
+  opacity: 1;
+}
+
+.pin-btn:hover {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+  color: var(--fg-1);
+}
+
+.pin-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-focus);
+}
+
+/* Pinned is state, not hover — always visible, and coloured so it is legible
+   against the header's own muted type. */
+.pin-btn--on,
+.chat-brief:hover .pin-btn--on,
+.console-card:hover .pin-btn--on {
+  opacity: 1;
+  color: var(--krystal-teal);
+}
+
+.pin-btn--on:hover {
+  color: var(--danger-fg);
+  border-color: var(--danger-fg);
+}
+
+/* Touch has no hover, so the control would never appear. Show it always there —
+   the header has room, and an invisible button is worse than a quiet one. */
+@media (hover: none) {
+  .pin-btn {
+    opacity: 1;
+  }
+}
+
+/* The pin on an unavailable state — a quiet journal is one you may well want to
+   watch, so the control is there even with nothing to show. No hover gate: this
+   block has no card header to reveal it from. */
+.proc-unavailable__pin {
+  margin-top: 10px;
+}
+
+.proc-unavailable__pin .pin-btn {
+  opacity: 1;
+  width: 26px;
+  height: 26px;
+  border-color: var(--border-1);
+}

@@ -77,3 +77,36 @@ registerWidget({
   size: { w: 12, h: 4, minW: 4, minH: 3 },
   load: () => import("./widgets/CatalogRail.jsx").then(m => m.CatalogRail),
 });
+
+// ---- Bound widgets ---------------------------------------------------------
+// These carry PARAMETERS, so they are pinned from the page that supplies them and never offered by
+// the Add-widget catalog — nothing in a list can know which leaf's journal you meant.
+
+registerWidget({
+  type: "leaf.logs",
+  label: "Leaf journal",
+  icon: "scroll-text",
+  group: "Nodes",
+  // Per NODE, not fleet-wide: an admin on one node and a viewer on another must not see the second
+  // node's journal because the first made them an admin somewhere. persona.js calls this
+  // "aggregate for reach, scoped for action".
+  cap: "host.manage",
+  scope: "host",
+  params: ["hostId", "leafId"],
+  describe: (p) => (p.leafId || "leaf") + " · journal",
+  size: { w: 12, h: 5, minW: 6, minH: 3 },
+  load: () => import("../leaf/LeafLogs.jsx").then(m => m.LeafLogs),
+});
+
+registerWidget({
+  type: "server.console",
+  label: "Server console",
+  icon: "terminal-square",
+  group: "Servers",
+  cap: "server.operate",
+  scope: "server",
+  params: ["serverId"],
+  describe: (p) => (p.serverId || "server") + " · console",
+  size: { w: 6, h: 5, minW: 4, minH: 3 },
+  load: () => import("./widgets/ServerConsoleWidget.jsx").then(m => m.ServerConsoleWidget),
+});

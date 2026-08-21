@@ -54,48 +54,76 @@ function subscribeHostLogs(hostId) {
 // feed is capped across every leaf at once, so a quiet leaf next to a chatty one can hold almost
 // none of it — filtering that would show an empty console for a service that has been logging all
 // day. Asking journald for the one source spends the whole window on the leaf you opened.
-const leafLogsStore = createStore({
-  list: [],
-  status: "loading",
-  error: null,
-  hostId: null,
-  leaf: null,
-});
+//
+// KEYED BY (host, leaf), not scoped to one. Two journals can be on screen at once — two pinned to
+// the dashboard, or one pinned while its own page is open — and a single-slot store would have each
+// refresh blank the other, silently, with each console showing the wrong service's lines or none at
+// all. The hydrate and the live subscription are shared per key by lib/keyedResource.js.
+const leafLogsStore = createStore({ byKey: {} });
 
-leafLogsStore.prepend = (hostId, leaf, line) =>
-  leafLogsStore.setState(s => {
-    if (!line || !line.id) return s;
-    if (s.hostId !== hostId || s.leaf !== leaf) return s;
-    if (line.source !== leaf) return s;
-    if (s.list.some(e => e.id === line.id)) return s;
-    const list = [line, ...s.list];
-    return { ...s, list: list.length > LOGS_MAX ? list.slice(0, LOGS_MAX) : list };
+const leafLogsKey = (hostId, leaf) => (hostId || "_") + "/" + (leaf || "_");
+const _emptyLeafLogs = () => ({ list: [], status: "loading", error: null });
+
+leafLogsStore.entry = (hostId, leaf) =>
+  leafLogsStore.getState().byKey[leafLogsKey(hostId, leaf)] || null;
+
+const _patchLeafLogs = (key, fn) =>
+  leafLogsStore.setState(s => ({ ...s, byKey: { ...s.byKey, [key]: fn(s.byKey[key] || _emptyLeafLogs()) } }));
+
+leafLogsStore.prepend = (hostId, leaf, line) => {
+  if (!line || !line.id) return;
+  // One live topic carries every source, so a frame is narrowed to this leaf on the way in.
+  if (line.source !== leaf) return;
+  const key = leafLogsKey(hostId, leaf);
+  if (!leafLogsStore.getState().byKey[key]) return;   // nobody is holding this journal
+  _patchLeafLogs(key, e => {
+    if (e.list.some(x => x.id === line.id)) return e;
+    const list = [line, ...e.list];
+    return { ...e, list: list.length > LOGS_MAX ? list.slice(0, LOGS_MAX) : list };
   });
+};
 
-let _leafLogsGen = 0;
+// Per-key generation counters, so a slow response for one leaf cannot land on top of a newer one
+// for the SAME leaf while leaving every other leaf's journal alone.
+const _leafLogsGen = new Map();
 leafLogsStore.refresh = (hostId, leaf) => {
   if (!hostId || !leaf) return Promise.resolve([]);
-  const gen = ++_leafLogsGen;
-  leafLogsStore.setState(s => ({ ...s, list: [], status: "loading", error: null, hostId, leaf }));
+  const key = leafLogsKey(hostId, leaf);
+  const gen = (_leafLogsGen.get(key) || 0) + 1;
+  _leafLogsGen.set(key, gen);
+  _patchLeafLogs(key, e => ({ ...e, status: "loading", error: null }));
   const path = "/hosts/" + hostId + "/logs?source=" + encodeURIComponent(leaf) + "&limit=" + LOGS_WINDOW;
   return api.host(hostId).get(path).then(page => {
-    if (gen !== _leafLogsGen) return [];
+    if (_leafLogsGen.get(key) !== gen) return [];
     const rows = (page && page.rows) || [];
-    leafLogsStore.setState(s => ({ ...s, list: rows, status: "ready", error: null, hostId, leaf }));
+    _patchLeafLogs(key, e => ({ ...e, list: rows, status: "ready", error: null }));
     return rows;
   }, err => {
-    if (gen === _leafLogsGen) leafLogsStore.setState(s => ({ ...s, status: "error", error: err, hostId, leaf }));
+    if (_leafLogsGen.get(key) === gen) _patchLeafLogs(key, e => ({ ...e, status: "error", error: err }));
     throw err;
   });
 };
 
-// One live topic carries every source, so the frames are narrowed to this leaf on the way in.
+// Drop a journal nothing is reading. Called by the last release of a key, so a dashboard that has
+// held six journals over an afternoon is not still carrying six 2000-line windows.
+leafLogsStore.drop = (hostId, leaf) => {
+  const key = leafLogsKey(hostId, leaf);
+  _leafLogsGen.delete(key);
+  leafLogsStore.setState(s => {
+    if (!s.byKey[key]) return s;
+    const byKey = { ...s.byKey };
+    delete byKey[key];
+    return { ...s, byKey };
+  });
+};
+
 function subscribeLeafLogs(hostId, leaf) {
   if (!hostId || !leaf) return () => {};
   const topic = "hosts/" + hostId + "/logs";
-  return api.stream.subscribe([topic], (m) => {
+  const dispose = api.stream.subscribe([topic], (m) => {
     if (m && m.type === "log.line" && m.data) leafLogsStore.prepend(hostId, leaf, m.data);
   });
+  return () => { dispose(); leafLogsStore.drop(hostId, leaf); };
 }
 
 function subscribeHostServices(hostId) {
@@ -280,7 +308,7 @@ function applyLeafConfig(hostId, leaf, body) {
 
 export {
   logsStore, logSourcesStore, leafLogsStore, servicesStore,
-  subscribeHostLogs, subscribeLeafLogs, subscribeHostServices, setLeafProvisioned,
+  subscribeHostLogs, subscribeLeafLogs, leafLogsKey, subscribeHostServices, setLeafProvisioned,
   fetchLeafConfig, fetchLeafCommands, applyLeafConfig, fetchLeafMetricsHistory,
   fetchLeafSchedules, fetchLeafSupervision, fetchLeafMonitorStats, fetchLeafBotStatus,
   fetchLeafSpeechStatus, fetchLeafReactorStatus, fetchLeafReactorDecisions,

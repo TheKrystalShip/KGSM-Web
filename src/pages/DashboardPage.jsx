@@ -10,7 +10,6 @@ import { serversStore } from "../lib/stores.js";
 import { dashboardStore } from "../lib/widgets/dashboardStore.js";
 import { AddWidgetSheet } from "./dashboard/AddWidgetSheet.jsx";
 import { DashboardEmpty } from "./dashboard/DashboardEmpty.jsx";
-import "./dashboard/catalog.js";   // registering the types is the import's whole job
 
 // DashboardPage — the post-login home, and a surface the user composes.
 //
@@ -19,7 +18,9 @@ import "./dashboard/catalog.js";   // registering the types is the import's whol
 // is on the dashboard and never needs to. Adding a card to the product does not touch it.
 //
 // The layout is per-browser (lib/widgets/dashboardStore.js); the widget types are registered by
-// ./dashboard/catalog.js; the grid, its drag and its resize are in components/widgets/.
+// ./dashboard/catalog.js, imported by the SHELL rather than here — a pin on a card elsewhere in the
+// panel needs the registry populated whether or not this page has ever been opened. The grid, its
+// drag and its resize are in components/widgets/.
 
 function DashboardPage({ user }) {
   const layout = useStore(dashboardStore, s => s.layout);

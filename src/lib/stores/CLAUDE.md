@@ -27,7 +27,7 @@ cycle `sessionStore` → `stores.js` → `stores/index.js` → `boot.js` and bre
 | `servers.js` | game servers, jobs, command actions (`commandServer`, `awaitJob`), install/delete, settings fetch/patch, console input, game-name resolution |
 | `hosts.js` | hosts/diagnostics store + metrics & capability subscriptions (`subscribeHostMetrics`, `subscribeServerMetrics`, `syncCapabilitySubscriptions`, metrics history/events) |
 | `audit.js` | the cluster-wide audit log, plus the node-attribution helpers every surface labels or filters rows with (`auditEventHost`, `auditInScope`, `serverHostId`). **There is no app-wide node scope** — a node is an attribute of a row, and narrowing is local to the list that offers it |
-| `diagnostics.js` | host logs, log sources, services, leaf provisioning/config (`logsStore`, `servicesStore`, `applyLeafConfig`) |
+| `diagnostics.js` | host logs, log sources, services, leaf provisioning/config (`logsStore`, `servicesStore`, `applyLeafConfig`). **`leafLogsStore` is KEYED by (host, leaf)** — `byKey[leafLogsKey(h,l)]`, not one slot — because two journals can be on screen at once (two pinned to the dashboard, or one pinned while its own page is open) and a single slot had each refresh blank the other with nothing to show for it. Acquire it through `useKeyedResource` so N mounts share one hydrate and one subscription, and the last release `drop()`s the window |
 | `files.js` | per-server working-dir file tree + editor cache (self-contained; only `api.host()`, no WS channel) |
 | `library.js` | the installable game catalog (mostly static; hydrate from `/library`) |
 | `ui.js` | client-local prefs: favorites (persisted) + the per-node link-latency probe the capacity strip, cluster constellation and diagnostics read |

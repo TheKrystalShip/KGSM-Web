@@ -159,6 +159,19 @@ realtime: liveStream.js (fetch-SSE) ──adaptStreamMessage──▶ same store
   at the wrong speed rather than failing. Falls back to arithmetic here when a browser refuses an
   `OfflineAudioContext` at 16kHz. Proven in Chromium against a live host by
   `scripts/visual-harness/voice-note.mjs`; jsdom has no Web Audio, so the smoke cannot reach it.
+- `keyedResource.js` — one hydrate and one live subscription per KEY, however many components want
+  it (`useKeyedResource(key, hydrate, follow)`). The counterpart to a keyed store: keying lets two
+  targets exist at once, this stops N mounts of the same target hydrating N times or one unmount
+  disposing what another still holds. The SSE transport already ref-counts topics, so this is about
+  the REST hydrate and the store slot.
+- `serverActions.js` — `runServerAction(verb, server|id)`: the optimistic patch, the rollback and
+  the wording of a lifecycle verb. A module rather than a shell callback because a card that can be
+  PINNED has no shell above it to be handed one, and a surface offering Start has to do all three or
+  it lies about what happened.
+- `widgets/` — the dashboard's composability: `registry.js` (a type → component, params, capability,
+  size; it holds no types itself, so `lib/` never imports a page), `layout.js` (the descriptor, the
+  breakpoint ladder, and the clamp-then-snap span rule) and `dashboardStore.js` (the layout, and the
+  only thing that writes it).
 - `registerSW.js` — production-only PWA service-worker registration.
 - `push.js` — the browser half of Web Push: capability probe, subscribe/unsubscribe, device list.
   `support()` distinguishes **`needs-install`** from `unsupported`, because on iOS push works only

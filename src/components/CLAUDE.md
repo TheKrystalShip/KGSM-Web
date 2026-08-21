@@ -28,6 +28,26 @@ the shell thin. Don't re-inline them.
   `Footer.jsx`, `ErrorBoundary.jsx` (+ `ColdStartDown`/`ConnectivityBanner`/
   `ContentError`/`AppCrash`) — the layout chrome.
 
+## The `pin` slot — how a card gets onto the dashboard
+
+`BriefCard`, `CardTable`, `KPI`, `ConsoleView` and `Rail` each take an optional **`pin`** in their
+header. Those five shells are about a hundred card surfaces between them, which is why the affordance
+lives there rather than at each call site.
+
+**It is a NODE, not a descriptor** — `pin={<PinButton type="leaf.logs" params={{ hostId, leafId }} />}`.
+That is not a style preference: `BriefCard` is reachable from the standalone assistant's bundle, and
+`PinButton` reaches `persona` through the dashboard store, so a `pin={{type, params}}` prop would
+force `BriefCard` to import it and fail `npm run check:assistant`. The node form keeps the shells
+ignorant of widgets entirely — they render whatever they are handed.
+
+`PinButton` self-suppresses inside a widget (`useWidgetContext`), so a pinned card never offers to
+pin itself and no shell has to check. It is a **toggle**: filled means this exact `(type, params)` is
+on the dashboard, and pressing it removes it.
+
+⚠ The catalog of widget types is registered by **`App.jsx`**, eagerly. `DashboardPage` is lazy, so
+registering from there leaves the registry empty everywhere else and every pin silently draws
+nothing until the dashboard has been opened once.
+
 ## `<Rail>` — the horizontal shelf
 
 `Rail.jsx` renders a brief card whose body is a scroll-snapped row of `items`: the

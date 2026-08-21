@@ -2223,15 +2223,44 @@ try {
   assert(leafLogs.rows.length >= inMerged && leafLogs.rows.every(r => r.source === "monitor"),
     `leaf logs (live): ?source=monitor spends the whole window on that leaf (${leafLogs.rows.length} line(s); the same-size merged window carried ${new Set(mergedWindow.rows.map(r => r.source)).size} source(s) and only ${inMerged} of monitor's)`);
 
-  // leafLogsStore.prepend is doubly guarded: the live topic carries EVERY source, so a frame for another
-  // leaf must not land in the open leaf's console, and neither must one for another host.
-  st.leafLogsStore.setState(s => ({ ...s, list: [], hostId: hmId, leaf: "monitor", status: "ready" }));
-  st.leafLogsStore.prepend(hmId, "monitor", { id: "l-own", at: new Date().toISOString(), source: "monitor", level: "info", text: "mine" });
-  st.leafLogsStore.prepend(hmId, "monitor", { id: "l-other", at: new Date().toISOString(), source: "watchdog", level: "info", text: "not mine" });
-  st.leafLogsStore.prepend("some-other-host", "monitor", { id: "l-host", at: new Date().toISOString(), source: "monitor", level: "info", text: "other host" });
-  const leafLog = st.leafLogsStore.getState().list;
-  assert(leafLog.length === 1 && leafLog[0].id === "l-own",
+  // leafLogsStore is KEYED by (host, leaf), which is what lets two journals be open at once — two
+  // pinned to the dashboard, or one pinned while its own page is open. The store held one slot when
+  // only one surface could read it; that shape made a second reader silently blank the first.
+  //
+  // prepend stays doubly guarded, because the live topic carries EVERY source: a frame for another
+  // leaf must not land in this journal, and neither must one for another host. Keying makes that
+  // testable properly — hold TWO journals at once and prove each got only its own lines, which is
+  // the invariant a single slot could not even express.
+  const nowIso = () => new Date().toISOString();
+  const kMon = st.leafLogsKey(hmId, "monitor");
+  const kWd = st.leafLogsKey(hmId, "watchdog");
+  st.leafLogsStore.setState(s => ({
+    ...s,
+    byKey: {
+      ...s.byKey,
+      [kMon]: { list: [], status: "ready", error: null },
+      [kWd]: { list: [], status: "ready", error: null },
+    },
+  }));
+  st.leafLogsStore.prepend(hmId, "monitor", { id: "l-own", at: nowIso(), source: "monitor", level: "info", text: "mine" });
+  st.leafLogsStore.prepend(hmId, "monitor", { id: "l-other", at: nowIso(), source: "watchdog", level: "info", text: "not mine" });
+  st.leafLogsStore.prepend("some-other-host", "monitor", { id: "l-host", at: nowIso(), source: "monitor", level: "info", text: "other host" });
+  st.leafLogsStore.prepend(hmId, "watchdog", { id: "w-own", at: nowIso(), source: "watchdog", level: "info", text: "watchdog's" });
+
+  const monLog = st.leafLogsStore.getState().byKey[kMon].list;
+  const wdLog = st.leafLogsStore.getState().byKey[kWd].list;
+  assert(monLog.length === 1 && monLog[0].id === "l-own",
     "leafLogsStore.prepend: a line from another leaf (or another host) is dropped — the shared topic never bleeds into the open leaf's journal");
+  assert(wdLog.length === 1 && wdLog[0].id === "w-own",
+    "leafLogsStore: two journals held at once each keep their OWN lines — the second reader does not blank the first");
+
+  // A journal nobody is holding takes nothing: the last release drops the key, and a still-open
+  // subscription must not resurrect a window for a console that is gone.
+  st.leafLogsStore.drop(hmId, "watchdog");
+  st.leafLogsStore.prepend(hmId, "watchdog", { id: "w-ghost", at: nowIso(), source: "watchdog", level: "info", text: "after release" });
+  assert(!st.leafLogsStore.getState().byKey[kWd],
+    "leafLogsStore.drop: releasing a journal frees its window, and a late frame does not recreate it");
+  st.leafLogsStore.drop(hmId, "monitor");
 
   // capabilities.patch over the FULL WS chain: a raw frame → adaptStreamMessage → dispatch → the always-on
   // per-host capabilities subscription (wired when the host hydrated) → mergeCapabilities. Proves the

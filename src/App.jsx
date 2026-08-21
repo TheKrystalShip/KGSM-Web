@@ -34,6 +34,12 @@ import { useRouteSync } from "./hooks/useRouteSync.js";
 import { useMobileSwipe } from "./hooks/useMobileSwipe.js";
 import { AppRouter } from "./components/AppRouter.jsx";
 
+// The widget catalog, registered at shell load. It MUST be eager: a pin lives on a card anywhere in
+// the panel and draws nothing for a type the registry does not hold, so registering it from the
+// (lazy) dashboard would mean no card is pinnable until you have visited the dashboard once. Every
+// entry's component is a dynamic import, so this costs the metadata and not the code.
+import "./pages/dashboard/catalog.js";
+
 // ChatPage is lazy-loaded for both the dock and the full-screen modal.
 const ChatPage = React.lazy(() => import("./pages/ChatPage.jsx"));
 

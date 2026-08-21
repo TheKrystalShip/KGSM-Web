@@ -40,7 +40,7 @@ import { sortByAccessor } from "../lib/sorting.js";
 // The card header (title / count / "View all") is only rendered when at least
 // one of title, count, or onViewAll is given — pass none to get a bare table
 // (just column heads + rows) that can sit under an external toolbar.
-function CardTable({ icon, title, count, onViewAll, viewAllLabel = "View all", columns, rows = [], getKey, max, defaultSort = null, rowClass, onRowClick, empty = "Nothing to show" }) {
+function CardTable({ icon, title, count, pin, onViewAll, viewAllLabel = "View all", columns, rows = [], getKey, max, defaultSort = null, rowClass, onRowClick, empty = "Nothing to show" }) {
   const [sort, setSort] = React.useState(defaultSort);
   const template = columns.map(c => c.width || "1fr").join(" ");
   const keyFor = (row, i) => (getKey ? getKey(row) : (row.id != null ? row.id : i));
@@ -64,12 +64,13 @@ function CardTable({ icon, title, count, onViewAll, viewAllLabel = "View all", c
 
   return (
     <div className="chat-brief card-table">
-      {(title != null || count != null || onViewAll) && (
+      {(title != null || count != null || onViewAll || pin) && (
         <div className="chat-brief__head">
           <span className="chat-brief__title">
             {icon && <Icon name={icon} size={13} />}{title}
             {count != null && <span className="chat-brief__count chat-brief__count--neutral">{count}</span>}
           </span>
+          {pin}
           {onViewAll && (
             <button className="dash-section__more" onClick={onViewAll}>
               {viewAllLabel} <Icon name="arrow-right" size={11} strokeWidth={2.2} />

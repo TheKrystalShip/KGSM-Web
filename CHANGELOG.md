@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.137.0] - 2026-08-21
+
+### Added — pin a card to your dashboard from the page it lives on
+
+`BriefCard`, `CardTable`, `KPI`, `ConsoleView` and `Rail` take an optional `pin` slot in their
+header — about a hundred card surfaces between the five of them. The panel passes `<PinButton/>`,
+which is a toggle: filled means this exact `(type, params)` is on the dashboard, and pressing it
+takes it off. It self-suppresses inside a widget, so a pinned card never offers to pin itself.
+
+The binding comes from where you are standing. Pinning the watchdog's journal pins THAT journal —
+`{ hostId, leafId }` frozen into the descriptor — which is why bound widgets are pinned from their
+own page and never offered by the Add-widget catalog: nothing in a list can know which leaf you
+meant. Live so far: a leaf's journal and a server's console.
+
+The `pin` is taken as a NODE rather than a descriptor, deliberately. `BriefCard` is in the
+standalone assistant's bundle and `PinButton` reaches `persona` through the dashboard store, so a
+`pin={{type, params}}` prop would force `BriefCard` to import it and fail `check:assistant`.
+
+### Changed — `leafLogsStore` is keyed by (host, leaf)
+
+It held one journal globally, which works while exactly one surface reads it and breaks the moment a
+card can be pinned: two journals side by side, or one pinned while its own page is open, had each
+`refresh` blank the other — silently, each console showing the wrong service's lines or none.
+
+It is `byKey[…]` now, with `lib/keyedResource.js` sharing one hydrate and one live subscription per
+key however many components hold it, and freeing the window on the last release. The transport
+underneath already ref-counted topics, so N journals on one node still cost one stream.
+
+### Fixed — the widget catalog is registered by the shell, not the dashboard
+
+It was imported by `DashboardPage`, which is lazy — so the registry was empty on every other page
+and every pin drew nothing until the dashboard had been opened once. `App.jsx` imports it eagerly;
+each entry's component is still a dynamic import, so this costs the metadata and not the code.
+
+### Fixed — a quiet journal can be pinned
+
+The pin only existed on the branch that had lines, so the journals you would most want to watch were
+the ones you could not pin. It is on the loading, quiet and error states too — dropped only for a
+leaf the host publishes no source for, where the widget could never say anything.
+
 ## [1.136.0] - 2026-08-21
 
 ### Added — the dashboard is a surface you compose

@@ -1,5 +1,6 @@
 import React from "react";
 import { Icon } from "./Icon.jsx";
+import { PinButton } from "./widgets/PinButton.jsx";
 import { ConsoleView } from "./ConsoleView.jsx";
 import { api } from "../lib/apiClient.js";
 import { sendConsoleInput } from "../lib/stores.js";
@@ -363,6 +364,8 @@ function ConsolePanel({ server, extraLines = [], readOnly }) {
       title="Console"
       lines={lines}
       pill={pill}
+      pin={<PinButton type="server.console" params={{ serverId: server && server.id }}
+        label={(server && server.name) || "this console"} />}
       loading={loading}
       footer={footer}
       onLoadEarlier={live && feed.hasEarlier ? feed.loadEarlier : null}

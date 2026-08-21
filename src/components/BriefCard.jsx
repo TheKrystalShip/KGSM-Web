@@ -17,6 +17,10 @@ import { Icon } from "./Icon.jsx";
 //                            qualify itself (a window, a floor)
 //   meta                   — optional muted sub-strip under the header (cadence,
 //                            retention, "5 of 10 slots used", …)
+//   pin                    — optional header-right NODE, rendered before the action.
+//                            The panel passes <PinButton …/>; this file must not import it —
+//                            BriefCard is in the standalone assistant's bundle and PinButton
+//                            reaches persona through the dashboard store (check:assistant).
 //   onViewAll, viewAllLabel— convenience right-side affordance ("View all →")
 //   action                 — custom header-right node; when provided it wins
 //                            over onViewAll (pass null for nothing)
@@ -24,7 +28,7 @@ import { Icon } from "./Icon.jsx";
 //   onToggle                 toggle and the body is unmounted when shut. Left
 //                            uncontrolled the card renders exactly as before.
 //   className, children
-function BriefCard({ icon, title, count, countTone, countTitle, meta, onViewAll, viewAllLabel = "View all", action,
+function BriefCard({ icon, title, count, countTone, countTitle, meta, pin, onViewAll, viewAllLabel = "View all", action,
   collapsible = false, open = true, onToggle, className = "", children }) {
   const right = action !== undefined
     ? action
@@ -45,6 +49,7 @@ function BriefCard({ icon, title, count, countTone, countTitle, meta, onViewAll,
             title={countTitle}>{count}</span>
         )}
       </span>
+      {pin}
       {right}
       {collapsible && <Icon name="chevron-down" size={16} className="chat-brief__chev" />}
     </>
