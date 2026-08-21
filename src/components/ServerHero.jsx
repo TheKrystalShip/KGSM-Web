@@ -1,5 +1,6 @@
 import { Icon } from "./Icon.jsx";
 import { ServerActionButton, verbGuard } from "./ServerActions.jsx";
+import { PinButton } from "./widgets/PinButton.jsx";
 import { ServerConnect } from "./ServerConnect.jsx";
 import { serverCapUsable } from "../lib/capabilities.js";
 import { serverOperable } from "../lib/persona.js";
@@ -90,6 +91,10 @@ function ServerHero({ server, onAction }) {
               <Icon name={server.runtime === "container" ? "box" : "cpu"} size={12} strokeWidth={2} /> {server.runtime}
             </span>
           )}
+          {/* Pins the server's CARD, not the hero: a banner this size belongs at the top of a page,
+              and ServerTile is the component built for a grid. Reads as "keep this one in front of
+              me", which is what somebody pinning from here means. */}
+          <PinButton type="server.card" params={{ serverId: server.id }} label={server.name} />
         </div>
         {/* Frosted control bar: lifecycle actions (operators) on the left, a
             divider, then the connect/Join group on the right. Players see only

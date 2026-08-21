@@ -3,6 +3,7 @@ import { CardTable } from "../components/CardTable.jsx";
 import { BriefCard } from "../components/BriefCard.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { PlayerModeration } from "../components/PlayerModeration.jsx";
+import { PinButton } from "../components/widgets/PinButton.jsx";
 import { usePlayerRoster } from "../lib/hooks/usePlayerRoster.js";
 import { moderatePlayer } from "../lib/stores.js";
 
@@ -91,6 +92,11 @@ function PlayersTab({ server, readOnly, roster }) {
   const internalRoster = usePlayerRoster(server);
   const state = roster || internalRoster;
 
+  // On every branch, including the ones with nobody on: a roster you want on your dashboard is
+  // often an empty one you are waiting to fill.
+  const pin = <PinButton type="server.players" params={{ serverId: server && server.id }}
+    label={((server && server.name) || "this server") + "'s players"} />;
+
   // The action in flight, as { playerIdentity, action } — one at a time, so a
   // double-click can't fire two moderation calls at the same player.
   const [busy, setBusy] = React.useState(null);
@@ -120,7 +126,7 @@ function PlayersTab({ server, readOnly, roster }) {
 
   if (state.status === "loading") {
     return (
-      <BriefCard icon="users" title="Players">
+      <BriefCard icon="users" title="Players" pin={pin}>
         <PlayersEmpty icon="loader-2" title="Loading roster…" sub="Fetching the player roster." />
       </BriefCard>
     );
@@ -128,7 +134,7 @@ function PlayersTab({ server, readOnly, roster }) {
 
   if (state.status === "error") {
     return (
-      <BriefCard icon="users" title="Players">
+      <BriefCard icon="users" title="Players" pin={pin}>
         <PlayersEmpty icon="alert-triangle" title="Couldn't load the roster"
           sub={(state.error && (state.error.userMessage || state.error.message)) || "An error occurred."} />
       </BriefCard>
@@ -137,7 +143,7 @@ function PlayersTab({ server, readOnly, roster }) {
 
   if (state.detection === "unknown") {
     return (
-      <BriefCard icon="users" title="Players">
+      <BriefCard icon="users" title="Players" pin={pin}>
         <PlayersEmpty icon="circle-help" title="Presence not available for this game"
           sub="This game has no join/leave detection configured yet, so who's played can't be tracked here." />
       </BriefCard>
@@ -147,7 +153,7 @@ function PlayersTab({ server, readOnly, roster }) {
   const { players } = state;
   if (players.length === 0) {
     return (
-      <BriefCard icon="users" title="Players">
+      <BriefCard icon="users" title="Players" pin={pin}>
         <PlayersEmpty icon="users" title="No players yet"
           sub="Once someone connects, they'll show up here permanently." />
       </BriefCard>
@@ -213,7 +219,7 @@ function PlayersTab({ server, readOnly, roster }) {
 
   return (
     <div className={"players-tab" + (canModerate ? " players-tab--actions" : "")}>
-      <CardTable icon="users" title="Players" count={players.length}
+      <CardTable icon="users" title="Players" count={players.length} pin={pin}
         columns={columns} rows={players} getKey={(p) => p.playerIdentity}
         defaultSort={{ key: "status", dir: "asc" }} empty="No players match." />
       {err ? (

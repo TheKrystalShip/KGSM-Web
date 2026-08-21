@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.140.0] - 2026-08-21
+
+### Added — a server's card, players, performance and console are pinnable
+
+Four surfaces from the server-detail page, bound to the server they were pinned from: `server.card`
+(pinned from the hero — a banner that size belongs at the top of a page, and `ServerTile` is the
+component built for a grid), `server.players`, `server.performance` and `server.console`. All four
+were already instance-safe, so they are wrappers that resolve an id against the live roster and
+nothing else.
+
+### Fixed — a widget bound to something deleted says so, and can be removed
+
+The existence check is the host's, not the component's: a card renders the same wherever it is
+mounted and cannot offer to remove itself from a dashboard. It reports "gone" in its own words; the
+affordance to act on it lives on the widget.
+
+Checked **before** permission, which is what made the node case work at all — `canOn(cap, node)` is
+false for a node the panel no longer holds, so asking permission first hid the widget with no
+explanation and no way to remove it. There is nothing to protect: the id is one the person put in
+their own layout.
+
+`WidgetHost` also subscribes to the roster now rather than reading it once, so the capability gate
+and the existence check settle when the data lands instead of keeping whatever they decided first.
+
+### Fixed — a widget returning several roots no longer stretches its control rows
+
+`.widget__body > *` gave every root `flex: 1`, so a component returning a fragment — the Performance
+tab is a range selector above a chart grid — had the cell split evenly between them, inflating a
+36px control row to a third of the widget. Only the last child takes the slack.
+
 ## [1.139.0] - 2026-08-21
 
 ### Added — the twelve glance figures are twelve widgets

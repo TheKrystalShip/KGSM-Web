@@ -1,6 +1,7 @@
 import React from "react";
 import { Icon } from "../components/Icon.jsx";
 import { detectAnomalies, ChartHoverProvider } from "../components/TimeSeriesChart.jsx";
+import { PinButton } from "../components/widgets/PinButton.jsx";
 import { adaptServerMetrics, subscribeServerMetrics, fetchServerMetricsHistory, fetchServerEvents } from "../lib/stores.js";
 import { BUFFER_CAP, STALE_MS, NO_SOURCE_MS, RANGE_MS, KiB, MiB, GiB, rowsToEvents, fmtBytes, fmtBps, seriesStats, fmtZoomRange } from "./performance/perfHelpers.js";
 import { MetricChartCard, RangeSelector, EmptyPerf } from "./performance/PerfCards.jsx";
@@ -35,6 +36,10 @@ function PerformanceTab({ server, onAsk }) {
     <>
       <div className="players-toolbar">
         <RangeSelector range={range} setRange={setRange} />
+        {/* This tab has no card header of its own — the charts below each have theirs — so the pin
+            rides the range row. It pins the tab, not one chart. */}
+        <PinButton type="server.performance" params={{ serverId: server && server.id }}
+          label={((server && server.name) || "this server") + "'s performance"} />
       </div>
       {range === "live"
         ? <LiveMetrics server={server} stopped={stopped} />

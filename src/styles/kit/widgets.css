@@ -139,10 +139,18 @@
 }
 
 /* A widget's card fills the cell it was given, so two widgets on one row line up
-   at the bottom regardless of how much each has to say. */
+   at the bottom regardless of how much each has to say.
+   Only the LAST child grows. A component may return a fragment with several roots —
+   the Performance tab is a range selector above a chart grid — and stretching every
+   one of them split the cell evenly, inflating a 36px control row to a third of the
+   widget. The content that should take the slack is the one at the end. */
 .widget__body > * {
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 0;
+}
+
+.widget__body > :last-child {
+  flex: 1;
 }
 
 /* While arranging, the card underneath must not swallow the drag or respond to a
@@ -558,4 +566,34 @@
   width: 26px;
   height: 26px;
   border-color: var(--border-1);
+}
+
+/* The pin on the server hero sits among the glass tags over cover art, so it
+   takes the hero's own frosted treatment rather than the header-quiet one — a
+   transparent button on a photograph is invisible at any opacity. */
+.hero__heading .pin-btn {
+  opacity: 1;
+  width: 24px;
+  height: 24px;
+  background: var(--scrim-media);
+  border-color: transparent;
+  color: var(--fg-inverse);
+  backdrop-filter: blur(6px);
+}
+
+.hero__heading .pin-btn:hover {
+  background: var(--scrim-media);
+  color: var(--fg-inverse);
+}
+
+.hero__heading .pin-btn--on {
+  color: var(--krystal-teal);
+}
+
+/* The Performance tab's range row and the Services toolbar both put the pin at
+   the end of a control row rather than in a card header. */
+.players-toolbar .pin-btn,
+.toolbar .pin-btn {
+  opacity: 1;
+  margin-left: auto;
 }

@@ -4,7 +4,8 @@ import { Icon } from "../Icon.jsx";
 import { ErrorBoundary } from "../ErrorBoundary.jsx";
 import { can, canOn } from "../../lib/persona.js";
 import { getWidget, paramsComplete, widgetTitle } from "../../lib/widgets/registry.js";
-import { serversStore } from "../../lib/stores.js";
+import { hostsStore, serversStore } from "../../lib/stores.js";
+import { useStore } from "../../lib/store.js";
 
 // WidgetHost — everything a pinned card should NOT have to own.
 //
@@ -57,6 +58,28 @@ function widgetPermitted(entry, params) {
   return can(entry.cap);
 }
 
+// Does the thing this widget names still exist?
+//
+// Distinct from `paramsComplete`, which asks only whether the descriptor has the right SHAPE. This
+// asks the live roster, and it is the host's job rather than the component's: a card renders the
+// same wherever it is mounted and has no idea it is a widget, so it cannot offer to remove itself
+// from a dashboard. It reports "gone" in its own words; the affordance to act on that is here.
+//
+// `null` means "cannot say yet" — before the roster lands, absent is UNKNOWN, and claiming a server
+// was deleted on every cold load would be worse than waiting a beat.
+function targetExists(entry, params, servers, hosts, serversLoaded, hostsLoaded) {
+  const p = params || {};
+  if (entry.scope === "server" && p.serverId) {
+    if (!serversLoaded) return null;
+    return servers.some(x => x.id === p.serverId);
+  }
+  if (entry.scope === "host" && p.hostId) {
+    if (!hostsLoaded) return null;
+    return hosts.some(x => x.id === p.hostId);
+  }
+  return true;
+}
+
 // ---- The unavailable states ----------------------------------------------
 // One shape for every "there is nothing to render, and here is why". It reuses `proc-unavailable`,
 // which the leaf pages already use for exactly this — a surface that cannot answer, saying so.
@@ -102,6 +125,14 @@ function WidgetBody({ entry, descriptor }) {
 ///   onGripDown  pointer-down on the drag grip (the grid owns the drag itself)
 ///   onResize    pointer-down on a resize handle: (edge, event)
 function WidgetHost({ descriptor, editing, onRemove, onGripDown, onResize }) {
+  // Subscribed rather than read once: the capability gate and the existence check both depend on
+  // the roster, which lands after the first render. Reading these without subscribing left a widget
+  // showing whatever it decided before its target was known.
+  const servers = useStore(serversStore, s => s.list);
+  const hosts = useStore(hostsStore, s => s.list);
+  const serversLoaded = useStore(serversStore, s => s.everLoaded);
+  const hostsLoaded = useStore(hostsStore, s => s.everLoaded);
+
   const entry = getWidget(descriptor.type);
   const params = descriptor.params || {};
 
@@ -119,6 +150,27 @@ function WidgetHost({ descriptor, editing, onRemove, onGripDown, onResize }) {
     );
   }
 
+  // Bound to something that is no longer there. The component says so too, in its own words, but
+  // only the host can offer to take the widget off the dashboard.
+  //
+  // Checked BEFORE permission, deliberately. `canOn(cap, node)` is false for a node this panel no
+  // longer holds, so asking permission first hid the widget with no explanation and no way to remove
+  // it — and there is nothing to protect: the id is one the person put in their own layout.
+  const exists = targetExists(entry, params, servers, hosts, serversLoaded, hostsLoaded);
+  if (exists === false) {
+    return (
+      <div className="widget widget--unavailable">
+        <WidgetUnavailable
+          icon="unlink"
+          title={"\u201C" + (params.serverId || params.hostId) + "\u201D is gone"}
+          sub={entry.scope === "server"
+            ? "No server by that name is on this cluster any more, so there is nothing for this widget to show."
+            : "This panel no longer connects to that node, so there is nothing for this widget to read."}
+          tag="no longer here" onRemove={onRemove} />
+      </div>
+    );
+  }
+
   // Not permitted. Renders NOTHING — not a locked placeholder, which would leak both that the thing
   // exists and what it is called. It stays in the stored layout on purpose: a role is per host and
   // can be restored, and silently dropping widgets on a demotion would mean a re-promoted admin
@@ -127,8 +179,7 @@ function WidgetHost({ descriptor, editing, onRemove, onGripDown, onResize }) {
 
   const title = widgetTitle(entry, descriptor);
 
-  // Bound to nothing, or half-bound. Distinct from "the server was deleted", which the component
-  // itself reports from live data — this one is about the DESCRIPTOR, and no fetch will fix it.
+  // Bound to nothing, or half-bound: a fact about the DESCRIPTOR that no fetch will fix.
   const incomplete = !paramsComplete(entry, params);
 
   return (

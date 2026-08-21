@@ -141,7 +141,7 @@ registerWidget({
   params: ["serverId"],
   describe: (p) => (p.serverId || "server") + " · console",
   size: { w: 6, h: 5, minW: 4, minH: 3 },
-  load: () => import("./widgets/ServerConsoleWidget.jsx").then(m => m.ServerConsoleWidget),
+  load: () => import("./widgets/ServerWidgets.jsx").then(m => m.ServerConsoleWidget),
 });
 
 registerWidget({
@@ -169,3 +169,20 @@ registerWidget({
   size: { w: 12, h: 5, minW: 6, minH: 3 },
   load: () => import("./widgets/NodeWidgets.jsx").then(m => m.HostServicesWidget),
 });
+
+const SERVER_WIDGET = (type, label, icon, comp, size) => registerWidget({
+  type, label, icon,
+  group: "Servers",
+  // Per SERVER, which resolves to per host: an operator on one node must not reach another node's
+  // server because they hold the verb somewhere. WidgetHost looks the server's host up to decide.
+  cap: "server.operate",
+  scope: "server",
+  params: ["serverId"],
+  describe: (p) => (p.serverId || "server") + " \u00b7 " + label.toLowerCase(),
+  size,
+  load: () => import("./widgets/ServerWidgets.jsx").then(m => m[comp]),
+});
+
+SERVER_WIDGET("server.card", "Server", "server", "ServerCardWidget", { w: 3, h: 4, minW: 2, minH: 3 });
+SERVER_WIDGET("server.players", "Players", "users", "ServerPlayersWidget", { w: 6, h: 4, minW: 4, minH: 3 });
+SERVER_WIDGET("server.performance", "Performance", "activity", "ServerPerformanceWidget", { w: 12, h: 5, minW: 6, minH: 4 });
