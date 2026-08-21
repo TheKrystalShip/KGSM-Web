@@ -433,7 +433,7 @@
   text-align: center;
   gap: 8px;
   padding: 64px 24px;
-  border: 1px dashed var(--border-1);
+  border: 1px dashed var(--border-strong);
   border-radius: var(--r-md);
   background: var(--surface-1);
 }
@@ -581,7 +581,7 @@
   opacity: 1;
   width: 26px;
   height: 26px;
-  border-color: var(--border-1);
+  border-color: var(--border-strong);
 }
 
 /* The pin on the server hero sits among the glass tags over cover art, so it
@@ -643,7 +643,7 @@
    the dashboard, not the button's mode. */
 .widget-catalog__count {
   margin-left: 6px;
-  font-size: var(--fs-xs);
-  color: var(--fg-muted);
+  font-size: 11px;
+  color: var(--fg-3);
   font-variant-numeric: tabular-nums;
 }

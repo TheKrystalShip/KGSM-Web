@@ -69,6 +69,38 @@ the next row — the array slot whose occupant would sit in that space.
 registering from there leaves the registry empty everywhere else and every pin silently draws
 nothing until the dashboard has been opened once.
 
+## `palette/` — ⌘K onto everything the panel can reach
+
+`CommandPalette.jsx` is mounted once by `App.jsx` and renders nothing until the hotkey fires; it owns
+the hotkey itself rather than being handed one, so the shell does not have to know it exists. Anything
+else can raise it with `paletteStore.open()`.
+
+**It never invents a code path.** `palette/sources.js` builds every entry from stores the SPA already
+holds, and a lifecycle verb there runs `runServerAction` gated by `verbGuard` — the same pair a server
+card's button uses. A verb refused on the card is refused here in the same sentence, rollback works the
+same way, and the audit row comes from the same place. The palette is a second **door** onto existing
+capability, never a second implementation of it. That is also what makes it cheap: it is an index and
+a keyboard over things that already work.
+
+⚠ **Permission is applied when entries are BUILT, not at render.** An entry a role may not act on is
+never constructed, so it cannot be matched, ranked, arrowed onto or run. Navigation asks `can`,
+anything scoped to one node asks `canOn` — "aggregate for reach, scoped for action", as everywhere.
+
+`palette/score.js` is the matcher: subsequence, not substring, so `mcsrv` finds `minecraft_survival`.
+It **imports nothing**, deliberately — ranking is exactly the kind of logic that rots silently, and
+being import-free means it can be asserted straight out of the module graph without a browser.
+
+Two behaviours worth not breaking. A **destructive verb always arms**, whether or not anyone is
+connected — one rule, nothing to reason about before pressing a key — and it lapses after the same
+interval as `useConfirmAction`, so the pause learned on a card is the pause here. And **a theme
+previews live while writing nothing**: arrowing sets `data-theme` on the document, `↵` calls
+`themeStore.set`, Escape puts the stored one back.
+
+The chin's type and keycaps are `.chat-cmdmenu__hint`'s, value for value — the slash-command menu is
+the panel's other command surface and the two read as one family. Its left half names what `↵` will
+do, which is what earns it the height: it is where a destructive verb's consequence gets stated in
+full without crowding the row.
+
 ## `<Rail>` — the horizontal shelf
 
 `Rail.jsx` renders a brief card whose body is a scroll-snapped row of `items`: the

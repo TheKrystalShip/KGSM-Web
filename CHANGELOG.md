@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Command palette
+
+- **⌘K / Ctrl-K opens a search over everything the panel can reach** — routes, every server and its
+  tabs, lifecycle verbs, leaves, the blueprint catalog, settings sections and all 49 themes. About
+  200 entries, all from stores the SPA already holds; nothing here fetches and no backend work was
+  needed.
+- Matching is **subsequence, not substring**, so `mcsrv` finds `minecraft_survival`. Ranking favours
+  earlier matches, word boundaries and contiguous runs, and groups appear where their best member
+  landed rather than in a fixed order.
+- **`→` scopes into a server** — its tabs and verbs and nothing else — and `⌫` leaves. Both keys keep
+  their ordinary job until it would do nothing, so `→` still moves the caret while there is text to
+  move through.
+- A verb the server refuses renders **disabled with its reason**, the same `verbGuard` contract the
+  cards follow. A destructive verb **always arms**, whether or not anyone is connected.
+- **A theme previews live and stores nothing** while arrowing; `↵` commits, `Esc` puts it back.
+- A query that matches nothing says so and offers nothing else.
+- Permission is applied when entries are built, so an entry a role may not act on never exists.
+
+### Fixed
+
+- Eight undefined CSS custom-property references (`--border-1`, `--fs-xs`, `--fg-muted`) that shipped
+  with the composable dashboard. An undefined property is invalid at computed-value time, so those
+  borders were falling back to `currentColor` and the widget count badge to its inherited size.
+  `npm run check:tokens` is green again.
+
 ### Dashboard layout
 
 - A row's spare tail is a **drop target**. Dragging a widget over empty space lands it there, with the

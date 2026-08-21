@@ -141,7 +141,7 @@
   position: relative;
   border-radius: 3px;
   background: var(--surface-3);
-  border: 1px solid var(--border-1);
+  border: 1px solid var(--border-strong);
 }
 
 /* ---- 1 · the grid assembling ------------------------------------------ */
@@ -186,7 +186,7 @@
   font-weight: 700;
   background: var(--surface-3);
   color: var(--fg-2);
-  border: 1px solid var(--border-1);
+  border: 1px solid var(--border-strong);
 }
 
 .wtour__btn--accent {
@@ -210,7 +210,7 @@
 @keyframes wtour-appear {
   0%, 38% { opacity: 0; transform: scale(0.7); border-color: var(--krystal-teal); }
   50% { opacity: 1; transform: scale(1.04); border-color: var(--krystal-teal); }
-  60%, 100% { opacity: 1; transform: scale(1); border-color: var(--border-1); }
+  60%, 100% { opacity: 1; transform: scale(1); border-color: var(--border-strong); }
 }
 
 /* An empty slot, not a highlight: dimmer than the real cards rather than louder.
@@ -309,7 +309,7 @@
   height: 26px;
   border-radius: 3px;
   background: var(--surface-3);
-  border: 1px solid var(--border-1);
+  border: 1px solid var(--border-strong);
 }
 
 .wtour__pin {
@@ -354,9 +354,9 @@
 }
 
 @keyframes wtour-landed {
-  0%, 60% { border-color: var(--border-1); background: var(--surface-3); }
+  0%, 60% { border-color: var(--border-strong); background: var(--surface-3); }
   68% { border-color: var(--krystal-teal); background: var(--surface-3); }
-  90%, 100% { border-color: var(--border-1); background: var(--surface-3); }
+  90%, 100% { border-color: var(--border-strong); background: var(--surface-3); }
 }
 
 /* ---- The cursor -------------------------------------------------------- */

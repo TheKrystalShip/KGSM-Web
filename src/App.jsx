@@ -20,6 +20,7 @@ import { sessionStore } from "./lib/sessionStore.js";
 import { useStore } from "./lib/store.js";
 import { hostsStore, installServer, libraryStore, serversStore, servicesStore, startDataLayer, stopDataLayer } from "./lib/stores.js";
 import { AddHostPage } from "./pages/HostAccess.jsx";
+import { CommandPalette } from "./components/palette/CommandPalette.jsx";
 import { FirstRunWelcome, hasSeenWelcome } from "./pages/FirstRunWelcome.jsx";
 import AssistantFabIcon from "./components/AssistantFabIcon.jsx";
 import { Modal } from "./components/Modal.jsx";
@@ -443,6 +444,10 @@ function AppInner({ user, setUser, route, setRoute }) {
       )}
 
       <Toasts />
+
+      {/* Mounted once, renders nothing until ⌘K. It owns the hotkey itself rather than being
+          handed one, so nothing in the shell has to know it exists. */}
+      <CommandPalette />
 
       {showWelcome && (
         <FirstRunWelcome user={user} onClose={() => setShowWelcome(false)} />

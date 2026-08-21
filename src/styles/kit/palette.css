@@ -1,0 +1,352 @@
+/* ============================================================
+   COMMAND PALETTE — ⌘K onto everything the panel can reach.
+
+   Density and radius are the agreed spec: rows at 6/9 with an explicit
+   line-height (the inherited 1.6 is what made every list row 60px), and
+   --r-sm on the shell, the rows, the icon tiles and the keycaps. Status
+   chips keep --r-pill, which is what the kit uses it for everywhere else.
+
+   The chin's type and keycaps are .chat-cmdmenu__hint's, value for value —
+   that menu is the panel's other command surface and the two read as one
+   family. The --surface-0 fill is the single addition: this is a far bigger
+   surface than that little menu, and a hairline alone reads as one more row.
+   ============================================================ */
+
+.kp-scrim {
+  /* Sits above the app frame but below nothing else — the palette is the
+     frontmost thing in the panel while it is open. */
+  align-items: flex-start;
+  padding-top: 14vh;
+}
+
+.kp {
+  /* Every density value in one place, so the whole component can be re-tuned
+     from here without hunting through rules. */
+  --kp-pad-q: 11px 14px;
+  --kp-pad-list: 5px;
+  --kp-pad-row: 6px 9px;
+  --kp-gap-row: 9px;
+  --kp-ico: 24px;
+  --kp-pad-grp: 8px 9px 4px;
+  --kp-pad-chin: 7px 12px;
+
+  width: 640px;
+  max-width: 100%;
+  background: var(--surface-1);
+  border: var(--edge-strong);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  /* The list scrolls, not the dialog: the search row and the chin stay put
+     while results move under them. */
+  max-height: min(560px, 72vh);
+}
+
+/* ---- search row -------------------------------------------------------- */
+
+.kp__q {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: var(--kp-pad-q);
+  border-bottom: 1px solid var(--border-subtle);
+  flex: 0 0 auto;
+}
+
+.kp__qico {
+  color: var(--fg-3);
+  flex: 0 0 auto;
+}
+
+.kp__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  outline: none;
+  padding: 0;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--fg-1);
+}
+
+.kp__input::placeholder {
+  color: var(--fg-4);
+}
+
+/* The input never carries its own highlight. The whole dialog is the focus
+   context — it is the only focusable thing when the palette opens — so the
+   universal :focus-visible ring (tokens.css) would draw a glow inside a box
+   that is already the only thing on screen. Same suppression, and the same
+   reason, as .toolbar__search input. */
+.kp__input:focus,
+.kp__input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.kp__count {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1;
+  color: var(--fg-4);
+  white-space: nowrap;
+}
+
+/* The scoped server, as a chip. --r-pill because it IS a chip, and the kit
+   uses that radius for chips 164 times. */
+.kp__scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 3px 9px;
+  border-radius: var(--r-pill);
+  background: var(--krystal-teal-dim);
+  border: var(--edge-accent);
+  color: var(--krystal-teal);
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 620;
+}
+
+/* ---- results ----------------------------------------------------------- */
+
+.kp__list {
+  padding: var(--kp-pad-list);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.kp__grp {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.2;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-4);
+  padding: var(--kp-pad-grp);
+}
+
+.kp__row {
+  display: flex;
+  align-items: center;
+  gap: var(--kp-gap-row);
+  width: 100%;
+  padding: var(--kp-pad-row);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--fg-1);
+  text-align: left;
+  cursor: pointer;
+  /* The pointer follows the keyboard rather than fighting it: hover sets the
+     cursor, so there is only ever one selected row and one way to read it. */
+}
+
+.kp__row--on {
+  background: var(--surface-3);
+}
+
+.kp__row--armed {
+  box-shadow: inset 0 0 0 1px var(--danger-fg);
+}
+
+.kp__row--off {
+  opacity: 0.44;
+  cursor: not-allowed;
+}
+
+.kp__row:focus-visible {
+  outline: 2px solid var(--krystal-teal);
+  outline-offset: -2px;
+}
+
+.kp__ico {
+  flex: 0 0 auto;
+  width: var(--kp-ico);
+  height: var(--kp-ico);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-sm);
+  background: var(--surface-3);
+  color: var(--fg-2);
+}
+
+.kp__row--on .kp__ico {
+  background: var(--krystal-teal);
+  color: var(--on-accent);
+}
+
+.kp__b {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ⚠ The line-height is stated, NOT inherited. The page sets 1.6, which on a
+   13.5px title is a 22px line box before any padding — that alone was most of
+   the height this component used to spend per row. */
+.kp__t {
+  font-size: 13.5px;
+  line-height: 1.35;
+  font-weight: 580;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kp__t mark {
+  background: none;
+  color: var(--krystal-teal);
+  font-weight: 700;
+}
+
+.kp__s {
+  font-size: 11.5px;
+  line-height: 1.3;
+  color: var(--fg-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kp__s--warn {
+  color: var(--warning-fg);
+}
+
+.kp__hint {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1;
+  color: var(--fg-4);
+}
+
+.kp__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  padding: 2.5px 8px;
+  border-radius: var(--r-pill);
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 640;
+  white-space: nowrap;
+}
+
+.kp__pill--run { background: var(--success-bg); color: var(--success-fg); }
+.kp__pill--stop { background: var(--surface-3); color: var(--fg-3); }
+.kp__pill--busy { background: var(--update-bg); color: var(--update-fg); }
+.kp__pill--arm { background: var(--danger-bg); color: var(--danger-fg); }
+
+.kp__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
+.kp__swatch {
+  display: inline-flex;
+  gap: 3px;
+  flex: 0 0 auto;
+}
+
+.kp__swatch i {
+  width: 10px;
+  height: 14px;
+  border-radius: var(--r-sm);
+  display: block;
+}
+
+.kp__empty {
+  padding: 30px 18px 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-align: center;
+}
+
+.kp__empty b { font-size: 13.5px; color: var(--fg-2); font-weight: 560; }
+.kp__empty span { font-size: 12px; color: var(--fg-4); }
+
+/* ---- the chin ---------------------------------------------------------- */
+
+.kp__chin {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: var(--kp-pad-chin);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-0);
+  font-size: 10.5px;
+  line-height: 1.7;
+  color: var(--fg-4);
+  flex: 0 0 auto;
+  /* Fixed height: the left half changes with the selection, and a chin that
+     grew a line as you arrowed would resize the dialog under the cursor. */
+  min-height: 32px;
+}
+
+.kp__chin kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 0 3px;
+  margin-right: 4px;
+  border: var(--edge-strong);
+  border-radius: 3px;
+  color: var(--fg-3);
+}
+
+.kp__act {
+  color: var(--fg-2);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kp__act--warn,
+.kp__act--warn kbd {
+  color: var(--warning-fg);
+}
+
+.kp__sp { flex: 1; }
+
+.kp__rest {
+  flex: 0 0 auto;
+  color: var(--fg-4);
+  white-space: nowrap;
+}
+
+/* ---- narrow ------------------------------------------------------------ */
+
+@media (max-width: 640px) {
+  .kp-scrim {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .kp {
+    width: 100%;
+    max-height: 100%;
+    border: 0;
+    border-radius: 0;
+  }
+
+  /* No keyboard to hint at, so the chin keeps only the consequence. */
+  .kp__rest { display: none; }
+}
