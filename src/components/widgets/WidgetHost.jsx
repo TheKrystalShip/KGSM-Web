@@ -139,17 +139,18 @@ function WidgetHost({ descriptor, editing, onRemove, onGripDown, onResize }) {
             <button
               type="button"
               className="widget__grip"
+              title={"Move " + title}
               data-hswipe=""
               aria-label={"Move " + title + " — drag, or use the arrow keys"}
-              title="Drag to move"
               onPointerDown={(e) => onGripDown && onGripDown(descriptor.i, e)}
             >
               <Icon name="grip-vertical" size={14} strokeWidth={2} />
             </button>
           )}
-          <span className="widget__title">
-            {entry.icon && <Icon name={entry.icon} size={12} />} {title}
-          </span>
+          {/* No title. Every card in the panel draws its own header, so a title here would name each
+              widget twice — and the card cannot be asked to drop its header, because it renders the
+              same wherever it is mounted (the canon above). The name still reaches a screen reader
+              through the two controls' labels. */}
           {editing && onRemove && (
             <button type="button" className="widget__unpin" onClick={onRemove}
               aria-label={"Remove " + title + " from the dashboard"} title="Remove from dashboard">

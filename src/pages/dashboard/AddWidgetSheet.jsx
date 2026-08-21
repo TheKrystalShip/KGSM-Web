@@ -24,6 +24,7 @@ function AddWidgetSheet({ onClose }) {
 
   // Only what this role may actually see, and only what needs no binding.
   const offered = allWidgets()
+    .filter(e => !e.hidden)
     .filter(e => !e.params || e.params.length === 0)
     .filter(e => widgetPermitted(e, {}));
 

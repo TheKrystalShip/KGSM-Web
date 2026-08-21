@@ -2,6 +2,7 @@
 
 import { Icon } from "../../components/Icon.jsx";
 import { ConsoleView } from "../../components/ConsoleView.jsx";
+import { PinButton } from "../../components/widgets/PinButton.jsx";
 import { useStore } from "../../lib/store.js";
 import { useKeyedResource } from "../../lib/keyedResource.js";
 import { logSourcesStore, logsStore, subscribeHostLogs } from "../../lib/stores.js";
@@ -37,7 +38,9 @@ function DiagLogs({ host }) {
   });
 
   if (sources.length > 0)
-    return <ConsoleView title="Host logs" icon="scroll-text" sources={sources} pill={{ label: "Live", live: true }} resetKey={hostId} />;
+    return <ConsoleView title="Host logs" icon="scroll-text" sources={sources} pill={{ label: "Live", live: true }}
+      pin={<PinButton type="host.logs" params={{ hostId }} label="this node's journal" />}
+      resetKey={hostId} />;
 
   const phase = (status === "loading" || !ready || !sourcesReady) ? "loading" : status === "error" ? "error" : "quiet";
   return (

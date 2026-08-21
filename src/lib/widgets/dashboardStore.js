@@ -23,8 +23,16 @@ const LEGACY_ORDER_KEY = "krystal:dash:order";
 //
 // Order is the reading order of the page it replaces: what is happening, what needs me, then the
 // things to browse.
+// The twelve tiles are listed individually rather than as one block, because that is what the
+// dashboard IS now — twelve things somebody can reorder and remove one at a time. At w:2 they read
+// six across on a wide screen, which is the shape the band always had.
+const SUMMARY_TILES = [
+  "tile.running", "tile.playersNow", "tile.playersWeek", "tile.played", "tile.uptime", "tile.timeToReady",
+  "tile.drift", "tile.crashes", "tile.updates", "tile.oldestBackup", "tile.scheduleFails", "tile.services",
+];
+
 const DEFAULT_LAYOUT = [
-  { type: "fleet.summary", w: 12, h: 2 },
+  ...SUMMARY_TILES.map(type => ({ type, w: 2, h: 1 })),
   { type: "fleet.capacity", w: 12, h: 4 },
   { type: "alerts.latest", w: 6, h: 4 },
   { type: "activity.recent", w: 6, h: 4 },
@@ -67,7 +75,7 @@ function writeStored(layout) {
 // width. Somebody who arranged their bands keeps that arrangement instead of being reset to the
 // default the first time they load a build that has widgets.
 const LEGACY_BAND_TYPE = {
-  summary: "fleet.summary",
+  summary: SUMMARY_TILES[0],   // the band expands into all twelve; see takeSummary
   capacity: "fleet.capacity",
   feed: null,                    // one band held two cards; they arrive as the two of them
   recent: "library.catalog",
@@ -90,6 +98,9 @@ function migrateLegacy() {
   };
   for (const id of order) {
     if (id === "feed") { take("alerts.latest"); take("activity.recent"); continue; }
+    // The summary band was one draggable thing and is now twelve; it expands in place, so the
+    // arrangement around it is kept and the figures land where the band was.
+    if (id === "summary") { SUMMARY_TILES.forEach(take); continue; }
     const t = LEGACY_BAND_TYPE[id];
     if (t) take(t);
   }
@@ -105,10 +116,31 @@ const dashboardStore = createStore({ layout: [], hydrated: false });
 
 /// Load the layout. Called by the dashboard on mount rather than at import, because the seed reads
 /// the persona and there is no role to read until there is a session.
+// A layout written before the summary was split holds one `fleet.summary`. Expand it in place into
+// the twelve tiles rather than leaving somebody with a block they cannot take apart — the figures
+// are identical and they land exactly where the block was. The type stays registered either way, so
+// nothing breaks if this is ever skipped.
+function expandSummary(layout) {
+  if (!layout.some(w => w.type === "fleet.summary")) return layout;
+  const held = new Set(layout.map(w => w.type));
+  const out = [];
+  for (const w of layout) {
+    if (w.type !== "fleet.summary") { out.push(w); continue; }
+    for (const type of SUMMARY_TILES) {
+      if (held.has(type)) continue;   // already placed by hand — don't add a second
+      out.push(makeWidget(type, {}, { w: 2, h: 1 }));
+    }
+  }
+  return out;
+}
+
 dashboardStore.hydrate = () => {
   const stored = readStored();
   if (stored) {
-    dashboardStore.setState({ layout: normalizeLayout(stored, hasWidget), hydrated: true });
+    const layout = expandSummary(normalizeLayout(stored, hasWidget));
+    dashboardStore.setState({ layout, hydrated: true });
+    // Written back so the expansion happens once rather than on every load.
+    writeStored(layout);
     return;
   }
   const migrated = migrateLegacy();

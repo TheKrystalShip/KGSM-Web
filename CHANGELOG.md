@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.139.0] - 2026-08-21
+
+### Added — the twelve glance figures are twelve widgets
+
+Each summary tile is placeable alone, so a dashboard can carry exactly the numbers somebody cares
+about and the Add-widget catalog can offer a single figure. At `w: 2` they read 6, 4, 3 and 2 across
+the breakpoint ladder — the band's original shape, now as twelve things that move and resize
+independently.
+
+The figures stay derived in one place (`fleetKpis.js`), so twelve tiles cannot drift into twelve
+definitions of "running". The five that need a per-node fetch share one refcounted loop rather than
+running twelve.
+
+`fleet.summary` stays registered, because a shipped type is immutable and a layout may hold one, but
+it leaves the catalog: a stored one is expanded in place into the twelve on load, keeping the
+arrangement around it and skipping any tile already placed by hand.
+
+### Added — a node's journal and services board are pinnable
+
+`host.logs` and `host.services`, bound to the node they were pinned from. Both are the same
+components the node page renders and both read stores keyed by host, so a board on the dashboard and
+the tab it came from share one hydrate and one subscription.
+
+### Fixed — the arrange strip no longer names every widget twice
+
+It carried a title above a card that already has its own header — twelve doubled labels once the
+tiles were split. It is controls only now: a grip at one end, remove at the other. The card cannot be
+asked to drop its header, because it renders the same wherever it is mounted, so the host is what had
+to give.
+
 ## [1.138.0] - 2026-08-21
 
 ### Changed — the last three host-scoped stores are keyed

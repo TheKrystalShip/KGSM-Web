@@ -5,6 +5,7 @@ import { Toolbar, ToolbarCount, ToolbarFilters, ToolbarSearch, ToolbarSpacer, us
 import { useStore } from "../../lib/store.js";
 import { leafStatus } from "../../lib/leaves.js";
 import { canOn } from "../../lib/persona.js";
+import { PinButton } from "../../components/widgets/PinButton.jsx";
 import { useKeyedResource } from "../../lib/keyedResource.js";
 import { servicesStore, subscribeHostServices } from "../../lib/stores.js";
 import { LeafCard } from "../../components/LeafCard.jsx";
@@ -84,6 +85,9 @@ function DiagServices({ host, onOpenLeaf }) {
             <b>{shown.length}</b> of {rows.length} leaves · <b>{running}</b> running
             {missing > 0 && <> · {missing} not installed</>}
           </ToolbarCount>
+          {/* Toolbar routes anything it doesn't recognise to its trailing slot, so the pin sits at
+              the end of the row — this board has no card header to carry one. */}
+          <PinButton type="host.services" params={{ hostId }} label="this node's services" />
         </Toolbar>
 
         {shown.length === 0 ? (

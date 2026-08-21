@@ -78,35 +78,26 @@
   display: none;
 }
 
+/* A thin control strip: the grip at one end, remove at the other, and nothing
+   between them. It carries no title because the card below already has one — see
+   WidgetHost. Twelve glance tiles in edit mode would otherwise read their own name
+   twice each. */
 .widget--edit .widget__head {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
-  padding: 0 2px 6px;
+  padding: 0 2px 4px;
 }
 
-.widget__title {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--fg-2);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .widget__grip,
 .widget__unpin {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   flex: none;
   border: var(--edge);
   border-radius: var(--r-sm);
@@ -116,7 +107,6 @@
 }
 
 .widget__unpin {
-  margin-left: auto;
   cursor: pointer;
 }
 

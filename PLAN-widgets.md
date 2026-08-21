@@ -387,7 +387,7 @@ them.
 |---|---|---|
 | **P0** ✅ | Registry, `WidgetHost`, `NavContext`, `lib/serverActions.js`. | Done. A card can be reconstructed from a descriptor, navigate without a parent, and run a lifecycle verb. |
 | **P1** ✅ | `WidgetGrid` — 12-column, reorder + resize. Layout in `localStorage` via `dashboardStore`. | Done. Drag to reorder, pull an edge to resize, both persisted. Proven in a browser by `scripts/visual-harness/dash-widgets.mjs`. |
-| **P2** ◑ | Catalog, the six global-store widgets and the `pin` slot on all five shells are **done**. Still owed: splitting the summary into twelve tile types, and `pin` at the remaining call sites. | Placing a single figure, and pinning from every card rather than the two wired so far. |
+| **P2** ✅ | Catalog, the `pin` slot on all five shells, the twelve tile types, and bound widgets for a leaf journal, a server console, a node journal and a node services board. | Done. A dashboard can carry exactly the figures somebody wants, and four kinds of card pin from the page they live on. |
 | **P3** ✅ | `useKeyedResource`; `leafLogsStore` keyed by (host, leaf); `logsStore`, `logSourcesStore` and `servicesStore` keyed by host. | Done. Two journals coexist, proven in a browser by `dash-pinning.mjs`, which also enforces that a card is identical pinned and on its page. |
 | **P4** | Parameterized widgets: server console, performance charts, player roster, stat tiles, hero. | Per-server surfaces on the dashboard. |
 | **P5** | The kgsm-api preference store, the sync switch, the settings card; move the layout off raw `localStorage`. | Layouts that survive a browser, and sync across devices. |
