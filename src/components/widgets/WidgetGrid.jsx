@@ -23,8 +23,34 @@ import { getWidget } from "../../lib/widgets/registry.js";
 // snapshot the geometry on pointer-down, transform live without re-rendering, decide the outcome
 // from the snapshot, commit once on release. Native HTML5 drag-and-drop fires dragenter/dragleave
 // erratically over a grid and cannot animate.
+//
+// ⚠ TWO THINGS THE SNAPSHOT MODEL DEMANDS, both of which are silent when missed:
+//
+// The geometry is in VIEWPORT coordinates, and the surface these scroll inside is `.app__main`
+// (`overflow-y: auto` at 100vh — the page does NOT scroll on `window`, so `window.scrollY` is always
+// zero here). Every comparison therefore folds the live scroll delta in, and the scroller's own
+// `scroll` event re-runs the gesture: a wheel scroll emits no pointermove, so without it the dragged
+// widget freezes on screen while everything else slides past it.
+//
+// And a preview written straight onto the element is a DOM mutation React does not know about.
+// React diffs against its own previous render, not against the DOM — so when a gesture ends on the
+// span it started from, the new render is identical, React writes nothing, and whatever the preview
+// left behind stands. Clearing the inline style at the end of a gesture therefore leaves the cell
+// with no span at all (`grid-column: auto` — one column). The gesture must hand the element back in
+// exactly the state React believes it to be in.
 
 const ROW_PX = 84;   // one row unit, matching --widget-row in kit/widgets.css
+
+// The surface these actually scroll inside — `.app__main`, not the window. Falls back to `window`
+// so a surface that does scroll the page still works.
+function getScrollParent(node) {
+  for (let el = node && node.parentElement; el; el = el.parentElement) {
+    const oy = getComputedStyle(el).overflowY;
+    if ((oy === "auto" || oy === "scroll" || oy === "overlay") && el.scrollHeight > el.clientHeight) return el;
+  }
+  return window;
+}
+function scrollTopOf(sc) { return sc === window ? window.scrollY : sc.scrollTop; }
 
 // The live column count AND the grid's measured width. Both are measured from the grid element
 // rather than the window, because the panel's content width also changes with the sidebar
@@ -126,6 +152,7 @@ function WidgetGrid({ layout, editing, onMove, onResize, onRemove }) {
     const rects = nodes.map(n => n.getBoundingClientRect());
     const gridRect = grid.getBoundingClientRect();
     const span = resolveSpan(layout[from].w, cols, floorOf(layout[from].type));
+    const scroller = getScrollParent(grid);
 
     drag.current = {
       id, from, target: { kind: "cell", i: from }, nodes, rects, gridRect,
@@ -133,6 +160,8 @@ function WidgetGrid({ layout, editing, onMove, onResize, onRemove }) {
       // a landing the reflow then refuses, which is worse than not offering it.
       gaps: measureRows(nodes, gridRect, cols).filter(g => span <= g.cols),
       startX: e.clientX, startY: e.clientY,
+      lastX: e.clientX, lastY: e.clientY,
+      scroller, startScroll: scrollTopOf(scroller),
     };
     setDragId(id);
     const dn = nodes[from];
@@ -141,28 +170,38 @@ function WidgetGrid({ layout, editing, onMove, onResize, onRemove }) {
     window.addEventListener("pointermove", onDragMove);
     window.addEventListener("pointerup", onDragUp, { once: true });
     window.addEventListener("pointercancel", onDragUp, { once: true });
+    // A wheel or trackpad scroll emits no pointermove. Without this the widget stays pinned where
+    // the screen was when the gesture began, while everything it is being aimed at slides away.
+    scroller.addEventListener("scroll", onDragScroll, { passive: true });
     e.preventDefault();
   }
 
-  function onDragMove(e) {
-    const st = drag.current;
-    if (!st) return;
-    const dx = e.clientX - st.startX;
-    const dy = e.clientY - st.startY;
+  // Re-run the gesture from the current cursor AND scroll position. Called on every pointermove and
+  // on every scroll, because either one changes where the cursor is over the layout.
+  function applyDrag(st) {
+    // The snapshot is in the viewport frame of the moment the drag began. Scrolling moves the
+    // content out from under it, so the delta goes into the transform (to keep the widget under the
+    // cursor) and into the cursor position (to keep the hit-test honest against the snapshot).
+    const scrolled = scrollTopOf(st.scroller) - st.startScroll;
+    const dx = st.lastX - st.startX;
+    const dy = (st.lastY - st.startY) + scrolled;
     const node = st.nodes[st.from];
     if (node) node.style.transform = "translate(" + dx + "px, " + dy + "px)";
+
+    const px = st.lastX;
+    const py = st.lastY + scrolled;
 
     let best = { kind: "cell", i: st.from }, bestD = Infinity;
     for (let i = 0; i < st.rects.length; i++) {
       const r = st.rects[i];
-      const d = (e.clientX - (r.left + r.width / 2)) ** 2 + (e.clientY - (r.top + r.height / 2)) ** 2;
+      const d = (px - (r.left + r.width / 2)) ** 2 + (py - (r.top + r.height / 2)) ** 2;
       if (d < bestD) { bestD = d; best = { kind: "cell", i }; }
     }
     for (let i = 0; i < st.gaps.length; i++) {
       const g = st.gaps[i];
       const cx = st.gridRect.left + g.left + g.width / 2;
       const cy = st.gridRect.top + g.top + g.height / 2;
-      const d = (e.clientX - cx) ** 2 + (e.clientY - cy) ** 2;
+      const d = (px - cx) ** 2 + (py - cy) ** 2;
       if (d < bestD) { bestD = d; best = { kind: "gap", i }; }
     }
 
@@ -177,11 +216,25 @@ function WidgetGrid({ layout, editing, onMove, onResize, onRemove }) {
     setGhost(best.kind === "gap" ? st.gaps[best.i] : null);
   }
 
+  function onDragMove(e) {
+    const st = drag.current;
+    if (!st) return;
+    st.lastX = e.clientX;
+    st.lastY = e.clientY;
+    applyDrag(st);
+  }
+
+  function onDragScroll() {
+    const st = drag.current;
+    if (st) applyDrag(st);
+  }
+
   function onDragUp() {
     const st = drag.current;
     window.removeEventListener("pointermove", onDragMove);
     window.removeEventListener("pointerup", onDragUp);
     window.removeEventListener("pointercancel", onDragUp);
+    if (st && st.scroller) st.scroller.removeEventListener("scroll", onDragScroll);
     drag.current = null;
     setDragId(null);
     setGhost(null);
@@ -204,9 +257,9 @@ function WidgetGrid({ layout, editing, onMove, onResize, onRemove }) {
   }
 
   // ---- Resize -----------------------------------------------------------
-  // Snapped to whole columns and rows while dragging, so what is previewed is exactly what commits.
-  // The preview writes the spans straight onto the element; React re-renders to the same numbers on
-  // release, which is why nothing jumps at the end of the gesture.
+  // Snapped to whole columns and rows while dragging, and the preview runs through the SAME
+  // `resolveSpan` the render does — so what is previewed is exactly what commits, and the widget
+  // does not jump to a different width the moment the handle is released.
   function onResizeDown(id, edge, e) {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     const grid = gridRef.current;
@@ -224,6 +277,7 @@ function WidgetGrid({ layout, editing, onMove, onResize, onRemove }) {
     // edge a third as far as the cursor and read as a stuck handle.
     const tracks = getComputedStyle(grid).gridTemplateRows.split(" ").map(parseFloat).filter(n => n > 0);
     const rowPx = tracks.length ? tracks.reduce((a, b) => a + b, 0) / tracks.length : ROW_PX;
+    const scroller = getScrollParent(grid);
 
     size.current = {
       id, edge, cell, minW, minH, colPx, rowPx,
@@ -235,6 +289,7 @@ function WidgetGrid({ layout, editing, onMove, onResize, onRemove }) {
       startH: Math.max(1, item.h | 0),
       w: resolveSpan(item.w, cols, minW),
       h: Math.max(1, item.h | 0),
+      scroller, startScroll: scrollTopOf(scroller),
     };
     setSizingId(id);
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* window listeners still fire */ }
@@ -250,10 +305,14 @@ function WidgetGrid({ layout, editing, onMove, onResize, onRemove }) {
     if (!st) return;
     if (st.edge !== "s") {
       const dCols = Math.round((e.clientX - st.startX) / (st.colPx + GAP_PX));
-      st.w = Math.min(cols, Math.max(st.minW, st.startW + dCols));
+      // Through resolveSpan, so the floor AND the snap apply live. Clamping to the floor alone let
+      // the preview sit at a width the render would immediately change.
+      st.w = resolveSpan(st.startW + dCols, cols, st.minW);
     }
     if (st.edge !== "e") {
-      const dRows = Math.round((e.clientY - st.startY) / (st.rowPx + GAP_PX));
+      // The handle moves with the content, so a scroll mid-gesture is displacement too.
+      const dy = (e.clientY - st.startY) + (scrollTopOf(st.scroller) - st.startScroll);
+      const dRows = Math.round(dy / (st.rowPx + GAP_PX));
       st.h = Math.max(st.minH, st.startH + dRows);
     }
     st.cell.style.gridColumn = "span " + st.w;
@@ -268,12 +327,22 @@ function WidgetGrid({ layout, editing, onMove, onResize, onRemove }) {
     size.current = null;
     setSizingId(null);
     if (!st) return;
-    st.cell.style.gridColumn = "";
-    st.cell.style.gridRow = "";
-    // The width is stored in TWELFTHS, whatever it was dragged at. Storing the resolved span would
-    // bake the current breakpoint into the layout: a widget sized on a phone would come back a
-    // quarter of the width on a desktop.
-    const stored = Math.max(1, Math.round(st.w * 12 / cols));
+
+    // The span is stored as it was dragged, in columns. It is NOT rescaled to twelfths: the render
+    // CLAMPS a stored span to the available columns rather than scaling it — which is what gives a
+    // w:2 KPI tile its 6/4/3/2-across ladder — so rescaling on the way in and clamping on the way
+    // out are two different functions, and the round trip loses the gesture. At 8 columns a drag to
+    // 4 became a stored 6 that rendered back at 6, and the resize did nothing at all.
+    const stored = Math.max(1, st.w | 0);
+
+    // ⚠ Hand the element back in the state React believes it to be in, rather than clearing it.
+    // The preview above wrote straight to the DOM, which React knows nothing about; React diffs
+    // against its own previous render, so a gesture ending on the span it started from produces an
+    // identical render, React writes nothing, and a cleared style stays cleared — leaving the cell
+    // with no span at all, which is one column.
+    st.cell.style.gridColumn = "span " + resolveSpan(stored, cols, st.minW);
+    st.cell.style.gridRow = "span " + Math.max(1, st.h | 0);
+
     if (onResize) onResize(st.id, stored, st.h);
   }
 

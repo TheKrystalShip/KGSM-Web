@@ -20,6 +20,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   across a wide row.
 - The span snaps to the full row only when the remainder is narrower than a KPI tile, i.e. when
   nothing could be placed beside it.
+### Fixed — resizing and dragging
+
+- A resize **commits the span it previewed**. The preview writes straight to the DOM, which React
+  does not know about; a gesture ending on the span it started from produced an identical render, so
+  React wrote nothing and the cleared inline style stood — leaving the cell with `grid-column: auto`,
+  which is one column. The gesture now hands the element back in the state React believes it to be in.
+- A dragged span is stored **in columns, as dragged**. It was rescaled to twelfths while the render
+  clamps rather than scales — two different functions, so the round trip lost the gesture: at 8
+  columns a drag to 4 stored 6 and rendered back at 6, and the resize did nothing.
+- A widget being dragged **stays under the cursor while the page scrolls**. The geometry is
+  snapshotted in viewport coordinates and the scrolling surface is `.app__main`, not the window, so a
+  wheel scroll — which emits no pointermove — left the widget pinned where the screen was when the
+  gesture began. The scroll delta is folded into both the transform and the hit-test, and the
+  scroller's own `scroll` event re-runs the gesture.
+
+### Added
+
 - **`layout.spacer`** holds room open on purpose — the one way to state a gap in a flow that would
   otherwise close it. It is `repeatable`, and each copy carries its own `slot` so N spacers are N
   distinct targets rather than one widget added N times.
