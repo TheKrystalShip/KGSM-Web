@@ -16,6 +16,7 @@ import { libraryStore } from "./library.js";
 import { hostsStore, syncCapabilitySubscriptions } from "./hosts.js";
 import { auditStore } from "./audit.js";
 import { startDiscovery, stopDiscovery } from "./cluster.js";
+import { prefsStore } from "./prefs.js";
 import { startPingLoop, stopPingLoop } from "./ui.js";
 import { assistantSession } from "../assistantSession.js";
 
@@ -51,8 +52,13 @@ function startDataLayer() {
     api.startStreams();
     serversStore.refresh().catch(swallow);
     libraryStore.refresh().catch(swallow);
-    hostsStore.refresh().catch(swallow);
     auditStore.refresh().catch(swallow);
+    // ⚠ Preferences hydrate AFTER the host roster, not beside it. The home node is addressed by its
+    // BACKEND id, and a seeded connection holds none until `GET /hosts` reconciles it — so hydrating
+    // in parallel finds no node, concludes the account has no stored preferences, and the dashboard
+    // seeds a default over the layout that was actually there. Reconciliation is what this waits on;
+    // a roster that fails still resolves the hydrate, which then honestly reports no node.
+    hostsStore.refresh().catch(swallow).finally(() => { prefsStore.hydrate().catch(swallow); });
     startPingLoop();
     // Resolve the cluster's node set, not just the addresses this browser holds.
     // A peer it registers joins the fan-out live; apiClient re-hydrates the stores

@@ -212,6 +212,38 @@ export function reconcileConnectionId(url, id) {
 // the connected nodes and remembers which one it used; this is the sole-candidate
 // answer for the N=1 case and the honest empty when there is nothing to sign in
 // against.
+// ---- The HOME node ------------------------------------------------------
+// Which node holds this account's preferences.
+//
+// A cluster is reached by knowing ONE node, and that entry point is where a person's preferences
+// live. It is a route, not an authority: nothing about it makes it special to the cluster, and the
+// rows it holds converge with any other node's on their own merge key rather than on which node
+// wrote them.
+//
+// Resolved as the node SERVING THE PANEL, because that is the one somebody actually chose by typing
+// its address — kgsm-api serves the SPA out of its own wwwroot, so the document's origin is that
+// node's. In development the SPA is served by Vite on a different port, and behind a reverse proxy
+// the origin may be neither; both fall back to the first connection, which at N=1 is the only answer
+// there is and at N≥2 is the seed the registry was built from.
+export function homeConn() {
+  if (!CONNECTIONS.length) return null;
+  try {
+    const here = typeof window !== "undefined" && window.location ? window.location.origin : "";
+    if (here) {
+      const match = CONNECTIONS.find(c => originOf(c.url) === here);
+      if (match) return match;
+    }
+  } catch { /* no window (SSR/prerender) — fall through */ }
+  return CONNECTIONS[0];
+}
+
+// The home node's backend id, or null before it has been reconciled (cold boot) / with no
+// connection at all. A caller with no id skips the call rather than routing it at a guess.
+export function homeHostId() {
+  const c = homeConn();
+  return c && c.id ? c.id : null;
+}
+
 export function soleConnectionOrigin() {
   return CONNECTIONS.length === 1 ? originOf(CONNECTIONS[0].url) : "";
 }

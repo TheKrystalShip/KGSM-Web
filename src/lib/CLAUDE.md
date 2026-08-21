@@ -78,6 +78,15 @@ realtime: liveStream.js (fetch-SSE) ──adaptStreamMessage──▶ same store
   `unknown` node is selectable with its honesty shown, never ranked as if it fit,
   and no measurable node means no preselection at all.
 
+**Preferences** — `stores/prefs.js` holds the account's preferences **local-first**: localStorage is
+what the app reads (synchronously, on the first render — the dashboard decides what to mount from
+it), and the node is where the value is kept so it outlives the browser and can follow the person.
+A write lands locally and returns; the PUT is best-effort and a failure loses nothing.
+⚠ **Seeding a default is a WRITE, so nothing may seed before the node has answered** — doing so
+publishes a default over the stored value. `dashboardStore.hydrate` encodes the ordering, and
+`boot.js` hydrates preferences only after `hostsStore.refresh` has reconciled the connection's
+backend id, since the home node is addressed by that id.
+
 **Stores** — see `stores/CLAUDE.md`. `store.js` is the tiny reactive primitive
 (`createStore` + `useStore`, React 18 `useSyncExternalStore`). `stores.js` is a
 **back-compat re-export barrel** over `stores/` — new code can import from either.
@@ -159,6 +168,11 @@ realtime: liveStream.js (fetch-SSE) ──adaptStreamMessage──▶ same store
   at the wrong speed rather than failing. Falls back to arithmetic here when a browser refuses an
   `OfflineAudioContext` at 16kHz. Proven in Chromium against a live host by
   `scripts/visual-harness/voice-note.mjs`; jsdom has no Web Audio, so the smoke cannot reach it.
+- `device.js` — this browser's id for the per-device half of the preference store (`krystal:device`,
+  minted once, sent as `X-Krystal-Device` by every call). **A session id is not device identity**:
+  sessions are per host and expire, so the same laptop signing in again would read as a new device
+  and lose what was stored against it. Imports nothing, so it can never be what drags `apiClient`
+  into the standalone bundle.
 - `keyedResource.js` — one hydrate and one live subscription per KEY, however many components want
   it (`useKeyedResource(key, hydrate, follow)`). The counterpart to a keyed store: keying lets two
   targets exist at once, this stops N mounts of the same target hydrating N times or one unmount

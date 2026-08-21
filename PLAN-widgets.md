@@ -390,7 +390,7 @@ them.
 | **P2** ✅ | Catalog, the `pin` slot on all five shells, the twelve tile types, and bound widgets for a leaf journal, a server console, a node journal and a node services board. | Done. A dashboard can carry exactly the figures somebody wants, and four kinds of card pin from the page they live on. |
 | **P3** ✅ | `useKeyedResource`; `leafLogsStore` keyed by (host, leaf); `logsStore`, `logSourcesStore` and `servicesStore` keyed by host. | Done. Two journals coexist, proven in a browser by `dash-pinning.mjs`, which also enforces that a card is identical pinned and on its page. |
 | **P4** ✅ | `server.card`, `server.players`, `server.performance`, `server.console`. Stat tiles dropped — they overlapped the card and had no header to carry a pin. | Done. Proven in a browser by `dash-server-widgets.mjs`, which also covers a widget whose target has been deleted. |
-| **P5** | The kgsm-api preference store, the sync switch, the settings card; move the layout off raw `localStorage`. | Layouts that survive a browser, and sync across devices. |
+| **P5** \u2705 | The kgsm-api preference store (`kgsm-api` `408a554`), `lib/device.js`, `stores/prefs.js`, `config.homeConn`, the Devices sync card, and the layout moved onto the preference. | Done. A layout survives the browser and follows the account when sync is on. Proven end to end by `scripts/visual-harness/prefs-sync.mjs`. |
 | **P6** \u2705 | Seeded defaults, stale-widget handling, the phone layout, and `FirstRunWelcome` as a five-card tour of the mechanics. | Done. A new account lands on a dashboard worth looking at and is shown, once, that it can change it. |
 
 ### The default layout is a client-side constant

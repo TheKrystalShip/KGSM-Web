@@ -158,9 +158,13 @@
 .wtour__card--d4 { animation-delay: 360ms; }
 .wtour__card--d5 { animation-delay: 450ms; }
 
+/* The plateau is long on purpose. The cards fade in staggered, so a glance during a
+   short one catches half a grid and reads as broken rather than as assembling — the
+   loop should be a complete dashboard most of the time, with the build-up as the
+   punctuation. */
 @keyframes wtour-in {
   0% { opacity: 0; transform: scale(0.82); }
-  18%, 76% { opacity: 1; transform: scale(1); }
+  12%, 88% { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: scale(0.82); }
 }
 
@@ -209,8 +213,13 @@
   60%, 100% { opacity: 1; transform: scale(1); border-color: var(--border-1); }
 }
 
+/* An empty slot, not a highlight: dimmer than the real cards rather than louder.
+   At full border strength the dash was the brightest thing on the stage and pulled
+   the eye away from the button being pressed. */
 .wtour__card--ghost {
   border-style: dashed;
+  border-color: var(--fg-4);
+  opacity: 0.5;
   background: transparent;
 }
 

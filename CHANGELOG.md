@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.142.0] - 2026-08-21
+
+### Added — the dashboard layout is stored on the node
+
+Preferences are **local-first**: localStorage is what the app reads, synchronously, because the
+dashboard decides what to mount from the layout on its very first render. The node is where the
+value is kept, so it outlives the browser and can follow the person to their other devices. A write
+lands locally and returns; the PUT that follows is best-effort and a failure loses nothing.
+
+Device identity is client-minted (`krystal:device`) and carried in `X-Krystal-Device` on every call.
+A session id would have been the obvious choice and is wrong: sessions are per host and expire, so
+the same laptop signing in again would read as a new device and lose its layout.
+
+The node that holds an account's preferences is the one **serving the panel** — `config.homeConn`,
+resolved from the document's origin, falling back to the first connection in development and behind
+a proxy. It is a route, not an authority: rows converge on their own version, not on which node
+wrote them.
+
+### Added — a sync switch, on Settings → Devices
+
+Off, each browser keeps its own arrangement. On, every device shares one — and the card says
+**before** the switch is thrown that enabling makes this browser's arrangement the one every device
+uses, replacing the others. That is not something a person can consent to from the word "sync".
+
+### Fixed — a cold load could publish the default layout over the stored one
+
+Seeding a default is a write, and a write goes to the node. The dashboard seeded before the node had
+answered, so a browser with no local copy pushed the default up and the real arrangement was gone.
+Nothing seeds while the answer is outstanding now: a local copy renders immediately and writes
+nothing, and an absent one waits for the node rather than guessing.
+
+Preferences also hydrate only after the host roster has reconciled the connection's backend id. The
+home node is addressed by that id, so hydrating in parallel found no node and concluded the account
+had nothing stored — which is what triggered the seed.
+
 ## [1.141.0] - 2026-08-21
 
 ### Added — a one-time tour of the composable dashboard

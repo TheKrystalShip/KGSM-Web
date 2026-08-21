@@ -11,6 +11,7 @@ import { SettingsAccess } from "./SettingsAccess.jsx";
 import { SettingsIdentities } from "./SettingsIdentities.jsx";
 import { SettingsNotifications } from "./SettingsNotifications.jsx";
 import { SettingsSessions } from "./SettingsSessions.jsx";
+import { SettingsSync } from "./SettingsSync.jsx";
 
 // SettingsPage — YOUR account, and nothing about anybody else's. Tabs in the order somebody actually
 // asks the questions: who am I (Profile), how do I get in (Security), where am I signed in (Devices),
@@ -133,7 +134,14 @@ function SettingsPage({ user, onLogout, tab, onTabChange }) {
         {active === "security" && <SettingsIdentities sessionProvider={sessionProvider} />}
 
         {/* Where you are signed in, and the history of getting there. */}
-        {active === "devices" && <SettingsSessions onLogout={onLogout} />}
+        {/* Devices holds both halves of "this browser versus your others": where you are signed in,
+            and whether what you arrange follows you between them. */}
+        {active === "devices" && (
+          <>
+            <SettingsSync />
+            <SettingsSessions onLogout={onLogout} />
+          </>
+        )}
 
         {active === "memory" && (
           <SettingsMemory

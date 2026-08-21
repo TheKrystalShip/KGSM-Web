@@ -1,15 +1,19 @@
 // widgets/dashboardStore.js — the dashboard's layout, and the only thing that writes it.
 //
-// Persistence is per-browser localStorage today. The store interface is what the rest of the app
-// talks to, so moving the record server-side (per device, with an account-level sync switch) is a
-// change to `read`/`write` here and to nothing else.
+// The layout is a PREFERENCE (stores/prefs.js): held locally so the first render has it, mirrored to
+// the node so it outlives this browser and follows the person to their other devices when they turn
+// sync on. Reads here stay synchronous — the dashboard decides what to mount from this on its very
+// first render, and a round trip would mean an empty grid on every cold load.
 
 import { can } from "../persona.js";
 import { createStore } from "../store.js";
+import { PREF_KEYS, prefsStore } from "../stores/prefs.js";
 import { hasWidget } from "./registry.js";
 import { findTarget, makeWidget, normalizeLayout, sameTarget } from "./layout.js";
 
-const LAYOUT_KEY = "krystal:dash:widgets";
+// The key this layout was written under before it was a preference. Read once, to carry an existing
+// arrangement across; never written again.
+const LEGACY_LAYOUT_KEY = "krystal:dash:widgets";
 // The band order this replaces. Read once, to carry an existing arrangement across, then left
 // alone — the old key is not written again, and deleting it would break a rollback.
 const LEGACY_ORDER_KEY = "krystal:dash:order";
@@ -59,16 +63,19 @@ function defaultLayout() {
 // ---- Storage -------------------------------------------------------------
 
 function readStored() {
+  const held = prefsStore.get(PREF_KEYS.DASHBOARD_LAYOUT, null);
+  if (Array.isArray(held)) return held;
+  // A layout written under the old key, before this was a preference. Taken once; the first write
+  // below puts it where preferences live now.
   try {
-    const raw = localStorage.getItem(LAYOUT_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
+    const raw = localStorage.getItem(LEGACY_LAYOUT_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
     return Array.isArray(parsed) ? parsed : null;
   } catch { return null; }
 }
 
 function writeStored(layout) {
-  try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch { /* full or blocked */ }
+  prefsStore.set(PREF_KEYS.DASHBOARD_LAYOUT, layout);
 }
 
 // The band order the dashboard used before it had widgets, mapped onto its widget types at full
@@ -134,20 +141,64 @@ function expandSummary(layout) {
   return out;
 }
 
+/// Load the layout.
+///
+/// ⚠ THE ORDER HERE IS LOAD-BEARING. Seeding the default is a WRITE, and a write goes to the node —
+/// so seeding before the node has answered publishes a default over whatever was stored there, and
+/// the arrangement is gone. The rule is: never seed while the answer is still outstanding.
+///
+///   a local copy            → render it immediately and write nothing. This is the local-first path
+///                             and the common one; the node's copy is adopted below when it lands.
+///   no local copy, no answer→ WAIT. The dashboard shows its skeleton rather than a default that
+///                             would overwrite the real layout a moment later.
+///   no local copy, answered → nothing is stored anywhere, so seed the default and keep it.
 dashboardStore.hydrate = () => {
   const stored = readStored();
   if (stored) {
     const layout = expandSummary(normalizeLayout(stored, hasWidget));
+    // No write. Re-persisting on load would take a version for a change nobody made, and — before
+    // the node has answered — would race its copy.
     dashboardStore.setState({ layout, hydrated: true });
-    // Written back so the expansion happens once rather than on every load.
-    writeStored(layout);
     return;
   }
+
   const migrated = migrateLegacy();
-  const layout = migrated || defaultLayout();
+  if (migrated) {
+    dashboardStore.setState({ layout: migrated, hydrated: true });
+    writeStored(migrated);
+    return;
+  }
+
+  // Nothing here. Only seed once the node has said it has nothing either.
+  if (!prefsStore.getState().hydrated) return;
+  const layout = defaultLayout();
   dashboardStore.setState({ layout, hydrated: true });
   writeStored(layout);
 };
+
+// The node's copy arrives after the first render — the data layer reads it once there is a session,
+// and the dashboard has already mounted from the local copy by then. So adopt it when it lands.
+//
+// ONCE, and only if it differs. After that this browser's writes are the source: re-reading on every
+// prefs change would fight the person arranging their own dashboard, since each write notifies this
+// same store.
+let _adopted = false;
+prefsStore.subscribe(() => {
+  if (_adopted || !prefsStore.getState().hydrated) return;
+  _adopted = true;
+  const fromNode = prefsStore.get(PREF_KEYS.DASHBOARD_LAYOUT, null);
+  if (Array.isArray(fromNode)) {
+    const layout = expandSummary(normalizeLayout(fromNode, hasWidget));
+    if (JSON.stringify(layout) !== JSON.stringify(dashboardStore.getState().layout)) {
+      dashboardStore.setState({ layout, hydrated: true });
+    } else {
+      dashboardStore.setState(st => ({ ...st, hydrated: true }));
+    }
+    return;
+  }
+  // The node has nothing. If the dashboard was waiting on this answer, it can seed now.
+  if (!dashboardStore.getState().hydrated) dashboardStore.hydrate();
+});
 
 const commit = (layout) => {
   dashboardStore.setState({ layout, hydrated: true });

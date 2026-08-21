@@ -1,5 +1,6 @@
 import { createStore } from "./store.js";
 import { apiV1Of, apiOriginOf, apiV1ForConn, streamUrlForConn, subscribeConnections, CONNECTIONS } from "./config.js";
+import { DEVICE_HEADER, deviceId } from "./device.js";
 import * as adapt from "./adapters.js";
 import { createSseStream } from "./liveStream.js";
 
@@ -232,6 +233,10 @@ import("./stores.js").then((m) => {
     // `undefined` = use the host's live access bearer; a string/null = send/omit as given.
     const tok = bearerOverride !== undefined ? bearerOverride : await authorizedBearer(hostId);
     if (tok) headers.Authorization = "Bearer " + tok;
+    // Which BROWSER is asking, for the per-device half of the preference store. Sent on every call
+    // rather than only the preference ones: it is one short header, and a seam that decides per path
+    // which headers to attach is a seam that gets it wrong when a path moves.
+    headers[DEVICE_HEADER] = deviceId();
     // baseOverride routes off the default /api/v1 base (the auth endpoints are
     // root-routed on the backend, not under /api/v1; the fan-out addresses an
     // as-yet-unidentified connection by its own URL).

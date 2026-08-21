@@ -15,6 +15,7 @@ export { logsStore, logSourcesStore, leafLogsStore, leafLogsKey, servicesStore, 
 export { fetchAssistantStats, fetchAssistantReviewUsers, fetchAssistantConversations, fetchAssistantTranscript } from "./assistantReview.js";
 export { favoritesStore, useIsFavorite, pingStore, startPingLoop, stopPingLoop } from "./ui.js";
 export { clusterStore } from "./cluster.js";
+export { PREF_KEYS, prefsStore } from "./prefs.js";
 export { AVAILABILITY_WINDOW, fleetOpsStore, startFleetOps, stopFleetOps } from "./fleet.js";
 
 // The data layer is started by the shell once there is a live session, and stopped when
