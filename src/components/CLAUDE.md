@@ -96,6 +96,19 @@ interval as `useConfirmAction`, so the pause learned on a card is the pause here
 previews live while writing nothing**: arrowing sets `data-theme` on the document, `↵` calls
 `themeStore.set`, Escape puts the stored one back.
 
+It also **pins**, **backs up** and **launches an install**. The line those three sit on: an entry
+belongs here when it is one decision. Backing up is one, so it runs (armed, like anything that
+changes the host). Installing needs a node, a name and a port, so the entry opens the real form —
+it LAUNCHES, it does not act. Pinning and theme-switching are the two things that deliberately leave
+the palette open, because you do several in a row.
+
+**A query that matches nothing offers the assistant, as a row.** Not a fall-through: it has to be
+selected and confirmed, and a typo simply sits there unchosen. ⚠ It does **not** send — the seed
+lands in the composer and focuses it, so the last word is a person pressing Enter on their own text,
+the same rule a voice note follows. It appears only when there is nothing else and only where an
+assistant can actually be reached; offering to ask a leaf this host has no route to is a row that
+cannot do what it says.
+
 The chin's type and keycaps are `.chat-cmdmenu__hint`'s, value for value — the slash-command menu is
 the panel's other command surface and the two read as one family. Its left half names what `↵` will
 do, which is what earns it the height: it is where a destructive verb's consequence gets stated in

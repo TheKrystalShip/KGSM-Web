@@ -2,11 +2,13 @@ import React from "react";
 
 import { Icon } from "../Icon.jsx";
 import { Modal } from "../Modal.jsx";
+import { useAssistantDock } from "../AssistantDockContext.jsx";
 import { useNav } from "../NavContext.jsx";
 import { buildEntries, previewTheme, restoreTheme } from "./sources.js";
 import { rank, segments } from "./score.js";
 import { createStore, useStore } from "../../lib/store.js";
 import { libraryStore, servicesStore, serversStore } from "../../lib/stores.js";
+import { dashboardStore } from "../../lib/widgets/dashboardStore.js";
 import { useThemePref } from "../../lib/theme.js";
 
 // CommandPalette — one key onto everything the panel can reach.
@@ -108,8 +110,13 @@ function ThemeSwatch({ id }) {
 
 // ---- the palette ----------------------------------------------------------
 
-function Palette({ onClose }) {
+function Palette({ onClose, onInstall }) {
   const nav = useNav();
+  // The assistant is dock state, not a route, and installing is the shell's modal. Both are read
+  // here rather than in sources.js because they belong to the app frame — sources builds entries out
+  // of stores and gets handed the two things that are not one.
+  const dock = useAssistantDock();
+  const openAssistant = dock && dock.openAssistant;
   const servers = useStore(serversStore, (s) => s.list);
   const library = useStore(libraryStore, (s) => s.list);
   const services = useStore(servicesStore, (s) => s.byHost);
@@ -123,9 +130,13 @@ function Palette({ onClose }) {
   const listRef = React.useRef(null);
   const inputRef = React.useRef(null);
 
+  // `layout` is not read, but pinning changes it and the pin/unpin entries have to flip with it —
+  // depending on it is what re-builds them when something is pinned from anywhere.
+  const layout = useStore(dashboardStore, (s) => s.layout);
   const entries = React.useMemo(
-    () => buildEntries({ servers, library, services, themePref, scope, nav }),
-    [servers, library, services, themePref, scope, nav]);
+    () => buildEntries({ servers, library, services, themePref, scope, nav, openAssistant, onInstall }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `layout` is a rebuild trigger, not an input
+    [servers, library, services, themePref, scope, nav, openAssistant, onInstall, layout]);
 
   // With nothing typed the palette shows where you have just been and then where you can go — it
   // never opens onto an empty box. Recents are resolved against the CURRENT entry set, so a server
@@ -155,7 +166,43 @@ function Palette({ onClose }) {
     return out;
   }, [ranked]);
 
-  const flat = React.useMemo(() => groups.flatMap((g) => g.items), [groups]);
+  // Nothing matched, but the query is still a sentence somebody meant. Offering it to the assistant
+  // as a ROW rather than as a silent fall-through is the whole difference: it has to be selected and
+  // confirmed, it says what it will do, and a typo simply sits there unchosen.
+  //
+  // ⚠ It does NOT send. The seed lands in the composer and focuses it (ChatPage's
+  // `startBriefingChat`), so the last word is still a person pressing Enter on their own text — the
+  // same rule a voice note follows, and the reason neither one can put words in somebody's mouth.
+  //
+  // Only when there is nothing else — an assistant offered alongside real results would be noise —
+  // and only where one can actually be reached, because offering to ask a leaf this host has no
+  // route to is a row that cannot do what it says.
+  const askable = dock && dock.usableAssistants && dock.usableAssistants.length > 0;
+  const withFallback = React.useMemo(() => {
+    if (ranked.length || !query.trim() || !askable) return groups;
+    const q = query.trim();
+    return [{
+      group: "Assistant",
+      items: [{
+        ranges: [], score: 0, i: 0,
+        entry: {
+          id: "ask.assistant",
+          kind: "ask", group: "Assistant",
+          transient: true,
+          title: "Ask the assistant about “" + q + "”",
+          sub: "Opens the assistant with this ready to send",
+          icon: "bot",
+          chin: "Ask the assistant about “" + q + "”",
+          run: () => {
+            dock.askAssistant();
+            dock.setAssistantSeed({ prompt: q, serverId: null, nonce: Date.now() });
+          },
+        },
+      }],
+    }];
+  }, [ranked.length, query, askable, groups, dock]);
+
+  const flat = React.useMemo(() => withFallback.flatMap((g) => g.items), [withFallback]);
   const active = flat[Math.min(cursor, flat.length - 1)] || null;
 
   const disarm = React.useCallback(() => {
@@ -188,10 +235,13 @@ function Palette({ onClose }) {
       return;
     }
     disarm();
-    noteRecent(e.id);
-    // A theme commits itself; everything else closes the palette first, so a navigation lands on a
-    // page with nothing over it.
-    if (e.themeId) { e.run(); return; }
+    // The ask row is built fresh from whatever was typed and is not in the entry set, so recording
+    // it would spend one of five recent slots on an id that can never resolve again.
+    if (!e.transient) noteRecent(e.id);
+    // A theme and a pin both stay open: you try several themes in a row, and you pin three things in
+    // a row, and re-opening between each is the friction this exists to remove. Everything else
+    // closes first, so a navigation lands on a page with nothing over it.
+    if (e.themeId || e.kind === "pin") { e.run(); return; }
     onClose();
     try { e.run(); } catch { /* a source that throws must not take the shell down */ }
   }, [armedId, disarm, onClose]);
@@ -272,7 +322,7 @@ function Palette({ onClose }) {
 
         {flat.length > 0 ? (
           <div className="kp__list" ref={listRef} role="listbox" aria-label="Results">
-            {groups.map((g) => (
+            {withFallback.map((g) => (
               <React.Fragment key={g.group}>
                 <div className="kp__grp">{g.group}</div>
                 {g.items.map((item) => {
@@ -325,7 +375,7 @@ function Palette({ onClose }) {
 }
 
 /// Mounted once by the shell. Owns the hotkey and renders nothing until it is opened.
-function CommandPalette() {
+function CommandPalette({ onInstall }) {
   const open = useStore(paletteStore, (s) => s.open);
 
   React.useEffect(() => {
@@ -340,7 +390,7 @@ function CommandPalette() {
   }, []);
 
   if (!open) return null;
-  return <Palette onClose={paletteStore.close} />;
+  return <Palette onClose={paletteStore.close} onInstall={onInstall} />;
 }
 
 export { CommandPalette, paletteStore };

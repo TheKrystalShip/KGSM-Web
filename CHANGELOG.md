@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Command palette — actions
+
+- **Back up now**, on a scoped server. Arms like anything else that changes the host.
+- **Pin and unpin widgets**, fleet-wide and per server; the row flips between the two. Pinning leaves
+  the palette open, because you pin several things in a row.
+- **Install a server** opens the install form already pointed at the blueprint. It launches the real
+  surface rather than trying to be it — installing needs a node, a name and a port.
+- **The assistant** is reachable by name.
+- **A query that matches nothing offers to ask the assistant, as a row** — selected and confirmed
+  like any other, never a silent fall-through. It fills the composer and focuses it rather than
+  sending, so the last word is still a person pressing Enter on their own text. Shown only when
+  there is nothing else, and only where an assistant can actually be reached.
+- `requestBackup` / `backupServer` in `lib/serverActions.js`; the Backups tab now shares the former
+  instead of holding its own copy of the URL.
+
 ### Command palette
 
 - **⌘K / Ctrl-K opens a search over everything the panel can reach** — routes, every server and its

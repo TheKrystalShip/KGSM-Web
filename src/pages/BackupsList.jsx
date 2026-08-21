@@ -5,6 +5,7 @@ import { api } from "../lib/apiClient.js";
 import { apiOriginOf } from "../lib/config.js";
 import { awaitJob } from "../lib/stores.js";
 import { formatBytes, fmtRelative } from "../lib/formatting.js";
+import { requestBackup } from "../lib/serverActions.js";
 import { useConfirmAction } from "../components/ServerActions.jsx";
 
 // Backups list — one row per snapshot. Rendered through the shared BriefCard
@@ -126,7 +127,7 @@ function BackupsList({ server }) {
       (err) => { setError(err && (err.userMessage || err.message) || "Action failed."); setBusy(null); }
     );
   };
-  const createBackup = () => runJob("create", () => api.host(server.hostId).post("/servers/" + server.id + "/backups", { origin: "ui" }));
+  const createBackup = () => runJob("create", () => requestBackup(server));
   const restoreBackup = (name) => runJob("restore:" + name, () => api.host(server.hostId).post("/servers/" + server.id + "/backups/restore", { backup: name, origin: "ui" }));
 
   // Download is NOT a job — nothing runs on the host, so there is no job to await and no re-list to

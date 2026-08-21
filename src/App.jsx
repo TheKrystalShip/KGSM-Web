@@ -447,7 +447,7 @@ function AppInner({ user, setUser, route, setRoute }) {
 
       {/* Mounted once, renders nothing until ⌘K. It owns the hotkey itself rather than being
           handed one, so nothing in the shell has to know it exists. */}
-      <CommandPalette />
+      <CommandPalette onInstall={handleInstall} />
 
       {showWelcome && (
         <FirstRunWelcome user={user} onClose={() => setShowWelcome(false)} />

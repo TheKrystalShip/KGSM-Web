@@ -1,9 +1,12 @@
 import { verbGuard } from "../ServerActions.jsx";
+import { widgetPermitted } from "../widgets/WidgetHost.jsx";
 import { ROUTE_TABS } from "../../lib/labels.js";
 import { leafIcon } from "../../lib/leaves.js";
 import { can, canOn, serverOperable } from "../../lib/persona.js";
-import { runServerAction } from "../../lib/serverActions.js";
+import { backupServer, runServerAction } from "../../lib/serverActions.js";
 import { THEME_OPTS, resolveTheme, themeStore } from "../../lib/theme.js";
+import { dashboardStore } from "../../lib/widgets/dashboardStore.js";
+import { allWidgets } from "../../lib/widgets/registry.js";
 
 // palette/sources.js — everything the command palette can reach, as one flat list of entries.
 //
@@ -86,7 +89,7 @@ function consequenceOf(verb, server) {
 /// `scope` narrows to one server: its tabs and its verbs, and nothing else. That is what keeps ~200
 /// entries usable — past a certain size a flat list stops being searchable and starts being a
 /// haystack, so → stops searching the fleet and starts searching one thing.
-function buildEntries({ servers, library, services, themePref, scope, nav }) {
+function buildEntries({ servers, library, services, themePref, scope, nav, openAssistant, onInstall }) {
   const out = [];
   const push = (e) => { if (e) out.push(e); };
 
@@ -116,6 +119,22 @@ function buildEntries({ servers, library, services, themePref, scope, nav }) {
       }
     }
 
+    // Backing up is a lifecycle-adjacent action rather than a verb: kgsm has no "backup" command,
+    // so it does not go through verbGuard. It arms like everything else that changes the host.
+    if (operable) {
+      push({
+        id: "scope.backup",
+        kind: "action", group: "Actions",
+        title: "Back up now",
+        sub: "Takes a snapshot of this server as it is",
+        icon: "database",
+        weight: 110,
+        arm: true,
+        chin: "Back up " + server.id,
+        run: () => backupServer(server),
+      });
+    }
+
     for (const tab of ROUTE_TABS.server) {
       push({
         id: "scope.tab." + tab.id,
@@ -126,6 +145,28 @@ function buildEntries({ servers, library, services, themePref, scope, nav }) {
         weight: 60,
         chin: "Open " + server.id + " · " + tab.label,
         run: () => nav.openServer(server.id, tab.id === "overview" ? undefined : tab.id),
+      });
+    }
+
+    // The widgets that bind to a SERVER. Pinning one from here is the shortest path there is: the
+    // alternative is walking to the server's page to find the card and press its pin.
+    for (const w of allWidgets()) {
+      if (w.hidden) continue;
+      if (!w.params || w.params.length !== 1 || w.params[0] !== "serverId") continue;
+      const params = { serverId: server.id };
+      if (!widgetPermitted(w, params)) continue;
+      const pinned = dashboardStore.isPinned(w.type, params);
+      push({
+        id: "scope.pin." + w.type,
+        kind: "pin", group: "Dashboard",
+        title: (pinned ? "Unpin " : "Pin ") + w.label.toLowerCase(),
+        sub: pinned ? "On your dashboard" : "Adds a widget bound to " + server.id,
+        icon: pinned ? "pin-off" : "pin",
+        weight: 30,
+        chin: (pinned ? "Remove " : "Pin ") + w.label.toLowerCase() + " " + (pinned ? "from" : "to") + " the dashboard",
+        run: () => (pinned
+          ? dashboardStore.unpinTarget(w.type, params)
+          : dashboardStore.pin(w.type, params, w.size)),
       });
     }
     return out;
@@ -151,6 +192,19 @@ function buildEntries({ servers, library, services, themePref, scope, nav }) {
       weight: 10,
       chin: "Open Settings · " + tab.label,
       run: () => nav.settings(tab.id),
+    });
+  }
+
+  // The assistant is a DOCK rather than a route, so it is reached by opening it rather than by
+  // navigating. Offered as a destination only — a query that matches nothing is answered by saying
+  // so, never by quietly handing what somebody typed to a language model.
+  if (openAssistant) {
+    push({
+      id: "nav.assistant", kind: "nav", group: "Go to",
+      title: "Assistant", sub: null, icon: "bot",
+      weight: 40,
+      chin: "Open the assistant",
+      run: () => openAssistant(),
     });
   }
 
@@ -226,6 +280,44 @@ function buildEntries({ servers, library, services, themePref, scope, nav }) {
         run: () => nav.openGame(g.id),
       });
     }
+  }
+
+  // ---- install -------------------------------------------------------------
+  // A LAUNCH, not an action: installing needs a form — a node, ports, a name — and a palette that
+  // tried to take those would be a worse install modal. This opens the real one, already pointed at
+  // the blueprint.
+  if (onInstall && can("server.create")) {
+    for (const g of library || []) {
+      push({
+        id: "install." + g.id, kind: "action", group: "Install",
+        title: "Install " + (g.name || g.id),
+        sub: "Opens the install form",
+        icon: "download",
+        weight: 25,
+        chin: "Set up a new " + (g.name || g.id) + " server",
+        run: () => onInstall(g),
+      });
+    }
+  }
+
+  // ---- dashboard -----------------------------------------------------------
+  // The fleet-wide widgets, the same set the Add-widget sheet offers. A repeatable type never reads
+  // as pinned, because another one is always addable.
+  for (const w of allWidgets()) {
+    if (w.hidden) continue;
+    if (w.params && w.params.length) continue;
+    if (!widgetPermitted(w, {})) continue;
+    const pinned = !w.repeatable && dashboardStore.isPinned(w.type, {});
+    push({
+      id: "pin." + w.type,
+      kind: "pin", group: "Dashboard",
+      title: (pinned ? "Unpin " : "Pin ") + w.label,
+      sub: pinned ? "On your dashboard" : null,
+      icon: pinned ? "pin-off" : "pin",
+      weight: 15,
+      chin: (pinned ? "Remove " : "Pin ") + w.label + " " + (pinned ? "from" : "to") + " the dashboard",
+      run: () => (pinned ? dashboardStore.unpinTarget(w.type, {}) : dashboardStore.pin(w.type, {}, w.size)),
+    });
   }
 
   // ---- themes --------------------------------------------------------------

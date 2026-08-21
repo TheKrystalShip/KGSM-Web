@@ -9,8 +9,9 @@
 // So this is a module, not a context: it needs nothing from React, and a call site imports it the
 // same way it imports the store it is already reading.
 
+import { api } from "./apiClient.js";
 import { sessionStore } from "./sessionStore.js";
-import { commandServer, serversStore } from "./stores.js";
+import { awaitJob, commandServer, serversStore } from "./stores.js";
 import { toast } from "./toasts.js";
 
 // A verb that came back 401 after the seam already replayed it means that host's session is
@@ -63,4 +64,31 @@ function runServerAction(action, target) {
   return commandServer(server, action).catch(err => reportFailure(err, action, server));
 }
 
-export { noteAuthFailure, runServerAction };
+/// Ask a node to take a backup of one server. Returns the raw response, job and all.
+///
+/// The POST alone, deliberately: a surface with its own busy state and its own error line — the
+/// Backups tab — wants to own the waiting and the reporting, and wrapping those in here would make
+/// it await the job twice.
+function requestBackup(target) {
+  const server = typeof target === "string" ? serversStore.find(target) : target;
+  if (!server) return Promise.reject(new Error("no such server"));
+  return api.host(server.hostId).post("/servers/" + server.id + "/backups", { origin: "ui" });
+}
+
+/// Take a backup and see it through, reporting failure itself.
+///
+/// For a surface with nowhere to render an error — the command palette has a row and a chin, and
+/// both are gone the moment it closes. Same reasoning as `runServerAction` above: an action offered
+/// where there is no component to catch the outcome has to carry the outcome with it.
+function backupServer(target) {
+  const server = typeof target === "string" ? serversStore.find(target) : target;
+  if (!server) return Promise.resolve();
+  return requestBackup(server)
+    .then((resp) => {
+      const job = resp && resp.job;
+      return job && job.id ? awaitJob(job.id, server.hostId) : null;
+    })
+    .catch((err) => { reportFailure(err, "back up", server); });
+}
+
+export { backupServer, noteAuthFailure, requestBackup, runServerAction };

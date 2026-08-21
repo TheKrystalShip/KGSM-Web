@@ -179,7 +179,9 @@ backend id, since the home node is addressed by that id.
   disposing what another still holds. The SSE transport already ref-counts topics, so this is about
   the REST hydrate and the store slot.
 - `serverActions.js` — `runServerAction(verb, server|id)`: the optimistic patch, the rollback and
-  the wording of a lifecycle verb. A module rather than a shell callback because a card that can be
+  the wording of a lifecycle verb. Also `requestBackup(server)` (the POST alone, for a surface that
+  owns its own busy state and error line — the Backups tab) and `backupServer(server)` (the POST,
+  the job wait and the failure report, for one that has nowhere to render an outcome). A module rather than a shell callback because a card that can be
   PINNED has no shell above it to be handed one, and a surface offering Start has to do all three or
   it lies about what happened.
 - `widgets/` — the dashboard's composability: `registry.js` (a type → component, params, capability,
