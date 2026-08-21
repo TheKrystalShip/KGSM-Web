@@ -7,46 +7,65 @@ import { createStore } from "../store.js";
 // ---- Host logs ----
 const LOGS_WINDOW = 300;
 const LOGS_MAX = 2000;
-const logsStore = createStore({
-  list: [],
-  status: "loading",
-  error: null,
-  everLoaded: false,
-  hostId: null,
-});
 
-logsStore.prepend = (hostId, line) =>
-  logsStore.setState(s => {
-    if (!line || !line.id) return s;
-    if (s.hostId && hostId && s.hostId !== hostId) return s;
-    if (s.list.length && s.list[0].id === line.id) return s;
-    if (s.list.some(e => e.id === line.id)) return s;
-    const list = [line, ...s.list];
-    return { ...s, list: list.length > LOGS_MAX ? list.slice(0, LOGS_MAX) : list };
+// KEYED BY HOST, like every other target-scoped store here. Two nodes' merged journals can be on
+// screen at once — two pinned to the dashboard, or one pinned while a node's Logs tab is open — and
+// a single slot had each refresh blank the other with nothing to show for it.
+const logsStore = createStore({ byHost: {} });
+
+const _emptyLogs = () => ({ list: [], status: "loading", error: null, everLoaded: false });
+logsStore.entry = (hostId) => logsStore.getState().byHost[hostId] || null;
+
+const _patchLogs = (hostId, fn) =>
+  logsStore.setState(s => ({ ...s, byHost: { ...s.byHost, [hostId]: fn(s.byHost[hostId] || _emptyLogs()) } }));
+
+logsStore.prepend = (hostId, line) => {
+  if (!line || !line.id || !hostId) return;
+  if (!logsStore.getState().byHost[hostId]) return;   // nobody is holding this node's journal
+  _patchLogs(hostId, e => {
+    if (e.list.length && e.list[0].id === line.id) return e;
+    if (e.list.some(x => x.id === line.id)) return e;
+    const list = [line, ...e.list];
+    return { ...e, list: list.length > LOGS_MAX ? list.slice(0, LOGS_MAX) : list };
   });
+};
 
-let _logsGen = 0;
+// Per-host generations, so a slow response for one node cannot land on top of a newer one for the
+// SAME node while leaving every other node's journal alone.
+const _logsGen = new Map();
 logsStore.refresh = (hostId) => {
   if (!hostId) return Promise.resolve([]);
-  const gen = ++_logsGen;
-  logsStore.setState(s => ({ ...s, status: "loading", error: null, hostId }));
+  const gen = (_logsGen.get(hostId) || 0) + 1;
+  _logsGen.set(hostId, gen);
+  _patchLogs(hostId, e => ({ ...e, status: "loading", error: null }));
   return api.host(hostId).get("/hosts/" + hostId + "/logs?limit=" + LOGS_WINDOW).then(page => {
-    if (gen !== _logsGen) return [];
+    if (_logsGen.get(hostId) !== gen) return [];
     const rows = (page && page.rows) || [];
-    logsStore.setState(s => ({ ...s, list: rows, status: "ready", error: null, everLoaded: true, hostId }));
+    _patchLogs(hostId, e => ({ ...e, list: rows, status: "ready", error: null, everLoaded: true }));
     return rows;
   }, err => {
-    if (gen === _logsGen) logsStore.setState(s => ({ ...s, status: "error", error: err, hostId }));
+    if (_logsGen.get(hostId) === gen) _patchLogs(hostId, e => ({ ...e, status: "error", error: err }));
     throw err;
+  });
+};
+
+logsStore.drop = (hostId) => {
+  _logsGen.delete(hostId);
+  logsStore.setState(s => {
+    if (!s.byHost[hostId]) return s;
+    const byHost = { ...s.byHost };
+    delete byHost[hostId];
+    return { ...s, byHost };
   });
 };
 
 function subscribeHostLogs(hostId) {
   if (!hostId) return () => {};
   const topic = "hosts/" + hostId + "/logs";
-  return api.stream.subscribe([topic], (m) => {
+  const dispose = api.stream.subscribe([topic], (m) => {
     if (m && m.type === "log.line" && m.data) logsStore.prepend(hostId, m.data);
   });
+  return () => { dispose(); logsStore.drop(hostId); };
 }
 
 // ---- One leaf's journal ----
@@ -129,65 +148,85 @@ function subscribeLeafLogs(hostId, leaf) {
 function subscribeHostServices(hostId) {
   if (!hostId) return () => {};
   const topic = "hosts/" + hostId + "/services";
-  return api.stream.subscribe([topic], (m) => {
+  const dispose = api.stream.subscribe([topic], (m) => {
     if (m && m.type === "service.patch" && m.data) servicesStore.applyRow(hostId, m.data);
   });
+  return () => { dispose(); servicesStore.drop(hostId); };
 }
 
 // ---- Host log sources ----
-const logSourcesStore = createStore({
-  sources: [],
-  status: "loading",
-  error: null,
-  hostId: null,
-});
-let _logSourcesGen = 0;
+// Keyed for the same reason as the journals it describes: the source picker on one node's Logs tab
+// must not be replaced by another node's list.
+const logSourcesStore = createStore({ byHost: {} });
+
+const _emptySources = () => ({ sources: [], status: "loading", error: null });
+logSourcesStore.entry = (hostId) => logSourcesStore.getState().byHost[hostId] || null;
+
+const _patchSources = (hostId, fn) =>
+  logSourcesStore.setState(s => ({ ...s, byHost: { ...s.byHost, [hostId]: fn(s.byHost[hostId] || _emptySources()) } }));
+
+const _logSourcesGen = new Map();
 logSourcesStore.refresh = (hostId) => {
   if (!hostId) return Promise.resolve([]);
-  const gen = ++_logSourcesGen;
-  logSourcesStore.setState(s => ({ ...s, status: "loading", error: null, hostId }));
+  const gen = (_logSourcesGen.get(hostId) || 0) + 1;
+  _logSourcesGen.set(hostId, gen);
+  _patchSources(hostId, e => ({ ...e, status: "loading", error: null }));
   return api.host(hostId).get("/hosts/" + hostId + "/logs/sources").then(sources => {
-    if (gen !== _logSourcesGen) return [];
+    if (_logSourcesGen.get(hostId) !== gen) return [];
     const list = Array.isArray(sources) ? sources : [];
-    logSourcesStore.setState(s => ({ ...s, sources: list, status: "ready", error: null, hostId }));
+    _patchSources(hostId, e => ({ ...e, sources: list, status: "ready", error: null }));
     return list;
   }, err => {
-    if (gen === _logSourcesGen) logSourcesStore.setState(s => ({ ...s, status: "error", error: err, hostId }));
+    if (_logSourcesGen.get(hostId) === gen) _patchSources(hostId, e => ({ ...e, status: "error", error: err }));
     throw err;
   });
 };
 
 // ---- Host services ----
-const servicesStore = createStore({
-  list: [],
-  status: "loading",
-  error: null,
-  everLoaded: false,
-  hostId: null,
-});
-let _servicesGen = 0;
+// Keyed by host: the Services board of two nodes can be open at once, and the leaf page reads this
+// same store for the row it renders its header from.
+const servicesStore = createStore({ byHost: {} });
+
+const _emptyServices = () => ({ list: [], status: "loading", error: null, everLoaded: false });
+servicesStore.entry = (hostId) => servicesStore.getState().byHost[hostId] || null;
+
+const _patchServices = (hostId, fn) =>
+  servicesStore.setState(s => ({ ...s, byHost: { ...s.byHost, [hostId]: fn(s.byHost[hostId] || _emptyServices()) } }));
+
+const _servicesGen = new Map();
 servicesStore.refresh = (hostId) => {
   if (!hostId) return Promise.resolve([]);
-  const gen = ++_servicesGen;
-  servicesStore.setState(s => ({ ...s, status: "loading", error: null, hostId }));
+  const gen = (_servicesGen.get(hostId) || 0) + 1;
+  _servicesGen.set(hostId, gen);
+  _patchServices(hostId, e => ({ ...e, status: "loading", error: null }));
   return api.host(hostId).get("/hosts/" + hostId + "/services").then(rows => {
-    if (gen !== _servicesGen) return [];
+    if (_servicesGen.get(hostId) !== gen) return [];
     const list = Array.isArray(rows) ? rows : [];
-    servicesStore.setState(s => ({ ...s, list, status: "ready", error: null, everLoaded: true, hostId }));
+    _patchServices(hostId, e => ({ ...e, list, status: "ready", error: null, everLoaded: true }));
     return list;
   }, err => {
-    if (gen === _servicesGen) servicesStore.setState(s => ({ ...s, status: "error", error: err, hostId }));
+    if (_servicesGen.get(hostId) === gen) _patchServices(hostId, e => ({ ...e, status: "error", error: err }));
     throw err;
   });
 };
 
 servicesStore.applyRow = (hostId, row) => {
-  if (!row || !row.id) return;
+  if (!row || !row.id || !hostId) return;
+  if (!servicesStore.getState().byHost[hostId]) return;   // nobody is holding this node's board
+  _patchServices(hostId, e => {
+    const seen = e.list.some(x => x.id === row.id);
+    const list = seen ? e.list.map(x => (x.id === row.id ? { ...x, ...row } : x)) : [...e.list, row];
+    return { ...e, list };
+  });
+};
+
+servicesStore.drop = (hostId) => {
+  _servicesGen.delete(hostId);
   servicesStore.setState(s => {
-    if (s.hostId !== hostId) return s;
-    const seen = s.list.some(x => x.id === row.id);
-    const list = seen ? s.list.map(x => (x.id === row.id ? { ...x, ...row } : x)) : [...s.list, row];
-    return { ...s, list };
+    if (!s.byHost[hostId]) return s;
+    const byHost = { ...s.byHost };
+    delete byHost[hostId];
+    return { ...s, byHost };
   });
 };
 

@@ -32,6 +32,11 @@ AppRouter: route.kind ──▶ the matching lazy <Page/>
   prop and falls back — `const open = onOpenServer || nav.openServer` — so it works
   on its own page and pinned, with no call site changed. `DashboardPage` takes no
   navigation props at all: every card on it is a widget.
+- ⚠ **CANON: a component does not branch on where it is mounted.** Anything that can be pinned
+  renders and behaves identically on its page and on the dashboard. Data is a function of its
+  PARAMS, never of its placement — which is why the target-scoped stores are keyed
+  (`leafLogsStore.byKey`, `logsStore`/`servicesStore`/`logSourcesStore`.`byHost`) rather than
+  holding one slot, and why `useKeyedResource` shares the hold instead of the surface owning it.
 - **Lifecycle verbs are `lib/serverActions.js`**, not a callback. `runServerAction`
   owns the optimistic patch, the rollback and the wording, so any surface offering a
   Start button does all three. `App.jsx`'s `handleAction` only resolves WHICH server

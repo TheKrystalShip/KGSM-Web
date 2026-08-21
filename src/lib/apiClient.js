@@ -435,9 +435,15 @@ import("./stores.js").then((m) => {
       if (st && st.refresh) st.refresh().catch(() => {});
     });
     if (alertsStore && alertsStore.refresh) alertsStore.refresh().catch(() => {});
-    // Services are per-host (carry hostId); rehydrate only when a host's services are loaded.
-    const svc = storesNs && storesNs.servicesStore;
-    if (svc && svc.getState && svc.getState().hostId) svc.refresh(svc.getState().hostId).catch(() => {});
+    // Services and host journals are keyed by host, and several nodes' worth can be held at once.
+    // Re-hydrate EVERY key somebody is currently holding — refreshing only one would leave the rest
+    // showing whatever they had before the stream dropped, with no sign that they had stopped
+    // following. A key nobody holds is absent from the map and costs nothing.
+    ["servicesStore", "logsStore"].forEach(name => {
+      const st = storesNs && storesNs[name];
+      const held = st && st.getState && st.getState().byHost;
+      if (held) Object.keys(held).forEach(hostId => st.refresh(hostId).catch(() => {}));
+    });
   }
 
   // Realtime state is keyed by the CONNECTION whose socket produced the mode —

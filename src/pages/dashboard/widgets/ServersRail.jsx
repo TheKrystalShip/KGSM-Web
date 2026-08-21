@@ -4,12 +4,15 @@ import { Icon } from "../../../components/Icon.jsx";
 import { useNav } from "../../../components/NavContext.jsx";
 import { Rail } from "../../../components/Rail.jsx";
 import { ServerTile } from "../../../components/ServerCard.jsx";
-import { useWidgetContext } from "../../../components/widgets/WidgetHost.jsx";
 import { runServerAction } from "../../../lib/serverActions.js";
 import { useStore } from "../../../lib/store.js";
 import { favoritesStore, hostsStore, serversStore } from "../../../lib/stores.js";
 
 // ServersRail — the whole fleet on a rail, most-worth-a-glance first.
+//
+// It renders the same wherever it is mounted. It reads stores and navigates through context, so it
+// has no idea whether it is on the dashboard grid, on a page, or anywhere else — which is the point:
+// a card that behaves differently as a widget is two cards to keep in agreement.
 //
 // Unfiltered by status on purpose: the Running tile already covers the live count, so filtering here
 // would make this a second view of the same fact instead of a way to reach any server.
@@ -24,7 +27,6 @@ function ServersRail() {
   const servers = useStore(serversStore, s => s.list);
   const hosts = useStore(hostsStore, s => s.list);
   const favIds = useStore(favoritesStore, s => s.ids);
-  const wc = useWidgetContext();
   const favSet = React.useMemo(() => new Set(favIds), [favIds]);
 
   const ordered = React.useMemo(() => [...servers].sort((a, b) => {
@@ -38,7 +40,7 @@ function ServersRail() {
   if (servers.length === 0) {
     return (
       <div className="chat-brief">
-        {!wc && (
+        {(
           <div className="chat-brief__head">
             <span className="chat-brief__title">
               <Icon name="server" size={13} /> Servers
@@ -64,7 +66,6 @@ function ServersRail() {
       title="Servers"
       count={servers.length}
       items={ordered}
-      disabled={!!(wc && wc.editing)}
       onViewAll={() => nav.servers()}
       renderItem={s => (
         <ServerTile server={s} onOpen={(id) => nav.openServer(id)}

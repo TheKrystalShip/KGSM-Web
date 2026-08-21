@@ -48,11 +48,14 @@ const OUTCOME = {
 // which is the point of embedding rather than reimplementing.
 function LeafConfigPage({ hostId, leafId, onSelectLeaf, onBackToHost, embedded = false }) {
   const hosts = useStore(hostsStore, s => s.list);
-  const services = useStore(servicesStore, s => s.list);
-  const servicesFor = useStore(servicesStore, s => s.hostId);
-  const servicesStatus = useStore(servicesStore, s => s.status);
-  const logLines = useStore(logsStore, s => s.list);
-  const logSources = useStore(logSourcesStore, s => s.sources);
+  const svcEntry = useStore(servicesStore, s => (hostId ? s.byHost[hostId] : null));
+  const services = (svcEntry && svcEntry.list) || [];
+  const servicesFor = svcEntry ? hostId : null;
+  const servicesStatus = svcEntry ? svcEntry.status : "loading";
+  const logsEntry = useStore(logsStore, s => (hostId ? s.byHost[hostId] : null));
+  const logLines = (logsEntry && logsEntry.list) || [];
+  const sourcesEntry = useStore(logSourcesStore, s => (hostId ? s.byHost[hostId] : null));
+  const logSources = (sourcesEntry && sourcesEntry.sources) || [];
 
   const [config, setConfig] = React.useState(null);
   const [loadState, setLoadState] = React.useState("loading");

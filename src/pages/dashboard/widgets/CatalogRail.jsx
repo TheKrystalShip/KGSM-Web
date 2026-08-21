@@ -3,7 +3,6 @@ import React from "react";
 import { GameCard } from "../../../components/GameCard.jsx";
 import { useNav } from "../../../components/NavContext.jsx";
 import { Rail } from "../../../components/Rail.jsx";
-import { useWidgetContext } from "../../../components/widgets/WidgetHost.jsx";
 import { KRYSTAL_LABELS } from "../../../lib/labels.js";
 import { instancesOfBlueprint } from "../../../lib/servers.js";
 import { useStore } from "../../../lib/store.js";
@@ -18,7 +17,6 @@ import { libraryStore, serversStore } from "../../../lib/stores.js";
 
 function CatalogRail() {
   const nav = useNav();
-  const wc = useWidgetContext();
   const library = useStore(libraryStore, s => s.list);
   const servers = useStore(serversStore, s => s.list);
 
@@ -36,7 +34,6 @@ function CatalogRail() {
       title={KRYSTAL_LABELS.catalog || "Catalog"}
       count={library.length}
       items={ordered}
-      disabled={!!(wc && wc.editing)}
       onViewAll={() => nav.library()}
       renderItem={g => <GameCard game={g} compact onPick={() => nav.openGame(g.id)} />}
     />

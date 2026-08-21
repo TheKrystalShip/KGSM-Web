@@ -1955,13 +1955,29 @@ try {
   // The store's live-tail logic (the WS log.line path), tested purely — refresh() is a thin
   // api.host→adaptLogPage wrapper (both halves proven above), so we exercise the part with real logic:
   // host-scoped prepend with id-dedup (no double-count) + the newest-first head.
-  st.logsStore.setState(s => ({ ...s, list: [], hostId: hmId, status: "ready", everLoaded: true }));
+  // The store is KEYED BY HOST — two nodes' journals can be held at once (two pinned to the
+  // dashboard, or one pinned while a node's Logs tab is open), where one slot had each refresh blank
+  // the other. A line only lands on a key somebody is holding.
+  st.logsStore.setState(s => ({ ...s, byHost: { ...s.byHost, [hmId]: { list: [], status: "ready", error: null, everLoaded: true } } }));
   st.logsStore.prepend(hmId, { id: "s=live-1", at: "2030-01-01T00:00:00Z", source: "watchdog", level: "info", text: "live" });
   st.logsStore.prepend(hmId, { id: "s=live-1", at: "2030-01-01T00:00:00Z", source: "watchdog", level: "info", text: "dup" });
   st.logsStore.prepend("some-other-host", { id: "s=live-2", at: "2030-01-01T00:00:01Z", source: "api", level: "info", text: "wrong host" });
-  const afterPrepend = st.logsStore.getState();
+  const afterPrepend = st.logsStore.getState().byHost[hmId];
   assert(afterPrepend.list.length === 1 && afterPrepend.list[0].id === "s=live-1" && afterPrepend.list[0].text === "live",
     "logsStore.prepend: live line prepends newest-first; a dup-by-id and a wrong-host frame are both ignored (the audit-append precedent)");
+  assert(!st.logsStore.getState().byHost["some-other-host"],
+    "logsStore.prepend: a frame for a node nobody is holding creates no window — a stream cannot conjure a journal");
+
+  // Two nodes' journals at once, which is what the keying is FOR: the second must not blank the first.
+  st.logsStore.setState(s => ({ ...s, byHost: { ...s.byHost, "node-b": { list: [], status: "ready", error: null, everLoaded: true } } }));
+  st.logsStore.prepend("node-b", { id: "s=b-1", at: "2030-01-01T00:00:02Z", source: "api", level: "info", text: "b" });
+  assert(st.logsStore.getState().byHost[hmId].list.length === 1
+    && st.logsStore.getState().byHost["node-b"].list.length === 1,
+    "logsStore: two nodes' journals held at once each keep their own lines");
+  st.logsStore.drop("node-b");
+  assert(!st.logsStore.getState().byHost["node-b"] && !!st.logsStore.getState().byHost[hmId],
+    "logsStore.drop: releasing one node's journal frees only that one");
+  st.logsStore.drop(hmId);
 
   // ---- Host services (the leaf control center — GET /hosts/{id}/services + servicesStore) -------
   // The Services tab (which replaced the htop-style Processes tab) shows one card per KGSM leaf, joining
@@ -2027,20 +2043,24 @@ try {
     { id: "monitor", displayName: "Monitor", role: "", unit: "kgsm-monitor.service", state: "active", onDemand: false, provisioned: true, subState: "running", enabled: true, since: null, mainPid: 1, memoryBytes: null, health: { status: "operational", message: null } },
     { id: "firewall", displayName: "Firewall", role: "", unit: "kgsm-firewall.service", state: "inactive", onDemand: true, provisioned: false, subState: null, enabled: null, since: null, mainPid: null, memoryBytes: null, health: null },
   ];
-  st.servicesStore.setState(s => ({ ...s, list: svcRows, hostId: hmId, status: "ready", everLoaded: true }));
-  const svcState = st.servicesStore.getState();
-  assert(svcState.hostId === hmId && svcState.list.length === svcRows.length,
-    "servicesStore: host-scoped snapshot holds the current host's leaf list (the ready-guard the Services tab reads)");
+  // Keyed by host, like the journals: the Services board of two nodes can be open at once.
+  st.servicesStore.setState(s => ({ ...s, byHost: { ...s.byHost, [hmId]: { list: svcRows, status: "ready", error: null, everLoaded: true } } }));
+  const svcState = st.servicesStore.getState().byHost[hmId];
+  assert(!!svcState && svcState.list.length === svcRows.length,
+    "servicesStore: the board is held per host (the ready-guard the Services tab reads)");
 
   // servicesStore.applyRow — the connect/disconnect reconcile path: fold ONE updated leaf row into the
-  // host-scoped board (so a provisioning flip updates the board without a refetch); a wrong-host row drops.
+  // host's board (so a provisioning flip updates it without a refetch); a row for a node nobody holds drops.
   const someLeaf = svcRows[0];
-  st.servicesStore.applyRow(hmId, { ...someLeaf, provisioned: someLeaf.provisioned === true ? false : true });
-  assert(st.servicesStore.getState().list.find(x => x.id === someLeaf.id).provisioned === (someLeaf.provisioned === true ? false : true),
+  const svcFlipped = someLeaf.provisioned === true ? false : true;
+  st.servicesStore.applyRow(hmId, { ...someLeaf, provisioned: svcFlipped });
+  assert(st.servicesStore.getState().byHost[hmId].list.find(x => x.id === someLeaf.id).provisioned === svcFlipped,
     "servicesStore.applyRow: folds an updated leaf row into the host-scoped board (provisioning reconcile)");
   st.servicesStore.applyRow("some-other-host", { id: someLeaf.id, provisioned: someLeaf.provisioned });
-  assert(st.servicesStore.getState().list.find(x => x.id === someLeaf.id).provisioned === (someLeaf.provisioned === true ? false : true),
-    "servicesStore.applyRow: a wrong-host row is ignored (switch-guarded, like logsStore.prepend)");
+  assert(st.servicesStore.getState().byHost[hmId].list.find(x => x.id === someLeaf.id).provisioned === svcFlipped
+    && !st.servicesStore.getState().byHost["some-other-host"],
+    "servicesStore.applyRow: a row for another node lands on neither this board nor a window nobody holds");
+  st.servicesStore.drop(hmId);
 
   // ---- One leaf's page: the nested route + its own journal ----------------------------------------
   // A leaf page hangs off the node's Services tab, which is the only place it is opened from, so the

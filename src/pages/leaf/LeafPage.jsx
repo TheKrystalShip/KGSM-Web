@@ -22,6 +22,7 @@ import React from "react";
 import { Icon } from "../../components/Icon.jsx";
 import { SubTabs } from "../../components/SubTabs.jsx";
 import { useStore } from "../../lib/store.js";
+import { useKeyedResource } from "../../lib/keyedResource.js";
 import { fetchLeafCommands, hostsStore, servicesStore, subscribeHostServices } from "../../lib/stores.js";
 import { leafIcon, leafStatus } from "../../lib/leaves.js";
 import { ROUTE_TABS } from "../../lib/labels.js";
@@ -90,18 +91,16 @@ const LEAF_OVERVIEW = {
 
 function LeafPage({ hostId, leafId, tab, onSelectTab, onReviewConversation, onAudit }) {
   const hosts = useStore(hostsStore, s => s.list);
-  const services = useStore(servicesStore, s => s.list);
-  const servicesFor = useStore(servicesStore, s => s.hostId);
+  const svcEntry = useStore(servicesStore, s => (hostId ? s.byHost[hostId] : null));
 
-  React.useEffect(() => {
-    if (!hostId) return undefined;
-    servicesStore.refresh(hostId).catch(() => {});
-    return subscribeHostServices(hostId);
-  }, [hostId]);
+  useKeyedResource(
+    hostId ? "host-services/" + hostId : null,
+    () => servicesStore.refresh(hostId).catch(() => {}),
+    () => subscribeHostServices(hostId));
 
   const host = hosts.find(h => h.id === hostId) || null;
-  const ready = servicesFor === hostId;
-  const svc = ready && Array.isArray(services) ? services.find(s => s.id === leafId) || null : null;
+  const ready = !!svcEntry;
+  const svc = ready && Array.isArray(svcEntry.list) ? svcEntry.list.find(s => s.id === leafId) || null : null;
 
   // The Commands tab is NOT in the map above: which leaves take commands is the leaves' own answer,
   // shipped as a manifest kgsm-api scans for, so the tab follows the file rather than a list kept

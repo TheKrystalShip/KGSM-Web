@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.138.0] - 2026-08-21
+
+### Changed — the last three host-scoped stores are keyed
+
+`logsStore`, `logSourcesStore` and `servicesStore` each held one host at a time. They are `byHost`
+now, with per-key generation counters, `drop()` on the last release, and their consumers acquiring
+through `useKeyedResource` — so a node's Logs tab, its Services board and anything pinned for the
+same node share one hydrate and one subscription rather than overwriting each other.
+
+Reconnect re-hydrates **every** key somebody is holding. Refreshing only one would leave the rest
+rendering whatever they had before the stream dropped, with nothing to say they had stopped
+following.
+
+### Canon — a component does not branch on where it is mounted
+
+A card renders and behaves identically on its own page and pinned to the dashboard; a Minecraft
+console is the same console in both. Data is a function of its PARAMS — which server, which leaf —
+and never of its placement, which is what the keyed stores are for.
+
+Both dashboard rails violated it: one hid its empty-state header as a widget, both passed `disabled`
+while the grid was being arranged. Neither needed to — the grid already blocks pointer events into a
+widget's body while editing — so they no longer read `WidgetContext` at all. Its one legitimate
+reader is `PinButton`, which suppresses itself inside a widget because a pinned card offering to pin
+itself is a dead control; that is the pin, not the card.
+
+`dash-pinning.mjs` now enforces it, reading a journal's title and window in the widget and again on
+its own page and requiring them to agree.
+
 ## [1.137.0] - 2026-08-21
 
 ### Added — pin a card to your dashboard from the page it lives on

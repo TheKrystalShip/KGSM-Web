@@ -44,6 +44,14 @@ ignorant of widgets entirely — they render whatever they are handed.
 pin itself and no shell has to check. It is a **toggle**: filled means this exact `(type, params)` is
 on the dashboard, and pressing it removes it.
 
+⚠ **CANON: a component does not branch on where it is mounted.** A card renders and behaves
+identically on its own page and pinned to the dashboard — a Minecraft console is the same console in
+both places. Its data is a function of its PARAMS (which server, which leaf) and never of its
+placement: stores are keyed by the target, not by the surface reading it. `WidgetContext` exists for
+the widget system's own chrome, and `PinButton` is its only legitimate reader. A card that needs to
+look different as a widget is a card that will diverge from itself the first time one path is
+touched — fix the host or the CSS instead.
+
 ⚠ The catalog of widget types is registered by **`App.jsx`**, eagerly. `DashboardPage` is lazy, so
 registering from there leaves the registry empty everywhere else and every pin silently draws
 nothing until the dashboard has been opened once.

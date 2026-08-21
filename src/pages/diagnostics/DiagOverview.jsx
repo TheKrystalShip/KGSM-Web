@@ -6,6 +6,7 @@ import { NeedsAttention } from "../../components/NeedsAttention.jsx";
 import { RecentActivity } from "../../components/RecentActivity.jsx";
 import { useStore } from "../../lib/store.js";
 import { statusTone, uptimeShort } from "../../lib/formatting.js";
+import { useKeyedResource } from "../../lib/keyedResource.js";
 import { servicesStore, subscribeHostServices } from "../../lib/stores.js";
 import { ServicesSummaryCard } from "./diagComponents.jsx";
 
@@ -42,15 +43,14 @@ function DiagOverview({ host, fresh, onAsk, onRun, onViewAlerts, onViewAudit, on
   const netTotal = host.network.interfaces.reduce((sum, i) => sum + (i.rx_kbps || 0) + (i.tx_kbps || 0), 0);
   const ifaceCount = host.network.interfaces.length;
 
-  const svcList = useStore(servicesStore, s => s.list);
-  const svcStatus = useStore(servicesStore, s => s.status);
-  const svcForHost = useStore(servicesStore, s => s.hostId);
-  React.useEffect(() => {
-    if (host && host.id) servicesStore.refresh(host.id).catch(() => {});
-    return subscribeHostServices(host && host.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only host.id is used (and in deps); the object churns each render
-  }, [host && host.id]);
-  const svcReady = svcForHost === host.id;
+  const svcEntry = useStore(servicesStore, s => (host && host.id ? s.byHost[host.id] : null));
+  const svcList = (svcEntry && svcEntry.list) || [];
+  const svcStatus = svcEntry ? svcEntry.status : "loading";
+  useKeyedResource(
+    host && host.id ? "host-services/" + host.id : null,
+    () => servicesStore.refresh(host.id).catch(() => {}),
+    () => subscribeHostServices(host.id));
+  const svcReady = !!svcEntry;
 
   return (
     <>

@@ -21,10 +21,20 @@ import { serversStore } from "../../lib/stores.js";
 //   • ready      — mount it.
 
 // ---- WidgetContext -------------------------------------------------------
-// What a card checks to know it is being rendered AS a widget. Two things depend on it: a card
-// suppresses its own header when the host is already drawing one (or the dashboard shows every
-// title twice), and it hides its own pin button (a pinned card offering to pin itself is a dead
-// control).
+//
+// ⚠ CANON: A COMPONENT DOES NOT BRANCH ON WHERE IT IS MOUNTED.
+//
+// A card renders and behaves identically on its own page and pinned to the dashboard. Its data is a
+// function of its PARAMS — which server, which leaf — and never of its placement: a store is keyed
+// by the target, not by the surface reading it, and a component that took a different path as a
+// widget would be two components to keep in agreement, diverging the first time one was touched.
+//
+// So this context exists for the WIDGET SYSTEM'S OWN chrome and nothing else. The one legitimate
+// reader is `PinButton`, which suppresses itself inside a widget because a pinned card offering to
+// pin itself again is a dead control — that is the pin, not the card. If you find yourself reaching
+// for this to make a card look or load differently as a widget, the answer is somewhere else: the
+// host draws no chrome of its own outside edit mode, and the grid already blocks pointer events into
+// a widget's body while it is being arranged.
 const WidgetContext = React.createContext(null);
 function useWidgetContext() { return React.useContext(WidgetContext); }
 function useIsWidget() { return React.useContext(WidgetContext) != null; }

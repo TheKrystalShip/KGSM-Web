@@ -1,32 +1,31 @@
 // DiagLogs — the Logs sub-tab: aggregated leaf-service journals.
 
-import React from "react";
 import { Icon } from "../../components/Icon.jsx";
 import { ConsoleView } from "../../components/ConsoleView.jsx";
 import { useStore } from "../../lib/store.js";
+import { useKeyedResource } from "../../lib/keyedResource.js";
 import { logSourcesStore, logsStore, subscribeHostLogs } from "../../lib/stores.js";
 import { LOG_SOURCE_META } from "./diagHelpers.js";
 
 function DiagLogs({ host }) {
   const hostId = host && host.id;
-  const list = useStore(logsStore, s => s.list);
-  const status = useStore(logsStore, s => s.status);
-  const forHost = useStore(logsStore, s => s.hostId);
-  const logSources = useStore(logSourcesStore, s => s.sources);
-  const logSourcesStatus = useStore(logSourcesStore, s => s.status);
+  // Both stores are keyed by host, and the hold is shared: this tab and a journal pinned to the
+  // dashboard for the same node use one hydrate and one subscription between them.
+  const entry = useStore(logsStore, s => (hostId ? s.byHost[hostId] : null));
+  const sourcesEntry = useStore(logSourcesStore, s => (hostId ? s.byHost[hostId] : null));
 
-  React.useEffect(() => {
-    if (!hostId) return undefined;
-    logsStore.refresh(hostId).catch(() => {});
-    logSourcesStore.refresh(hostId).catch(() => {});
-    return subscribeHostLogs(hostId);
-  }, [hostId]);
+  useKeyedResource(
+    hostId ? "host-logs/" + hostId : null,
+    () => { logsStore.refresh(hostId).catch(() => {}); logSourcesStore.refresh(hostId).catch(() => {}); },
+    () => subscribeHostLogs(hostId));
 
   if (!ConsoleView) return null;
 
-  const ready = forHost === hostId;
-  const entries = ready && Array.isArray(list) ? list : [];
-  const sourcesReady = logSourcesStatus === "ready";
+  const status = entry ? entry.status : "loading";
+  const ready = !!entry;
+  const entries = ready && Array.isArray(entry.list) ? entry.list : [];
+  const logSources = (sourcesEntry && sourcesEntry.sources) || [];
+  const sourcesReady = !!sourcesEntry && sourcesEntry.status === "ready";
 
   const sources = logSources.map(s => {
     const m = LOG_SOURCE_META[s.id] || {};

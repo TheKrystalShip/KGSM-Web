@@ -1,11 +1,11 @@
 // DiagServices — the Services sub-tab: KGSM leaf control center.
 
-import React from "react";
 import { Icon } from "../../components/Icon.jsx";
 import { Toolbar, ToolbarCount, ToolbarFilters, ToolbarSearch, ToolbarSpacer, useFilters } from "../../components/Toolbar.jsx";
 import { useStore } from "../../lib/store.js";
 import { leafStatus } from "../../lib/leaves.js";
 import { canOn } from "../../lib/persona.js";
+import { useKeyedResource } from "../../lib/keyedResource.js";
 import { servicesStore, subscribeHostServices } from "../../lib/stores.js";
 import { LeafCard } from "../../components/LeafCard.jsx";
 
@@ -24,20 +24,18 @@ function matchesQuery(svc, q) {
 
 function DiagServices({ host, onOpenLeaf }) {
   const hostId = host && host.id;
-  const list = useStore(servicesStore, s => s.list);
-  const status = useStore(servicesStore, s => s.status);
-  const forHost = useStore(servicesStore, s => s.hostId);
+  const entry = useStore(servicesStore, s => (hostId ? s.byHost[hostId] : null));
+  const status = entry ? entry.status : "loading";
   const canManage = hostId ? canOn("host.manage", hostId) : false;
   const f = useFilters({ search: "", state: "all", link: "all" });
 
-  React.useEffect(() => {
-    if (!hostId) return;
-    servicesStore.refresh(hostId).catch(() => {});
-    return subscribeHostServices(hostId);
-  }, [hostId]);
+  useKeyedResource(
+    hostId ? "host-services/" + hostId : null,
+    () => servicesStore.refresh(hostId).catch(() => {}),
+    () => subscribeHostServices(hostId));
 
-  const ready = forHost === hostId;
-  const rows = ready && Array.isArray(list) ? list : [];
+  const ready = !!entry;
+  const rows = ready && Array.isArray(entry.list) ? entry.list : [];
 
   if (rows.length > 0) {
     const q = f.debouncedQuery.trim().toLowerCase();

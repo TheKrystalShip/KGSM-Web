@@ -125,9 +125,9 @@ function AppInner({ user, setUser, route, setRoute }) {
   const libraryList = useStore(libraryStore, s => s.list);
   const hostsLoaded = useStore(hostsStore, s => s.everLoaded);
   const sessionsByHost = useStore(sessionStore, s => s.byHost);
-  // Read for the breadcrumb's leaf crumb only — the leaf page is what hydrates this board.
-  const services = useStore(servicesStore, s => s.list);
-  const servicesFor = useStore(servicesStore, s => s.hostId);
+  // Read for the breadcrumb's leaf crumb only — the leaf page is what hydrates this board, so this
+  // reads whichever node's board is currently held and shows nothing when none is.
+  const servicesByHost = useStore(servicesStore, s => s.byHost);
 
   const authzSettled = hosts.every(h => {
     const s = sessionsByHost[h.id];
@@ -319,8 +319,8 @@ function AppInner({ user, setUser, route, setRoute }) {
     hostName: route.hostId ? ((hosts.find(h => h.id === route.hostId) || {}).name || null) : null,
     // The leaf's display name is the services board's to give, and that board is host-scoped — a row
     // read while it still holds another host's list would name the wrong machine's leaf.
-    leafName: (route.leaf && servicesFor === route.hostId
-      ? (services.find(s => s.id === route.leaf) || {}).displayName : null) || null,
+    leafName: (route.leaf && route.hostId && servicesByHost[route.hostId]
+      ? (servicesByHost[route.hostId].list.find(s => s.id === route.leaf) || {}).displayName : null) || null,
     catalogLabel: KRYSTAL_LABELS.catalog || "Catalog",
   };
 
