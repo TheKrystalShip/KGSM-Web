@@ -102,6 +102,18 @@ changes the host). Installing needs a node, a name and a port, so the entry open
 it LAUNCHES, it does not act. Pinning and theme-switching are the two things that deliberately leave
 the palette open, because you do several in a row.
 
+**It moderates players, but only in scope.** Fleet-wide, "ban griefer123" has no target the palette
+could name; inside one server the candidate set is small and known. Which verbs each player is offered,
+and the sentence when one cannot run, comes from **`moderationOffers`** in `PlayerModeration.jsx` — the
+counterpart to `verbGuard`, and for the same reason: a palette saying "Kick" where the roster's menu
+says "the server isn't running" would be two answers to one question.
+
+⚠ **The roster is the one thing the palette FETCHES.** Everything else is derived from stores already
+in memory. It reads through the keyed `playersStore`, so the Players tab and the palette share one
+hydrate, and only when the scoped server is **online** — which is the moderation gate itself, so it
+never reads a roster whose every row would be disabled. (Gating on the player *count* instead was
+wrong for the case that most needs this: unbanning is what you do when nobody is connected.)
+
 **A query that matches nothing offers the assistant, as a row.** Not a fall-through: it has to be
 selected and confirmed, and a typo simply sits there unchosen. ⚠ It does **not** send — the seed
 lands in the composer and focuses it, so the last word is a person pressing Enter on their own text,

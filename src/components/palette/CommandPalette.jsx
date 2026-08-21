@@ -9,6 +9,7 @@ import { rank, segments } from "./score.js";
 import { createStore, useStore } from "../../lib/store.js";
 import { libraryStore, servicesStore, serversStore } from "../../lib/stores.js";
 import { dashboardStore } from "../../lib/widgets/dashboardStore.js";
+import { usePlayerRoster } from "../../lib/hooks/usePlayerRoster.js";
 import { useThemePref } from "../../lib/theme.js";
 
 // CommandPalette — one key onto everything the panel can reach.
@@ -130,13 +131,26 @@ function Palette({ onClose, onInstall }) {
   const listRef = React.useRef(null);
   const inputRef = React.useRef(null);
 
+  // ⚠ THE ONE THING HERE THAT FETCHES. Every other entry is derived from a store already in memory;
+  // a roster is not, because the server DTO carries a player COUNT and no names. So scoping a server
+  // reads one, shared through the keyed store so the Players tab and this never read it twice.
+  //
+  // Gated on the server being ONLINE, which is the moderation gate itself: every one of these actions
+  // is a console command, and a stopped server has no console. That way the fetch never happens for a
+  // roster whose every row would be disabled. Gating on the player COUNT instead was wrong for the
+  // one case that most needs this — unbanning somebody is precisely what you do when nobody is on.
+  const scopeServer = React.useMemo(
+    () => (scope ? servers.find((s) => s.id === scope) : null), [scope, servers]);
+  const wantRoster = !!scopeServer && scopeServer.status === "online";
+  const players = usePlayerRoster(wantRoster ? scopeServer : null);
+
   // `layout` is not read, but pinning changes it and the pin/unpin entries have to flip with it —
   // depending on it is what re-builds them when something is pinned from anywhere.
   const layout = useStore(dashboardStore, (s) => s.layout);
   const entries = React.useMemo(
-    () => buildEntries({ servers, library, services, themePref, scope, nav, openAssistant, onInstall }),
+    () => buildEntries({ servers, library, services, players, themePref, scope, nav, openAssistant, onInstall }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `layout` is a rebuild trigger, not an input
-    [servers, library, services, themePref, scope, nav, openAssistant, onInstall, layout]);
+    [servers, library, services, players, themePref, scope, nav, openAssistant, onInstall, layout]);
 
   // With nothing typed the palette shows where you have just been and then where you can go — it
   // never opens onto an empty box. Recents are resolved against the CURRENT entry set, so a server
@@ -289,7 +303,6 @@ function Palette({ onClose, onInstall }) {
 
   React.useEffect(() => () => clearTimeout(armTimer.current), []);
 
-  const scopeServer = scope ? servers.find((s) => s.id === scope) : null;
   const armed = active && armedId === active.entry.id;
 
   return (
@@ -316,7 +329,10 @@ function Palette({ onClose, onInstall }) {
             onKeyDown={onKeyDown}
           />
           <span className="kp__count">
-            {scope && !query ? "⌫ exit" : flat.length ? flat.length + (flat.length === 1 ? " result" : " results") : ""}
+            {wantRoster && players.status === "loading" ? "reading players…"
+              : wantRoster && players.status === "error" ? "players unavailable"
+                : scope && !query ? "⌫ exit"
+                  : flat.length ? flat.length + (flat.length === 1 ? " result" : " results") : ""}
           </span>
         </div>
 

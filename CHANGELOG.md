@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Command palette — players, and the navigation that was missing
+
+- **Kick, ban and unban from a scoped server.** Verbs and refusals come from `moderationOffers`, the
+  same answer the roster's own menu gives, so the two surfaces cannot disagree. Kick and ban arm;
+  unban does not, because restoring access is not destructive.
+- **Cluster tabs, a leaf's journal and settings, and "Edit &lt;game&gt; blueprint"** — navigation that
+  should have been in the first cut.
+- The roster is the palette's only fetch, and it happens only when the scoped server is **online** —
+  the moderation gate itself, so it never reads a roster whose every row would be disabled.
+
+### Changed
+
+- **`playersStore` is a keyed store** (`byKey[(host, server)]`), extracted from `usePlayerRoster`'s
+  per-mount state. The hook's public shape is unchanged, so `PlayersTab` is untouched, but the fetch
+  and the `players` subscription are now shared: measured 4 roster reads → 2 with the tab alone, and
+  0 extra when the palette is scoped to the same server on top of it.
+- **`moderationOffers` extracted** from `PlayerModeration.jsx` and exported, the way `verbGuard` is.
+
 ### Command palette — actions
 
 - **Back up now**, on a scoped server. Arms like anything else that changes the host.

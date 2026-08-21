@@ -1,64 +1,40 @@
-import React from "react";
-import { api } from "../apiClient.js";
+import { useKeyedResource } from "../keyedResource.js";
+import { useStore } from "../store.js";
+import { followPlayers, hydratePlayers, playersKey, playersStore } from "../stores/players.js";
 
-export function applyPlayerFrame(roster, type, player, serverId) {
-  if (type === "players.reset") {
-    const next = new Map(roster);
-    for (const [key, p] of next) {
-      if (p._serverId === serverId) {
-        next.set(key, { ...p, status: "offline" });
-      }
-    }
-    return next;
-  }
-  if (!player || !player.playerIdentity) return roster;
-  const next = new Map(roster);
-  if (type === "players.join" || type === "players.leave" || type === "players.ban") {
-    next.set(player.playerIdentity, { ...player, _serverId: serverId });
-  }
-  return next;
-}
+// usePlayerRoster — one server's players, live.
+//
+// The SHAPE of what this returns is unchanged and deliberately so: `{ status, detection, moderation,
+// players }`, exactly as before. What changed is underneath — the fetch and the `players`
+// subscription used to be this hook's own local state, so two surfaces reading the same server read
+// it twice. They now share a keyed store (stores/players.js) through `useKeyedResource`, which is
+// what makes one hydrate and one subscription serve every reader.
+//
+// That mattered the moment the command palette could be scoped to a server: the palette opens OVER
+// the page it is scoped to, so the Players tab and the palette are routinely mounted against the
+// same server at once.
+//
+// Re-exported here rather than moved, so every existing call site keeps working untouched.
+
+export { applyPlayerFrame } from "../stores/players.js";
 
 export function usePlayerRoster(server) {
-  const [state, setState] = React.useState({ status: "loading" });
-  React.useEffect(() => {
-    if (!server) return;
-    if (!server.hostId) return;
-    setState({ status: "loading" });
-    let alive = true, hydrated = false, broken = false, detection = "unknown";
-    // What the game can be asked to do, as the backend reports it. Defaults to
-    // "nothing" so a backend that has not shipped the field yet renders no
-    // moderation controls, rather than buttons that would 409 on click.
-    let moderation = { kick: false, ban: false, unban: false, targetKind: null };
-    let roster = new Map();
-    const buffered = [];
+  const hostId = server && server.hostId;
+  const serverId = server && server.id;
+  const key = hostId && serverId ? playersKey(hostId, serverId) : null;
 
-    const flush = () => {
-      if (alive) setState({ status: "ready", detection, moderation, players: [...roster.values()] });
-    };
+  useKeyedResource(key, () => hydratePlayers(server), () => followPlayers(server));
 
-    const dispose = api.stream.subscribe(["players"], (m) => {
-      if (!alive || broken || !m || !m.data || m.data.serverId !== server.id) return;
-      if (m.type !== "players.join" && m.type !== "players.leave" && m.type !== "players.reset" && m.type !== "players.ban") return;
-      if (hydrated) { roster = applyPlayerFrame(roster, m.type, m.data.player, m.data.serverId); flush(); }
-      else buffered.push([m.type, m.data.player, m.data.serverId]);
-    });
-
-    api.host(server.hostId).get("/servers/" + server.id + "/players").then(
-      (res) => {
-        detection = (res && res.detection) || "unknown";
-        if (res && res.moderation) moderation = res.moderation;
-        ((res && res.players) || []).forEach((p) => {
-          if (p && p.playerIdentity) roster.set(p.playerIdentity, { ...p, _serverId: server.id });
-        });
-        buffered.forEach(([type, player, serverId]) => { roster = applyPlayerFrame(roster, type, player, serverId); });
-        hydrated = true;
-        flush();
-      },
-      (err) => { broken = true; hydrated = true; if (alive) setState({ status: "error", error: err }); }
-    );
-    return () => { alive = false; dispose(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [server && server.id, server && server.hostId]);
-  return state;
+  const entry = useStore(playersStore, s => (key ? s.byKey[key] : null));
+  // No entry yet means the first holder's hydrate has not written its loading state — which is a
+  // frame away, and is loading either way.
+  if (!entry) return { status: "loading" };
+  if (entry.status === "error") return { status: "error", error: entry.error };
+  if (entry.status !== "ready") return { status: "loading" };
+  return {
+    status: "ready",
+    detection: entry.detection,
+    moderation: entry.moderation,
+    players: entry.players,
+  };
 }

@@ -1,9 +1,11 @@
+import { moderationOffers } from "../PlayerModeration.jsx";
 import { verbGuard } from "../ServerActions.jsx";
 import { widgetPermitted } from "../widgets/WidgetHost.jsx";
 import { ROUTE_TABS } from "../../lib/labels.js";
 import { leafIcon } from "../../lib/leaves.js";
 import { can, canOn, serverOperable } from "../../lib/persona.js";
 import { backupServer, runServerAction } from "../../lib/serverActions.js";
+import { moderatePlayer } from "../../lib/stores.js";
 import { THEME_OPTS, resolveTheme, themeStore } from "../../lib/theme.js";
 import { dashboardStore } from "../../lib/widgets/dashboardStore.js";
 import { allWidgets } from "../../lib/widgets/registry.js";
@@ -89,7 +91,7 @@ function consequenceOf(verb, server) {
 /// `scope` narrows to one server: its tabs and its verbs, and nothing else. That is what keeps ~200
 /// entries usable — past a certain size a flat list stops being searchable and starts being a
 /// haystack, so → stops searching the fleet and starts searching one thing.
-function buildEntries({ servers, library, services, themePref, scope, nav, openAssistant, onInstall }) {
+function buildEntries({ servers, library, services, players, themePref, scope, nav, openAssistant, onInstall }) {
   const out = [];
   const push = (e) => { if (e) out.push(e); };
 
@@ -146,6 +148,40 @@ function buildEntries({ servers, library, services, themePref, scope, nav, openA
         chin: "Open " + server.id + " · " + tab.label,
         run: () => nav.openServer(server.id, tab.id === "overview" ? undefined : tab.id),
       });
+    }
+
+    // ---- the people on it --------------------------------------------------
+    // The reason this is reachable at all is SCOPE. Fleet-wide, "ban griefer123" has no target the
+    // palette could name; inside one server the candidate set is small, known and live.
+    //
+    // Which actions each player is offered — and the sentence when one cannot run — comes from
+    // `moderationOffers`, the same answer the roster's own menu uses. A palette that said "Kick"
+    // where the menu says "the server isn't running" would be two answers to one question.
+    const roster = (players && players.status === "ready") ? players : null;
+    if (operable && roster) {
+      const running = server.status === "online";
+      for (const p of roster.players || []) {
+        const name = p.playerName || p.playerAddr || p.playerIdentity;
+        for (const offer of moderationOffers(running, p, roster.moderation)) {
+          const verb = offer.action;
+          push({
+            id: "scope.mod." + verb + "." + p.playerIdentity,
+            kind: "action", group: "Players",
+            title: verb.charAt(0).toUpperCase() + verb.slice(1) + " " + name,
+            sub: offer.reason ? null : (p.status === "online" ? "Connected now" : p.status),
+            icon: verb === "kick" ? "user-x" : verb === "ban" ? "ban" : "user-check",
+            weight: 90,
+            boost: p.status === "online" ? 20 : 0,
+            disabled: !!offer.reason, reason: offer.reason,
+            // Unbanning restores access and is not destructive, so it needs no misclick guard —
+            // the same call the roster's own menu makes without one.
+            arm: verb !== "unban",
+            chin: verb.charAt(0).toUpperCase() + verb.slice(1) + " " + name + " on " + server.id,
+            warn: verb !== "unban",
+            run: () => moderatePlayer(server, p.playerIdentity, verb),
+          });
+        }
+      }
     }
 
     // The widgets that bind to a SERVER. Pinning one from here is the shortest path there is: the
@@ -264,6 +300,36 @@ function buildEntries({ servers, library, services, themePref, scope, nav, openA
         chin: "Open " + (svc.displayName || svc.id) + " on " + hostId,
         run: () => nav.openLeaf(hostId, svc.id),
       });
+      // Its journal and its settings — the two tabs anybody actually navigates to. Overview is the
+      // entry above, and System is read on the way past rather than aimed at.
+      for (const tab of ROUTE_TABS.leaf) {
+        if (tab.id !== "logs" && tab.id !== "settings") continue;
+        push({
+          id: "leaf." + hostId + "." + svc.id + "." + tab.id,
+          kind: "nav", group: "Leaves",
+          title: (svc.displayName || svc.id) + " · " + tab.label,
+          sub: hostId,
+          icon: tab.icon,
+          weight: 45,
+          chin: "Open " + (svc.displayName || svc.id) + " · " + tab.label,
+          run: () => nav.openLeaf(hostId, svc.id, tab.id),
+        });
+      }
+    }
+  }
+
+  // The cluster's own tabs. Four entries, and the only way to reach a node's resources or its
+  // services by name rather than by walking to Cluster and picking a tab.
+  if (can("nav.cluster")) {
+    for (const tab of ROUTE_TABS.cluster) {
+      if (tab.id === "overview") continue;          // "Cluster" already goes there
+      push({
+        id: "cluster." + tab.id, kind: "nav", group: "Go to",
+        title: "Cluster · " + tab.label, sub: null, icon: tab.icon,
+        weight: 35,
+        chin: "Open Cluster · " + tab.label,
+        run: () => nav.openHost(undefined, tab.id),
+      });
     }
   }
 
@@ -278,6 +344,17 @@ function buildEntries({ servers, library, services, themePref, scope, nav, openA
         weight: 20,
         chin: "Open " + (g.name || g.id),
         run: () => nav.openGame(g.id),
+      });
+      // Editing a blueprint is a DESTINATION, not an action — it needs an editor, and the palette
+      // opens the one that exists rather than trying to be it.
+      push({
+        id: "game.bp." + g.id, kind: "nav", group: "Catalog",
+        title: "Edit " + (g.name || g.id) + " blueprint",
+        sub: "Opens the blueprint editor",
+        icon: "file-code",
+        weight: 12,
+        chin: "Edit the " + (g.name || g.id) + " blueprint",
+        run: () => nav.openGame(g.id, "blueprint"),
       });
     }
   }

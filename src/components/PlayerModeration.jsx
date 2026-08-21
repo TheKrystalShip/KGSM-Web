@@ -46,6 +46,46 @@ function hasTargetIdentity(player, targetKind) {
 
 const KIND_LABEL = { ip: "an IP address", name: "a player name", id: "an account id" };
 
+/// What may be done to this player right now, and why not.
+///
+/// The counterpart to `verbGuard` for lifecycle: ONE answer to "can this run", so every surface
+/// offering moderation refuses in the same words. The palette can moderate a scoped server's roster,
+/// and a row that said "Kick" where this menu says "the server isn't running" would be two answers to
+/// one question.
+///
+/// Returns `[{ action, reason }]` — reason `null` when it can run. An action the game does not
+/// declare is absent entirely; an action it declares is always PRESENT and carries its reason, because
+/// a control that vanishes tells an operator nothing while a disabled one that says why distinguishes
+/// "this game can't" from "not right now".
+function moderationOffers(serverRunning, player, moderation) {
+  if (!moderation || !player) return [];
+  const banned = player.status === "banned";
+  const online = player.status === "online";
+
+  // A banned player gets the counterpart action, never both — offering "ban" on someone already
+  // banned states a change that wouldn't happen.
+  const offered = [];
+  if (banned) { if (moderation.unban) offered.push("unban"); }
+  else {
+    if (moderation.kick) offered.push("kick");
+    if (moderation.ban) offered.push("ban");
+  }
+  if (!offered.length) return [];
+
+  const usable = hasTargetIdentity(player, moderation.targetKind);
+  const identityReason = "This game moderates by "
+    + (KIND_LABEL[moderation.targetKind] || "an identity") + ", which this player has none of.";
+
+  // Broadest gate first, so the reason names the thing the operator would have to change first.
+  return offered.map((action) => ({
+    action,
+    reason: !serverRunning ? "The server isn't running, so there's no console to send this to."
+      : !usable ? identityReason
+        : action === "kick" && !online ? "This player isn't connected — there's nobody to disconnect."
+          : null,
+  }));
+}
+
 const ACTION = {
   kick: { label: "Kick", icon: "user-x", tone: "warn", confirm: true,
     pending: "Kicking…", title: "Kick — disconnect this player" },
@@ -190,40 +230,13 @@ function PlayerModeration({ player, moderation, serverRunning, pending, onRun })
   const triggerRef = React.useRef(null);
   const close = React.useCallback(() => setOpen(false), []);
 
-  const banned = player.status === "banned";
-  const online = player.status === "online";
-
-  // A banned player gets the counterpart action, never both — offering "ban" on
-  // someone already banned states a change that wouldn't happen.
-  const offered = [];
-  if (moderation) {
-    if (banned) {
-      if (moderation.unban) offered.push("unban");
-    } else {
-      if (moderation.kick) offered.push("kick");
-      if (moderation.ban) offered.push("ban");
-    }
-  }
+  const items = moderationOffers(serverRunning, player, moderation);
 
   // Close the menu if this row's action set empties out from under it (a ban
   // landing turns "kick/ban" into "unban" while the panel is open).
-  React.useEffect(() => { if (!offered.length) setOpen(false); }, [offered.length]);
+  React.useEffect(() => { if (!items.length) setOpen(false); }, [items.length]);
 
-  if (!moderation || !offered.length) return null;
-
-  const usable = hasTargetIdentity(player, moderation.targetKind);
-  const identityReason = "This game moderates by "
-    + (KIND_LABEL[moderation.targetKind] || "an identity") + ", which this player has none of.";
-
-  // Broadest gate first, so the reason names the thing the operator would have
-  // to change first.
-  const items = offered.map((action) => ({
-    action,
-    reason: !serverRunning ? "The server isn't running, so there's no console to send this to."
-      : !usable ? identityReason
-        : action === "kick" && !online ? "This player isn't connected — there's nobody to disconnect."
-          : null,
-  }));
+  if (!items.length) return null;
 
   // A reason every action shares belongs at the top of the menu once, not
   // repeated under each item.
@@ -255,4 +268,4 @@ function PlayerModeration({ player, moderation, serverRunning, pending, onRun })
   );
 }
 
-export { PlayerModeration, hasTargetIdentity };
+export { PlayerModeration, hasTargetIdentity, moderationOffers };
