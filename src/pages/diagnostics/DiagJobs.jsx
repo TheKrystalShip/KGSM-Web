@@ -1,31 +1,33 @@
-// DiagJobs.jsx — `JobQueue`: what one node is doing, and what it is about to do.
+// DiagJobs.jsx — `QueuedJobs` and `RunningJobs`: what one node is about to do, and what it is doing.
 //
 // A server's own card answers "what is happening to THIS server". It cannot answer "what is this
 // node about to do", which is the question a batch creates: ten servers handed to one node, paced
 // two at a time, is half an hour of committed work spread over ten cards that each show a fragment
 // of it.
 //
-// One component, bound to a host, mounted twice — the node page's Jobs sub-tab and the `host.jobs`
-// dashboard widget are the same code with the same props (widgets/registry.js: an entry points at
-// the component the page renders).
+// ── Two components, not one card with two lanes ───────────────────────────
 //
-// ── Two lanes, never merged ───────────────────────────────────────────────
+// Queued and Running are independent facts about a node and are built as independent components:
+// each owns its own data, its own card, its own pin and its own widget entry, so either can be put
+// on a dashboard, sized and placed without the other. An operator watching a long update wants the
+// running card three columns wide and may not want the queue at all.
 //
-// Queued and Running are two different facts and a single list would blur them. A third lane belongs
-// here eventually — the scheduler’s next-fire times — and it is a LANE, never part of Queued: a
-// restart predicted for 04:00 is not committed work, and a merged list would let a prediction render
-// as a job somebody can cancel.
+// Nothing is shared but the row vocabulary below (verbs, the batch denominator, the row shell).
+// Neither imports the other, and neither renders a layout — the Jobs sub-tab arranges them, and the
+// dashboard grid arranges them when they are pinned. That is what makes them composable: a component
+// that positions its sibling only works where its sibling is.
 //
-// Both lanes come from the ROSTER (`server.job`, the API’s `activeJob`), because that is the only
-// source of them that survives a page load: there is deliberately no `GET /jobs`, so a queue
-// assembled from stream frames alone would show an empty node to anyone who arrived after a batch
-// was accepted — an idle node, drawn for one that is working.
+// Both read the ROSTER (`server.job`, the API's `activeJob`), because that is the only source that
+// survives a page load: there is deliberately no `GET /jobs`, so a queue assembled from stream frames
+// alone would show an empty node to anyone who arrived after a batch was accepted — an idle node,
+// drawn for one that is working. `QueuedJobs` additionally reads the batch store, for the denominator
+// in "3rd of 8"; `RunningJobs` needs nothing else, and does not take that dependency for symmetry.
 //
-// ── Live work only; what happened is the audit log’s ──────────────────────
+// ── Live work only; what happened is the audit log's ──────────────────────
 //
-// This shows what a node holds right now. A settled command is not shown here at all: it is an audit
-// row — durable, fleet-wide, and readable by somebody who was not looking when it happened, which is
-// everything a lane fed by one browser’s open tab is not.
+// These show what a node holds right now. A settled command is not shown at all: it is an audit row
+// — durable, fleet-wide, and readable by somebody who was not looking when it happened, which is
+// everything a card fed by one browser's open tab is not.
 
 import React from "react";
 
@@ -100,82 +102,92 @@ function LaneEmpty({ icon, title }) {
   );
 }
 
-function JobQueue({ host }) {
-  const hostId = host && host.id;
+// The rows both cards draw, out of the roster. A shared hook rather than two copies of the same
+// filter: which servers a node holds and whether they carry a job is one question, and two components
+// answering it differently would be two components disagreeing about the same node.
+function useNodeJobs(hostId, state) {
   const nav = useNav();
   const servers = useStore(serversStore, s => s.list);
-  const batches = useStore(batchesStore, s => s.byId);
+
+  const rows = React.useMemo(
+    () => servers.filter(s => s.hostId === hostId && s.job && s.job.state === state),
+    [servers, hostId, state]);
 
   const openOf = React.useCallback((serverId) => (
     servers.some(s => s.id === serverId) ? () => nav.openServer(serverId) : null
   ), [servers, nav]);
 
-  const live = React.useMemo(() => servers.filter(s => s.hostId === hostId && s.job && s.job.state), [servers, hostId]);
+  return { rows, openOf };
+}
 
-  // Ordered by position WITHIN a batch, and grouped by batch to get there. A position is a batch's
-  // own 1-based ordinal, so two batches queued at once both count from one — sorting the merged list
-  // on that number alone would interleave them into an order this panel has never been told, and
-  // which the node's worker does not necessarily follow. Each batch's line stays contiguous and in
-  // its own order; a hand-issued queued job carries no position and sits at the end.
-  const queued = React.useMemo(() => live
-    .filter(s => s.job.state === "queued")
-    .sort((a, b) =>
-      (a.job.batchId || "\uffff").localeCompare(b.job.batchId || "\uffff")
-      || (a.job.queuedPosition ?? Infinity) - (b.job.queuedPosition ?? Infinity)
-      || String(a.name || a.id).localeCompare(String(b.name || b.id))),
-    [live]);
+/// What this node has taken and not started yet.
+///
+/// Ordered by position WITHIN a batch, and grouped by batch to get there. A position is a batch's own
+/// 1-based ordinal, so two batches queued at once both count from one — sorting the merged list on
+/// that number alone would interleave them into an order this panel has never been told, and which
+/// the node's worker does not necessarily follow. Each batch's line stays contiguous and in its own
+/// order; a hand-issued queued job carries no position and sits at the end.
+function QueuedJobs({ host }) {
+  const hostId = host && host.id;
+  const batches = useStore(batchesStore, s => s.byId);
+  const { rows, openOf } = useNodeJobs(hostId, "queued");
 
-  const running = React.useMemo(() => live
-    .filter(s => s.job.state === "running")
-    .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id))),
-    [live]);
+  const queued = React.useMemo(() => [...rows].sort((a, b) =>
+    (a.job.batchId || "\uffff").localeCompare(b.job.batchId || "\uffff")
+    || (a.job.queuedPosition ?? Infinity) - (b.job.queuedPosition ?? Infinity)
+    || String(a.name || a.id).localeCompare(String(b.name || b.id))), [rows]);
 
   return (
-    <div className="jobq">
-      <div className="jobq__head">
-        <PinButton type="host.jobs" params={{ hostId }} label="this node's job queue" />
-      </div>
-
-      <div className="jobq__lanes">
-        <BriefCard icon="hourglass" title="Queued" count={queued.length} countTone="neutral">
-          {queued.length === 0 ? (
-            <LaneEmpty icon="hourglass" title="Nothing queued" />
-          ) : (
-            <div className="chat-brief__list">
-              {queued.map(s => {
-                const meta = verbMeta(s.job.verb);
-                const place = placeOf(s.job.queuedPosition, totalOf(batches, s.job.batchId));
-                return (
-                  <JobRow key={s.id} icon={meta.icon} title={s.name || s.id}
-                    detail={meta.label + (s.job.batchId ? " · part of a batch" : "")}
-                    right={place ? <span className="jobq-place">{place}</span> : null}
-                    onOpen={openOf(s.id)} />
-                );
-              })}
-            </div>
-          )}
-        </BriefCard>
-
-        <BriefCard icon="loader" title="Running" count={running.length} countTone="neutral">
-          {running.length === 0 ? (
-            <LaneEmpty icon="loader" title="Nothing running" />
-          ) : (
-            <div className="chat-brief__list">
-              {running.map(s => {
-                const meta = verbMeta(s.job.verb);
-                return (
-                  <JobRow key={s.id} icon={meta.icon} title={s.name || s.id}
-                    detail={meta.active + "…" + (s.job.batchId ? " · part of a batch" : "")}
-                    right={<span className="act-spin" aria-hidden="true"></span>}
-                    onOpen={openOf(s.id)} />
-                );
-              })}
-            </div>
-          )}
-        </BriefCard>
-      </div>
-    </div>
+    <BriefCard className="jobq-card" icon="hourglass" title="Queued" count={queued.length} countTone="neutral"
+      pin={<PinButton type="host.jobs.queued" params={{ hostId }} label="this node's queued jobs" />}>
+      {queued.length === 0 ? (
+        <LaneEmpty icon="hourglass" title="Nothing queued" />
+      ) : (
+        <div className="chat-brief__list">
+          {queued.map(s => {
+            const meta = verbMeta(s.job.verb);
+            const place = placeOf(s.job.queuedPosition, totalOf(batches, s.job.batchId));
+            return (
+              <JobRow key={s.id} icon={meta.icon} title={s.name || s.id}
+                detail={meta.label + (s.job.batchId ? " · part of a batch" : "")}
+                right={place ? <span className="jobq-place">{place}</span> : null}
+                onOpen={openOf(s.id)} />
+            );
+          })}
+        </div>
+      )}
+    </BriefCard>
   );
 }
 
-export { JobQueue };
+/// What this node has in flight right now.
+function RunningJobs({ host }) {
+  const hostId = host && host.id;
+  const { rows, openOf } = useNodeJobs(hostId, "running");
+
+  const running = React.useMemo(() => [...rows]
+    .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id))), [rows]);
+
+  return (
+    <BriefCard className="jobq-card" icon="loader" title="Running" count={running.length} countTone="neutral"
+      pin={<PinButton type="host.jobs.running" params={{ hostId }} label="this node's running jobs" />}>
+      {running.length === 0 ? (
+        <LaneEmpty icon="loader" title="Nothing running" />
+      ) : (
+        <div className="chat-brief__list">
+          {running.map(s => {
+            const meta = verbMeta(s.job.verb);
+            return (
+              <JobRow key={s.id} icon={meta.icon} title={s.name || s.id}
+                detail={meta.active + "…" + (s.job.batchId ? " · part of a batch" : "")}
+                right={<span className="act-spin" aria-hidden="true"></span>}
+                onOpen={openOf(s.id)} />
+            );
+          })}
+        </div>
+      )}
+    </BriefCard>
+  );
+}
+
+export { QueuedJobs, RunningJobs };

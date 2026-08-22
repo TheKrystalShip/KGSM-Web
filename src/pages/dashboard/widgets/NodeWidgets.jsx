@@ -2,7 +2,7 @@ import { Icon } from "../../../components/Icon.jsx";
 import { useNav } from "../../../components/NavContext.jsx";
 import { useStore } from "../../../lib/store.js";
 import { hostsStore } from "../../../lib/stores.js";
-import { JobQueue } from "../../diagnostics/DiagJobs.jsx";
+import { QueuedJobs, RunningJobs } from "../../diagnostics/DiagJobs.jsx";
 import { DiagLogs } from "../../diagnostics/DiagLogs.jsx";
 import { DiagServices } from "../../diagnostics/DiagServices.jsx";
 
@@ -50,10 +50,16 @@ function HostLogsWidget({ hostId }) {
   return <DiagLogs host={host} />;
 }
 
-function HostJobsWidget({ hostId }) {
+function HostQueuedJobsWidget({ hostId }) {
   const { host, everLoaded } = useHost(hostId);
   if (!host) return <MissingNode hostId={hostId} everLoaded={everLoaded} what="queued jobs" />;
-  return <JobQueue host={host} />;
+  return <QueuedJobs host={host} />;
+}
+
+function HostRunningJobsWidget({ hostId }) {
+  const { host, everLoaded } = useHost(hostId);
+  if (!host) return <MissingNode hostId={hostId} everLoaded={everLoaded} what="running jobs" />;
+  return <RunningJobs host={host} />;
 }
 
 function HostServicesWidget({ hostId }) {
@@ -63,4 +69,4 @@ function HostServicesWidget({ hostId }) {
   return <DiagServices host={host} onOpenLeaf={(h, leaf, tab) => nav.openLeaf(h, leaf, tab)} />;
 }
 
-export { HostJobsWidget, HostLogsWidget, HostServicesWidget };
+export { HostLogsWidget, HostQueuedJobsWidget, HostRunningJobsWidget, HostServicesWidget };

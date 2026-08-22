@@ -95,8 +95,8 @@ registerWidget({
 });
 
 // Runs — cluster-wide, so it takes no `hostId` and is not a bound widget: a run is the thing a
-// person started, and the nodes' shares of it are inside. `host.jobs` answers the other question
-// ("what is THIS node doing") and is bound for that reason.
+// person started, and the nodes' shares of it are inside. `host.jobs.queued`/`host.jobs.running`
+// answer the other question ("what is THIS node doing") and are bound for that reason.
 //
 // No `cap`: the reads behind it are viewer-gated on every node, the same as the servers and jobs a
 // viewer can already see. Cancelling is the operator half, and the board asks per node for it.
@@ -203,21 +203,36 @@ registerWidget({
 });
 
 registerWidget({
-  type: "host.jobs",
-  label: "Node job queue",
-  icon: "list-checks",
+  type: "host.jobs.queued",
+  label: "Node queue",
+  icon: "hourglass",
   group: "Nodes",
   cap: "host.manage",
   scope: "host",
   params: ["hostId"],
-  describe: (p) => (p.hostId || "node") + " · jobs",
-  // Two lanes want a wide card, but they fold to one on their own, so the floor is not "both lanes
-  // fit" — it is where ONE lane stops fitting. Measured in a browser: a lane's own
-  // minimum track is 260px, and below that the card overflows sideways rather than the row getting
-  // shorter. 300 keeps a server's name, its verb and its place in the line all legible at the
-  // narrowest a lane can be.
-  size: { w: 12, h: 5, minPx: 300, minH: 3 },
-  load: () => import("./widgets/NodeWidgets.jsx").then(m => m.HostJobsWidget),
+  describe: (p) => (p.hostId || "node") + " · queued",
+  // One card, so the floor is where a ROW stops reading rather than where a set of lanes stops
+  // fitting. Measured in a browser against a 30-character instance name — every server on the host
+  // that shipped this is named short, and a floor measured against those would hold only there: the
+  // card reads clean down to 310 and the name starts ellipsizing at 300.
+  size: { w: 6, h: 5, minPx: 310, minH: 3 },
+  load: () => import("./widgets/NodeWidgets.jsx").then(m => m.HostQueuedJobsWidget),
+});
+
+registerWidget({
+  type: "host.jobs.running",
+  label: "Node running",
+  icon: "loader",
+  group: "Nodes",
+  cap: "host.manage",
+  scope: "host",
+  params: ["hostId"],
+  describe: (p) => (p.hostId || "node") + " · running",
+  // Ten pixels narrower than the queue, measured the same way and against the same name: a running
+  // row ends in a spinner where a queued one ends in "3rd of 8", and that chip is the whole of the
+  // difference. Clean down to 300, ellipsizing at 290.
+  size: { w: 6, h: 5, minPx: 300, minH: 3 },
+  load: () => import("./widgets/NodeWidgets.jsx").then(m => m.HostRunningJobsWidget),
 });
 
 registerWidget({

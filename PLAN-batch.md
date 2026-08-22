@@ -287,15 +287,19 @@ and mounted twice:
 
 - **A node subtab.** `ROUTE_TABS.cluster` (`lib/labels.js:16`) gains `{ id: "jobs", label: "Jobs",
   icon: "list-checks" }` alongside overview / resources / services / logs, with a `DiagJobs.jsx`
-  body beside the other four. A subtab rather than a band on the overview, because the lanes need
+  body beside the other four. A subtab rather than a band on the overview, because the cards need
   room and `DiagOverview` is already dense — and because the widget below is how it reaches the
   overview for anyone who wants it there.
-- **A dashboard widget**, `host.jobs`: `group: "Nodes"`, `cap: "host.manage"`, `scope: "host"`,
+- **Two dashboard widgets**, `host.jobs.queued` and `host.jobs.running`: `group: "Nodes"`,
+  `cap: "host.manage"`, `scope: "host"`,
   `params: ["hostId"]` — the same shape `host.logs` and `host.services` already use
   (`pages/dashboard/catalog.js:173`, `:186`), so it is pinnable, repeatable per node, and needs no
   new registry machinery.
 
-**Two lanes, and they are never merged:** *Queued* (ordered by `queuedPosition`) and *Running*. Each
+**Two independent components, not one card with two lanes:** `QueuedJobs` (ordered by
+`queuedPosition`) and `RunningJobs`. Each owns its data, its card, its pin and its widget entry, so
+either can be placed and sized on a dashboard without the other; neither imports the other and
+neither renders a layout, so the sub-tab and the dashboard grid each arrange them their own way. Each
 job names its server, its verb, and — when it has one — its `batchId`, so a row is a way into the run
 it belongs to. **Settled work is not shown**: it is an audit row, and a lane fed by one browser's open
 tab is a worse copy of a durable fleet-wide record. That is only true once the API records the

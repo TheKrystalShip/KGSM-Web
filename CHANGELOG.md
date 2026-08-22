@@ -129,6 +129,26 @@ from the Control Panel would have been filed as an unattributed `api` call — n
 cancels, which has always declared `ui`. The origin rides the query here and the body on dispatch,
 because that is the shape each endpoint takes.
 
+### Changed — Queued and Running are two components, not one card with two lanes
+
+They answer independent questions about a node and are now built that way: `QueuedJobs` and
+`RunningJobs` each own their data, their card, their pin and their dashboard widget
+(`host.jobs.queued`, `host.jobs.running`), so either can be placed and sized without the other. An
+operator watching a long update can give Running three columns and never pin the queue at all.
+
+Neither imports the other and neither renders a layout — the Jobs sub-tab arranges them, and the
+dashboard grid arranges them when pinned. That is what makes them composable: a component that
+positions its sibling only works where its sibling is. `RunningJobs` also drops the batch-store
+dependency it never needed; only the queue reads it, for the denominator in "3rd of 8".
+
+Each pin moves into its own card header and reveals on hover with the rest of the brief-card family,
+which is what the shared row above it had been standing in for.
+
+**Both floors re-measured rather than guessed**, against a 30-character instance name — every server
+on the host that shipped this is named short, and a floor measured against those would hold only
+there. Queued reads clean to **310px** and ellipsizes at 300; Running to **300px**, ellipsizing at
+290. The 10px is the place chip, and it is the whole of the difference between them.
+
 ### Changed — a component shows its data; it does not explain the system
 
 The job queue and the runs board each ended with a paragraph explaining how the thing behind them

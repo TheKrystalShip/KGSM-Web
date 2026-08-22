@@ -314,9 +314,11 @@ whether or not this tab is open"* is documentation, and belongs in `CLAUDE.md` o
 the next edit that adds a helpful sentence will pass every gate. `scripts/smoke-live.mjs` and the
 browser harnesses check the rendered component for explanatory phrasing and fail on it.
 
-The **pin** is not prose and must survive any such removal: `PinButton` sits on a row of its own
-(`.jobq__head`, `.opsq__head`) rather than sharing a note strip, and that row takes itself out of
-the layout when the pin self-suppresses inside a widget.
+The **pin** is not prose and must survive any such removal. Where a surface is one card, the pin goes
+in that card's `BriefCard` header and reveals on hover with the rest of the family
+(`.chat-brief:hover .pin-btn`). Where it is not — the runs board — it sits on a row of its own
+(`.opsq__head`), stays visible because nothing reveals it, and that row takes itself out of the
+layout when the pin self-suppresses inside a widget.
 
 ## Styling & themes (`src/styles/`)
 

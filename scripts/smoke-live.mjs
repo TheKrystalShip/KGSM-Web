@@ -1073,21 +1073,23 @@ try {
   assert(!!st.jobsStore.get("jq_live") && st.jobsStore.get("jq_live").state === "queued",
     "queued and running work is never dropped: only the settled tail is trimmed");
 
-  // (d) the two lanes, empty, and no prose. An empty queue is a node with nothing to do and reads
-  // that way from the lane titles alone. A reusable component states the data it has and nothing
+  // (d) the two cards, empty, and no prose. An empty queue is a node with nothing to do and reads
+  // that way from the card titles alone. A reusable component states the data it has and nothing
   // else: no sentence explaining where history lives, what the registry is made of, or how a batch
   // is paced. Asserted as an ABSENCE because that is the only way the rule holds under a later edit.
   const JQ_HOST = PROBE.hostId;
   const jqEmpty = await nav("#/cluster/" + JQ_HOST + "/jobs");
   assert(jqEmpty.includes("Queued") && jqEmpty.includes("Running") && !jqEmpty.includes("Recently settled"),
-    "the Jobs sub-tab renders two lanes, never merged, and shows no settled work");
+    "the Jobs sub-tab renders both cards and shows no settled work");
   assert(jqEmpty.includes("Nothing queued") && jqEmpty.includes("Nothing running"),
     "an empty queue says so in each lane's own words");
-  const jqEl = w.document.querySelector(".jobq");
-  assert(!!jqEl && !/audit log|lives in|this browser|restart of that service/i.test(jqEl.textContent || ""),
-    "the job queue carries no explanatory prose — a component shows its data, it does not teach the system");
-  assert(!!jqEl.querySelector(".pin-btn"),
-    "the queue can still be pinned to a dashboard: the pin survives on its own row, not in a note");
+  const jqCards = [...w.document.querySelectorAll(".jobq-card")];
+  assert(jqCards.length === 2,
+    "Queued and Running are TWO cards — independent components, each placeable on its own");
+  assert(jqCards.every((c) => !/audit log|lives in|this browser|restart of that service/i.test(c.textContent || "")),
+    "the job cards carry no explanatory prose — a component shows its data, it does not teach the system");
+  assert(jqCards.every((c) => !!c.querySelector(".pin-btn")),
+    "each card carries its OWN pin: either can go to a dashboard without the other");
 
   // (e) busy: a queued member states its place in the line, and a running one spins.
   const jqName = (st.serversStore.find(PROBE.id) || {}).name || PROBE.id;

@@ -25,7 +25,7 @@ import { DiagOverview } from "./diagnostics/DiagOverview.jsx";
 import { DiagResources } from "./diagnostics/DiagResources.jsx";
 import { DiagServices } from "./diagnostics/DiagServices.jsx";
 import { DiagLogs } from "./diagnostics/DiagLogs.jsx";
-import { JobQueue } from "./diagnostics/DiagJobs.jsx";
+import { QueuedJobs, RunningJobs } from "./diagnostics/DiagJobs.jsx";
 
 // Re-export from shared modules so existing consumers don't break.
 export { CapacityMeter, HostCapacityStrip, hostCapacityMeters } from "../components/host-helpers.jsx";
@@ -236,7 +236,13 @@ function ClusterPage({ focusHostId, tab: tabProp, onTabChange, onFocusHost, onAs
       {tab === "overview"  && <DiagOverview host={host} fresh={fresh} onAsk={onAsk} onRun={onRunAlertAction} onViewAlerts={onViewAlerts} onViewAudit={onViewAudit} onViewServices={() => setTab("services")} />}
       {tab === "resources" && <DiagResources host={host} fresh={fresh} servers={servers} onOpenServerSettings={onOpenServerSettings} />}
       {tab === "services"  && <DiagServices host={host} onOpenLeaf={(leaf, leafTab) => onOpenLeaf && onOpenLeaf(host.id, leaf, leafTab)} />}
-      {tab === "jobs"      && <JobQueue host={host} />}
+      {tab === "jobs"      && (
+        // The page arranges them; neither component knows the other exists.
+        <div className="jobq-grid">
+          <QueuedJobs host={host} />
+          <RunningJobs host={host} />
+        </div>
+      )}
       {tab === "logs"      && <DiagLogs host={host} />}
       {modals}
     </>

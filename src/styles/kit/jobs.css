@@ -1,82 +1,41 @@
 /* jobs.css — work in flight: one node's job queue, and the cluster's runs.
    ----------------------------------------------------------------------------
-   Two surfaces onto the same domain at two granularities. `.jobq` is what ONE node
-   is doing, in two lanes; `.opsq` is what a person STARTED, one card per run with
-   each node's share inside it. Both are written to survive being a full-width page
-   and a pinned widget, and both put their rows in the shared brief-card family
+   Two surfaces onto the same domain at two granularities. `.jobq-card` is one fact
+   about ONE node — queued or running, an independent card either way; `.opsq` is
+   what a person STARTED, one card per run with each node's share inside it. Both
+   survive being a full-width page and a pinned widget, and both put their rows in
+   the shared brief-card family
    (.chat-brief__item) — a queued stop is the same kind of row as an alert or a
    backup, and drawing it twice is how two lists that should look alike drift. */
 
-.jobq {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-3);
-  min-height: 0;
-}
-
-/* auto-fit rather than two fixed columns: the same component is a full-width page
-   and a widget somebody may size to a third of the grid, and a lane narrower than
-   this is a column of ellipses. It drops to one lane on its own, with no breakpoint
-   to keep in step with the widget grid's own. */
-.jobq__lanes {
+/* The Jobs sub-tab's arrangement of the two cards — page layout, not component layout. auto-fit
+   rather than two fixed columns: a card narrower than this is a column of ellipses, and it drops to
+   one on its own with no breakpoint to keep in step with the widget grid's own. Neither card knows
+   this class exists; pinned to a dashboard they are laid out by the grid instead. */
+.jobq-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: var(--s-3);
-  min-height: 0;
-  flex: 1;
+  align-items: start;
 }
 
-.jobq__lanes > .chat-brief {
+/* A card is the full height of its cell — a page cell bounded by the max-height below, a widget cell
+   by the dashboard grid — and the list scrolls inside it rather than growing the card. */
+.jobq-card {
   display: flex;
   flex-direction: column;
   margin-top: 0;
   min-height: 0;
+  max-height: 100%;
 }
 
-/* The body takes the lane's slack and scrolls inside it, bounded on a page by its
-   own max-height and inside a widget by the cell. */
-.jobq__lanes .chat-brief__list,
-.jobq__lanes .chat-brief__empty {
+.jobq-card .chat-brief__list,
+.jobq-card .chat-brief__empty {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   max-height: 42vh;
 }
-
-/* The place in a batch's line, and when a settled job settled. Both sit at the
-   trailing edge of a row and neither may be squeezed by a long server name. */
-.jobq-place,
-.jobq-when {
-  flex: none;
-  font-size: 11px;
-  color: var(--fg-3);
-  white-space: nowrap;
-}
-
-.jobq-place {
-  font-variant-numeric: tabular-nums;
-  padding: 2px 6px;
-  border: var(--edge);
-  border-radius: var(--r-pill);
-}
-
-/* The pin sits on its own row above the lanes rather than in a card header — the two cards here
-   are lanes of one surface, and pinning "Queued" would say this is two pinnable things. Outside a
-   card header nothing reveals it on hover, so it stays visible, the way the toolbar's and the
-   hero's do. */
-.jobq__head {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.jobq__head:empty {
-  display: none;
-}
-
-.jobq__head .pin-btn {
-  opacity: 1;
-}
-
 
 /* ---- the runs board: what the cluster is doing, one card per run ---------- */
 
