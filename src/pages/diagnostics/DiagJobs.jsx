@@ -9,31 +9,23 @@
 // dashboard widget are the same code with the same props (widgets/registry.js: an entry points at
 // the component the page renders).
 //
-// ── Three lanes, never merged ─────────────────────────────────────────────
+// ── Two lanes, never merged ───────────────────────────────────────────────
 //
-// Queued, Running and Recently settled are three different facts and a single list would blur them.
-// A fourth lane belongs here eventually — the scheduler's next-fire times — and it is a LANE, never
-// part of Queued: a restart predicted for 04:00 is not committed work, and a merged list would let a
-// prediction render as a job somebody can cancel.
+// Queued and Running are two different facts and a single list would blur them. A third lane belongs
+// here eventually — the scheduler’s next-fire times — and it is a LANE, never part of Queued: a
+// restart predicted for 04:00 is not committed work, and a merged list would let a prediction render
+// as a job somebody can cancel.
 //
-// ── Where each lane's rows come from ──────────────────────────────────────
-//
-// Queued and running come from the ROSTER (`server.job`, the API's `activeJob`), because that is the
-// only source of them that survives a page load: there is deliberately no `GET /jobs`, so a queue
-// assembled from stream frames alone would show an empty node to anyone who arrived after the batch
+// Both lanes come from the ROSTER (`server.job`, the API’s `activeJob`), because that is the only
+// source of them that survives a page load: there is deliberately no `GET /jobs`, so a queue
+// assembled from stream frames alone would show an empty node to anyone who arrived after a batch
 // was accepted — an idle node, drawn for one that is working.
 //
-// Settled work comes from `jobsStore`, which the `jobs` topic feeds, because a settled job leaves
-// the roster row the moment it settles. That list is therefore what this browser has watched happen
-// since the tab opened, and the lane says so rather than implying it holds a history.
+// ── Live work only; what happened is the audit log’s ──────────────────────
 //
-// ── This is not an audit log ──────────────────────────────────────────────
-//
-// Audit holds what happened to the fleet: durable, server-side, written from the engine echo. This
-// holds what one node is doing and is about to do, out of a registry that documents itself as
-// ephemeral — a restart of that node's API empties it. A settled job leaves here and lives on there,
-// which is why the foot says where history lives instead of letting an empty lane after a bounce
-// read as data loss.
+// This shows what a node holds right now. A settled command is not shown here at all: it is an audit
+// row — durable, fleet-wide, and readable by somebody who was not looking when it happened, which is
+// everything a lane fed by one browser’s open tab is not.
 
 import React from "react";
 
@@ -41,9 +33,9 @@ import { BriefCard } from "../../components/BriefCard.jsx";
 import { Icon } from "../../components/Icon.jsx";
 import { useNav } from "../../components/NavContext.jsx";
 import { PinButton } from "../../components/widgets/PinButton.jsx";
-import { fmtRelative, ordinal } from "../../lib/formatting.js";
+import { ordinal } from "../../lib/formatting.js";
 import { useStore } from "../../lib/store.js";
-import { batchesStore, jobsStore, serversStore } from "../../lib/stores.js";
+import { batchesStore, serversStore } from "../../lib/stores.js";
 
 // Every verb a job can carry, including the four the lifecycle buttons do not offer — an install, an
 // uninstall and the two backup verbs all take a job and all sit in this queue, so a map that stopped
@@ -61,19 +53,6 @@ const JOB_VERB = {
   backup_restore: { label: "Restore backup", active: "Restoring",    icon: "rotate-ccw" },
 };
 const verbMeta = (verb) => JOB_VERB[verb] || { label: verb || "—", active: verb || "—", icon: "circle-dot" };
-
-// Colour is reserved for the SETTLED lane, and there it means how the work ended. A verb is not a
-// severity: in a row family where red is a firing alert, a red bar on three servers waiting their
-// turn to stop reads as three things wrong. Queued and running rows are toneless and say which verb
-// in words.
-//
-// `cancelled` keeps that neutrality on purpose — nothing ran, so there is neither a success nor a
-// failure to colour, and not having happened is the whole point of it.
-const OUTCOME = {
-  succeeded: { word: "succeeded", tone: "success" },
-  failed:    { word: "failed",    tone: "danger" },
-  cancelled: { word: "cancelled · never ran", tone: null },
-};
 
 // The batch's member count, or null until a node has stated one. The label then degrades to the
 // position alone rather than guessing at a denominator — the same rule the queued button follows.
@@ -112,12 +91,11 @@ function JobRow({ tone, icon, title, detail, right, onOpen }) {
   );
 }
 
-function LaneEmpty({ icon, title, sub }) {
+function LaneEmpty({ icon, title }) {
   return (
     <div className="chat-brief__empty chat-brief__empty--neutral">
       <Icon name={icon} size={20} strokeWidth={1.9} />
       <div className="chat-brief__empty-title">{title}</div>
-      <div className="chat-brief__empty-sub">{sub}</div>
     </div>
   );
 }
@@ -126,14 +104,8 @@ function JobQueue({ host }) {
   const hostId = host && host.id;
   const nav = useNav();
   const servers = useStore(serversStore, s => s.list);
-  const jobsById = useStore(jobsStore, s => s.byId);
-  const settledIds = useStore(jobsStore, s => s.settled);
   const batches = useStore(batchesStore, s => s.byId);
 
-  const nameOf = React.useCallback((serverId) => {
-    const srv = servers.find(s => s.id === serverId);
-    return srv ? (srv.name || srv.id) : serverId;
-  }, [servers]);
   const openOf = React.useCallback((serverId) => (
     servers.some(s => s.id === serverId) ? () => nav.openServer(serverId) : null
   ), [servers, nav]);
@@ -158,28 +130,16 @@ function JobQueue({ host }) {
     .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id))),
     [live]);
 
-  // Newest first, out of the store's own settle order. Nothing here is sorted on a timestamp: several
-  // nodes feed this store and each stamps its own clock, so the order things were WATCHED settling is
-  // the one this browser can actually vouch for.
-  const settled = React.useMemo(() => {
-    const rows = [];
-    for (let i = settledIds.length - 1; i >= 0; i--) {
-      const job = jobsById[settledIds[i]];
-      if (job && job.hostId === hostId) rows.push(job);
-    }
-    return rows;
-  }, [settledIds, jobsById, hostId]);
-
-  const nodeName = (host && (host.name || host.id)) || "this node";
-
   return (
     <div className="jobq">
+      <div className="jobq__head">
+        <PinButton type="host.jobs" params={{ hostId }} label="this node's job queue" />
+      </div>
+
       <div className="jobq__lanes">
-        <BriefCard icon="hourglass" title="Queued" count={queued.length} countTone="neutral"
-          countTitle="Committed work this node has taken and not started">
+        <BriefCard icon="hourglass" title="Queued" count={queued.length} countTone="neutral">
           {queued.length === 0 ? (
-            <LaneEmpty icon="hourglass" title="Nothing queued"
-              sub={"Work waits here when " + nodeName + " has taken a command and not reached it yet."} />
+            <LaneEmpty icon="hourglass" title="Nothing queued" />
           ) : (
             <div className="chat-brief__list">
               {queued.map(s => {
@@ -188,7 +148,7 @@ function JobQueue({ host }) {
                 return (
                   <JobRow key={s.id} icon={meta.icon} title={s.name || s.id}
                     detail={meta.label + (s.job.batchId ? " · part of a batch" : "")}
-                    right={place ? <span className="jobq-place" title={"Position " + place + " in its batch"}>{place}</span> : null}
+                    right={place ? <span className="jobq-place">{place}</span> : null}
                     onOpen={openOf(s.id)} />
                 );
               })}
@@ -196,11 +156,9 @@ function JobQueue({ host }) {
           )}
         </BriefCard>
 
-        <BriefCard icon="loader" title="Running" count={running.length} countTone="neutral"
-          countTitle="Commands this node has in flight right now">
+        <BriefCard icon="loader" title="Running" count={running.length} countTone="neutral">
           {running.length === 0 ? (
-            <LaneEmpty icon="loader" title="Nothing running"
-              sub={nodeName + " has no command in flight."} />
+            <LaneEmpty icon="loader" title="Nothing running" />
           ) : (
             <div className="chat-brief__list">
               {running.map(s => {
@@ -215,31 +173,7 @@ function JobQueue({ host }) {
             </div>
           )}
         </BriefCard>
-
-        <BriefCard icon="check-check" title="Recently settled" count={settled.length} countTone="neutral"
-          countTitle="What this browser has watched finish since the tab opened">
-          {settled.length === 0 ? (
-            <LaneEmpty icon="check-check" title="Nothing settled yet"
-              sub="A command that finishes while this page is open appears here." />
-          ) : (
-            <div className="chat-brief__list">
-              {settled.map(job => {
-                const meta = verbMeta(job.verb);
-                const out = OUTCOME[job.outcome] || { word: "settled", tone: null };
-                const at = job.settledAt ? new Date(job.settledAt) : null;
-                const when = at && !isNaN(at.getTime()) ? fmtRelative(at) : null;
-                return (
-                  <JobRow key={job.id} tone={out.tone} icon={meta.icon} title={nameOf(job.serverId)}
-                    detail={meta.label + " · " + out.word + (job.error ? " — " + job.error : "")}
-                    right={when ? <span className="jobq-when" title={at.toLocaleString()}>{when}</span> : null}
-                    onOpen={openOf(job.serverId)} />
-                );
-              })}
-            </div>
-          )}
-        </BriefCard>
       </div>
-
     </div>
   );
 }

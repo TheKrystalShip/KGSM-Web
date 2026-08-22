@@ -1027,10 +1027,10 @@ try {
     "ordinal: the teens are the exception a last-digit rule gets wrong");
 
 
-  // ---- the node's job queue: three lanes, and the tail it keeps -------------
-  // What a node is DOING and about to do. Not a history — that is the audit log's, and the surface
-  // says so. Nothing here dispatches anything: the frames go in at the stream seam and the roster row
-  // is patched and put back, the way the queued-button checks above work.
+  // ---- the node's job queue: two lanes, and the tail the store keeps --------
+  // What a node is DOING and about to do. A settled command is not shown at all — it is an audit
+  // row. Nothing here dispatches anything: the frames go in at the stream seam and the roster row is
+  // patched and put back, the way the queued-button checks above work.
   const jobFrame = (id, over) => ({
     id, serverId: "jq-" + id, verb: "stop", state: "succeeded",
     createdAt: "2026-06-20T00:00:00Z", settledAt: "2026-06-20T00:00:01Z", error: null, ...over,
@@ -1054,9 +1054,9 @@ try {
   assert(adapt.adaptJob({ id: "c", serverId: "s", verb: "stop", state: "running" }).outcome === null,
     "adaptJob: a live job has no outcome — nobody has observed one");
 
-  // (c) the settled tail is capped PER NODE, and live work is never in it. jobsStore is fed by every
-  // connected node for the life of a tab, so a pinned widget left open for a week would otherwise
-  // accumulate every job the cluster ever ran.
+  // (c) the settled tail is capped PER NODE, and live work is never in it. Nothing DISPLAYS the tail
+  // — it is the eviction order that bounds `byId`, which `awaitJob` reads — and a tab fed by every
+  // connected node for a week would otherwise hold every job the cluster ever ran.
   const JQ_CAP = 25;
   api.__dispatch({ topic: "jobs", type: "job.patch", data: jobFrame("jq_live", { state: "queued" }) }, "jq-node-a");
   for (let i = 0; i < JQ_CAP + 4; i++)
@@ -1073,16 +1073,21 @@ try {
   assert(!!st.jobsStore.get("jq_live") && st.jobsStore.get("jq_live").state === "queued",
     "queued and running work is never dropped: only the settled tail is trimmed");
 
-  // (d) the three lanes, empty. An empty queue is a node with nothing to do, and it has to read that
-  // way rather than as a surface that lost something — which is the whole reason the note is there.
+  // (d) the two lanes, empty, and no prose. An empty queue is a node with nothing to do and reads
+  // that way from the lane titles alone. A reusable component states the data it has and nothing
+  // else: no sentence explaining where history lives, what the registry is made of, or how a batch
+  // is paced. Asserted as an ABSENCE because that is the only way the rule holds under a later edit.
   const JQ_HOST = PROBE.hostId;
   const jqEmpty = await nav("#/cluster/" + JQ_HOST + "/jobs");
-  assert(jqEmpty.includes("Queued") && jqEmpty.includes("Running") && jqEmpty.includes("Recently settled"),
-    "the Jobs sub-tab renders three lanes, never merged");
-  assert(jqEmpty.includes("Nothing queued") && jqEmpty.includes("Nothing running") && jqEmpty.includes("Nothing settled yet"),
+  assert(jqEmpty.includes("Queued") && jqEmpty.includes("Running") && !jqEmpty.includes("Recently settled"),
+    "the Jobs sub-tab renders two lanes, never merged, and shows no settled work");
+  assert(jqEmpty.includes("Nothing queued") && jqEmpty.includes("Nothing running"),
     "an empty queue says so in each lane's own words");
-  assert(jqEmpty.includes("audit log") && jqEmpty.includes("memory"),
-    "the empty queue says where history lives, so an emptied registry never reads as data loss");
+  const jqEl = w.document.querySelector(".jobq");
+  assert(!!jqEl && !/audit log|lives in|this browser|restart of that service/i.test(jqEl.textContent || ""),
+    "the job queue carries no explanatory prose — a component shows its data, it does not teach the system");
+  assert(!!jqEl.querySelector(".pin-btn"),
+    "the queue can still be pinned to a dashboard: the pin survives on its own row, not in a note");
 
   // (e) busy: a queued member states its place in the line, and a running one spins.
   const jqName = (st.serversStore.find(PROBE.id) || {}).name || PROBE.id;
@@ -1099,14 +1104,6 @@ try {
   assert(jqRunning.includes("Updating…") && jqRunning.includes("act-spin") && jqRunning.includes("Nothing queued"),
     "running work is its own lane, with a spinner because something IS spinning — and queued is empty again");
   st.serversStore.patch(PROBE.id, { job: null });
-
-  // (f) a settled job outlives the server it names — an uninstall settles by removing the row — so
-  // the lane falls back to the id and the row is inert rather than a click that leads nowhere.
-  api.__dispatch({ topic: "jobs", type: "job.patch",
-    data: jobFrame("jq_shown", { serverId: "jq-gone", state: "cancelled" }) }, JQ_HOST);
-  const jqDone = await nav("#/cluster/" + JQ_HOST + "/jobs");
-  assert(jqDone.includes("jq-gone") && jqDone.includes("cancelled") && !jqDone.includes("Nothing settled yet"),
-    "a cancelled job settles into the queue as cancelled — never as a success, which is what a collapsed terminal state reads as");
 
   // ---- S4: the ops tray — one run, however many nodes ----------------------
   // A run is what a person started; a batch is one node's share of it. No node knows about any
@@ -1228,12 +1225,14 @@ try {
   const popText = pop.textContent || "";
   assert(popText.includes("Update") && popText.includes("on 3 nodes"),
     "a run names its verb once for the whole run and states the node count whenever it crosses more than one");
-  assert(/couldn.t be read/.test(popText) && popText.includes("not counted here"),
-    "the board says outright that an unreachable node may hold a share of any run below — never draws a smaller run");
+  assert(/couldn.t be read/.test(popText),
+    "a node the board could not read is NAMED — a run drawn from the rest without saying so is a smaller run than the real one");
   assert(popText.includes("1 running") && popText.includes("1 queued") && popText.includes("1 unknown"),
     "the run's progress is the nodes' own counts, in their own words — 'unknown' keeps its hedge");
-  assert(popText.includes("audit log"),
-    "the board says where history lives, so a short tail never reads as data loss");
+  assert(!/audit log|lives in|this browser|closing this doesn/i.test(popText),
+    "the runs board carries no explanatory prose — a component shows its data, it does not teach the system");
+  assert((pop.querySelector(".pin-btn")),
+    "the board can still be pinned to a dashboard: the pin survives on its own row, not in a note");
   trayNav.click();
   await sleep(120);
   globalThis.fetch = realFetch;

@@ -285,6 +285,10 @@ function RunsBoard() {
 
   return (
     <div className="opsq">
+      <div className="opsq__head">
+        <PinButton type="fleet.runs" label="the runs board" />
+      </div>
+
       {unreachable.length > 0 && (
         // Never subtracted, never folded in. What is unknown is whether these nodes hold a share of
         // anything below — so the sentence says that, rather than implying they hold none. One
@@ -295,8 +299,7 @@ function RunsBoard() {
           <Icon name="plug-zap" size={13} strokeWidth={2.2} />
           <span>
             {unreachable.length} {plural(unreachable.length, "node")} couldn&rsquo;t be read
-            {" (" + unreachable.map((n) => (n.hostId ? nodeNameOf(hosts, n.hostId) : n.label)).join(", ") + ")"}. Any run below may have a share
-            there that is not counted here.
+            {" (" + unreachable.map((n) => (n.hostId ? nodeNameOf(hosts, n.hostId) : n.label)).join(", ") + ")"}
           </span>
         </div>
       )}
@@ -305,9 +308,6 @@ function RunsBoard() {
         <div className="chat-brief__empty chat-brief__empty--neutral">
           <Icon name="layers" size={20} strokeWidth={1.9} />
           <div className="chat-brief__empty-title">Nothing running</div>
-          <div className="chat-brief__empty-sub">
-            A run started from any browser on any node appears here while it works.
-          </div>
         </div>
       ) : (
         <div className="opsq__runs">

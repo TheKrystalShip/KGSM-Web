@@ -296,6 +296,28 @@ the browser. The browser mechanics they share live in `lib/pushBrowser.js`, whic
 takes its transport as a parameter and **imports nothing** — a shared module
 reaching `apiClient` would fail `npm run check:assistant`.
 
+## A component shows its data; it does not explain the system
+
+**Never caption a reusable component with prose about how the system behind it works.** No footnote
+saying where a node's queue is held, what a restart empties, that a run outlives the tab, or where
+history lives instead. No empty-state subtitle restating the empty-state title in a sentence. No
+sheet paragraph describing how work is paced. The site is not a tutorial on its own internals, and a
+surface that has to caption itself to be understood has not been designed — the fix is the layout,
+the label, or the data shown, never a paragraph underneath.
+
+What a component *may* say in words is what it measured or was told: a count, a name, a verdict it
+holds evidence for, a node that could not be read. The distinction is whether the sentence would
+change if the data changed. *"1 node couldn't be read (DevTest)"* is data. *"A run keeps going
+whether or not this tab is open"* is documentation, and belongs in `CLAUDE.md` or the CHANGELOG.
+
+⚠ Assert the **absence**, not the presence. A no-prose rule is invisible to lint and to a build, and
+the next edit that adds a helpful sentence will pass every gate. `scripts/smoke-live.mjs` and the
+browser harnesses check the rendered component for explanatory phrasing and fail on it.
+
+The **pin** is not prose and must survive any such removal: `PinButton` sits on a row of its own
+(`.jobq__head`, `.opsq__head`) rather than sharing a note strip, and that row takes itself out of
+the layout when the pin self-suppresses inside a widget.
+
 ## Styling & themes (`src/styles/`)
 
 Plain CSS, no Tailwind/CSS-modules. Three files load in order (`main.jsx`):

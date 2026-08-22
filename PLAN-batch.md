@@ -287,7 +287,7 @@ and mounted twice:
 
 - **A node subtab.** `ROUTE_TABS.cluster` (`lib/labels.js:16`) gains `{ id: "jobs", label: "Jobs",
   icon: "list-checks" }` alongside overview / resources / services / logs, with a `DiagJobs.jsx`
-  body beside the other four. A subtab rather than a band on the overview, because three lanes need
+  body beside the other four. A subtab rather than a band on the overview, because the lanes need
   room and `DiagOverview` is already dense — and because the widget below is how it reaches the
   overview for anyone who wants it there.
 - **A dashboard widget**, `host.jobs`: `group: "Nodes"`, `cap: "host.manage"`, `scope: "host"`,
@@ -295,9 +295,12 @@ and mounted twice:
   (`pages/dashboard/catalog.js:173`, `:186`), so it is pinnable, repeatable per node, and needs no
   new registry machinery.
 
-**Three lanes, and they are never merged:** *Queued* (ordered by `queuedPosition`), *Running*, and
-*Recently settled*. Each job names its server, its verb, and — when it has one — its `batchId`, so a
-row is a way into the run it belongs to.
+**Two lanes, and they are never merged:** *Queued* (ordered by `queuedPosition`) and *Running*. Each
+job names its server, its verb, and — when it has one — its `batchId`, so a row is a way into the run
+it belongs to. **Settled work is not shown**: it is an audit row, and a lane fed by one browser's open
+tab is a worse copy of a durable fleet-wide record. That is only true once the API records the
+outcomes the engine echo never produced — a failed, refused or cancelled command — which is the
+`ApiJournal` change tracked against this slice.
 
 **This is not an audit log, and it must not read as one.** The panel already draws this distinction
 carefully between Alerts and Notifications, and the same care applies here:
@@ -558,21 +561,19 @@ stream topic, which no live batch has exercised from this client.
 **Queued and running read from the ROSTER, not from the jobs stream.** There is deliberately no
 `GET /jobs`, so a queue assembled from frames alone shows an empty node to anyone who arrived after
 the batch was accepted — an idle node drawn for one that is working. `activeJob` is the source that
-survives a page load, and §3a named it for exactly this. The settled lane is the stream's, because a
-settled job leaves the roster row; that lane is therefore what this browser has watched happen since
-the tab opened, and it says so.
+survives a page load, and §3a named it for exactly this.
 
-The cap is **25 settled per node**. A node-wide run is the largest thing worth still seeing the end
-of, so the tail holds one of those plus the hand-issued commands around it. Queued and running are
-never dropped — one job in flight per server bounds them by the roster.
+The job store keeps a tail of **25 settled per node**. Nothing displays it: it is the eviction order
+that bounds the store while `awaitJob` watches a command through, and a tab fed by every connected
+node for a week would otherwise hold every job the cluster ever ran. Queued and running are never
+dropped — one job in flight per server bounds them by the roster.
 
 Verified in jsdom against an auth-disabled API: the origin reaching the stored job and surviving a
 later frame that carries none, the cap holding per node while live work stays, `cancelled` adapting
-to a terminal state that still names itself, and the three lanes rendering empty, queued (with its
-place in the line) and running. Verified in Chromium and Firefox against the live host: three lanes
-at 1920 → 390 with no horizontal overflow at any width, the same three lanes inside the pinned
-widget with the lane bodies scrolling in the cell rather than pushing the note out of it, and the two
-engines agreeing on every measured box. Every write is intercepted at the fetch seam; nothing was
+to a terminal state that still names itself, and the lanes rendering empty, queued (with its place in
+the line) and running. Verified in Chromium and Firefox against the live host: the lanes at
+1920 → 390 with no horizontal overflow at any width, the same lanes inside the pinned widget with the
+lane bodies scrolling in the cell, and the two engines agreeing on every measured box. Every write is intercepted at the fetch seam; nothing was
 dispatched.
 
 Three things the plan had wrong or left open, found in the code:
@@ -580,15 +581,15 @@ Three things the plan had wrong or left open, found in the code:
 - **`adaptJob` collapsed every terminal state to `done`,** so a cancelled job and a successful one
   differed only by the absence of an error — which reads work that never ran as work that worked.
   §3a added `Cancelled` to the wire and `JOB_TERMINAL`; nothing carried the word to a surface. The
-  adapter now keeps it as `outcome`, and `createdAt`/`settledAt` with it, since the settled lane's
-  "when" is the node's own timestamp and the alternative is stamping when this browser got the frame.
+  adapter now keeps it as `outcome`, and `createdAt`/`settledAt` with it, since a terminal "when" is
+  the node's own timestamp and the alternative is stamping when this browser got the frame.
 - **`queuedPosition` is per BATCH, so a single ordered lane is only honest inside one.** Two batches
   queued on one node both count from 1; sorting the merged list on that number interleaves them into
   an order nothing has been told and the worker does not necessarily follow. The lane groups by batch
   and orders within it, and a hand-issued queued job sits at the end.
 - **Colour by verb is colour by severity.** Drawn in the shared brief-row family, a queued *stop*
   took the red the same rows use for a firing alert, and three servers waiting their turn read as
-  three things wrong. Colour is the settled lane's alone, and there it means how the work ended.
+  three things wrong. Queued and running rows are toneless and say which verb in words.
 
 Not verified: no batch has been dispatched at a live backend, so positions moving as members settle
 and the "3rd **of 8**" denominator arriving from a `batch.patch` frame are proven only against
@@ -616,13 +617,13 @@ staying active while any share is, a share reporting no counts named as unreport
 run id standing as a run of one, the cancel request the SPA builds and both halves of what came back,
 a batch the node no longer has dropped on the next read, and — with two connections, one of them
 refusing — the reachable node's share shown and the silent one named. The tray was opened and read in
-jsdom for the badge, the words and the audit link. Every write is intercepted at the fetch seam;
+jsdom for the badge and the words. Every write is intercepted at the fetch seam;
 nothing was dispatched and no batch was cancelled.
 
 Verified in Chromium and Firefox against the live host (`scripts/visual-harness/runs-tray.mjs`): the
 card, its meter and its chips at 1920 → 390 with no horizontal overflow at any width, the expanded
-shares, the same board in a pinned cell scrolling inside it rather than pushing the note out, the
-unreachable banner drawn with the runs it does not shrink, and the empty board. The two engines agree
+shares, the same board in a pinned cell scrolling inside it, the unreachable banner drawn with the
+runs it does not shrink, and the empty board. The two engines agree
 on every measured box. The `minPx` floor is **300**, measured: the head, the meter and the chips all
 read down to there with the chips wrapping to a second row, and at 260 the scope line — the one thing
 on the card that cannot be guessed from the rest — starts being clipped.
@@ -643,9 +644,8 @@ Six things the plan had wrong or left open, found in the code:
   block, and summing treats it as zero members — a run drawn further along than anybody said. The run
   carries `countsPartial` and names the unreported share.
 - **An active-only board loses a run the moment it finishes**, which is exactly when somebody wants to
-  see how it went. Settled runs stay, capped at ten, and the board says the tail is a tail — the read
-  cannot hydrate one that finished before this tab opened, so that list is what this browser watched,
-  the same rule `JobQueue`'s settled lane follows.
+  see how it went. Settled runs stay, capped at ten; the read cannot hydrate one that finished before
+  this tab opened, so that list is what this browser watched.
 - **Cancel is filtered by per-node permission** (§4c's third consequence, which the S4 entry did not
   carry): a run can hold servers this person may not operate on one node while operating freely on
   another, so the button addresses only the nodes it may and the card states how many it left alone.

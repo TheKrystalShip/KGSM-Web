@@ -67,25 +67,23 @@ time is half an hour of committed work, spread over ten cards that each show a f
 
 So a node has a **Jobs** sub-tab, and the same component is a pinnable `host.jobs` dashboard widget —
 one component written once and mounted twice, because a widget points at the component the page
-renders. **Three lanes, never merged:** *Queued* (each row naming its place in its batch's line),
-*Running*, and *Recently settled*. Every row names its server, its verb and whether a batch issued it,
-and opens the server it names.
+renders. **Two lanes, never merged:** *Queued*, each row naming its place in its batch's line, and
+*Running*. Every row names its server, its verb and whether a batch issued it, and opens the server it
+names.
 
-**It is not an audit log and does not read as one.** Audit holds what happened to the fleet: durable,
-server-side, from the engine echo. This holds what one node is doing, out of a registry that is
-in-memory by design — so the surface says both of the things an empty lane would otherwise be read as
-denying: a restart of that node's API empties its queue, and the settled lane is what this browser has
-watched happen since the tab opened. The audit log is a click away for the rest.
+**It shows live work only.** A settled command is an audit row — durable, fleet-wide, and readable by
+somebody who was not looking when it happened, which is everything a lane fed by one browser's open
+tab is not.
 
 Three supporting changes. A job frame's **origin** — the node whose socket delivered it, which the
 envelope has always carried and the subscriber dropped — is now kept on the stored job, so a per-node
 list is a filter rather than a roster lookup per row, and a settled job still names its node after its
 server is gone. `adaptJob` keeps the **terminal word** as `outcome` beside the collapsed `state`,
 because a cancelled job and a successful one are otherwise told apart only by the absence of an error,
-which reads work that never ran as work that worked. And the settled tail is capped at **25 per node**:
-that store is fed by every connected node for the life of a tab, and a pinned widget left open for a
-week would otherwise accumulate every job the cluster ever ran. Queued and running work is never
-dropped.
+which reads work that never ran as work that worked. And the job store's settled tail is capped at
+**25 per node** — it is the eviction order that bounds the store while a command is awaited, and a tab
+fed by every connected node for a week would otherwise hold every job the cluster ever ran. Queued and
+running work is never dropped.
 
 ### Added — the ops tray: what the whole cluster is doing
 
@@ -114,15 +112,28 @@ names what was stopped *and* what was already running and was not, because an op
 "cancelled" and then watches a server stop anyway has been misled about the one thing they were trying
 to prevent. A node that does not answer the cancel keeps running its share and is said to.
 
-**A node that cannot be read is stated, never subtracted.** Its share of any run is unknown, which is
-not the same as none, so the board says so above every run rather than drawing a smaller one. Counts
+**A node that cannot be read is named, never subtracted.** Its share of any run is unknown, which is
+not the same as none, so the board names it above every run rather than drawing a smaller one. Counts
 are each node's own `counts` summed — never re-derived from the member rows — and a share that has
 reported none is named as unreported rather than counted as zero.
 
 **Deliberately not the Notifications tray.** That one is per-browser `localStorage` and is what *you*
 did in *this* browser. This is server-side truth about the fleet: it outlives the tab and holds work
-nobody here started. They sit apart for that reason, and this is not a second toast history — finished
-runs are a short tail, and the board says where history lives.
+nobody here started. They sit apart for that reason.
+
+### Changed — a component shows its data; it does not explain the system
+
+The job queue and the runs board each ended with a paragraph explaining how the thing behind them
+works — where a node's queue is held, what empties it, that a run outlives the tab, where history
+lives instead. Reusable components on this site state the data they have and stop there: an operator
+reading a queue is not reading a tutorial, and a surface that has to caption itself to be understood
+is a surface that has not been designed. The prose is gone from both, along with the lane subtitles
+that restated their own empty-state titles and the sheet sentences describing how nodes pace work.
+
+Both keep their **pin**, which had been sharing that strip — it moves to a row of its own, and takes
+itself out of the layout inside a widget, where the host already draws a remove control. The smoke
+suite and both browser harnesses now assert the prose's **absence**, which is the only form of the
+rule that survives a later edit.
 
 ### Added — the panel warns before a start the node has no room for
 

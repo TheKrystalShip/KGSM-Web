@@ -223,9 +223,10 @@ api.stream.subscribe(["servers"], (m) => {
 // older. What happened before that is the audit log's question, not this store's.
 const SETTLED_KEPT_PER_HOST = 25;
 
-// `settled` is the ids of settled jobs in the order they settled, oldest first — the eviction order,
-// and the display order the settled lane reads backwards. A separate list rather than a sort key on
-// the job, because `settledAt` is the NODE's clock and several nodes feed this store.
+// `settled` is the ids of settled jobs in the order they settled, oldest first. It is the EVICTION
+// order and nothing else — no surface lists settled work, because a settled command is an audit row.
+// It bounds `byId`, which `awaitJob` reads while a command is in flight. A separate list rather than
+// a sort key on the job, because `settledAt` is the NODE's clock and several nodes feed this store.
 const jobsStore = createStore({ byId: {}, settled: [] });
 
 jobsStore.upsert = (job) => {

@@ -177,8 +177,7 @@ function BatchPreflight({ verb, servers, onClose }) {
               {tight.length > 0 && (
                 <p className="batch-sheet__note">
                   {tight.length} of {forecast.measured} would leave the node under its configured floor once the
-                  starts before {plural(tight.length, "it", "them")} have taken what they need. Starting anyway is
-                  the supported way through — the engine decides for real at the moment it acts.
+                  starts before {plural(tight.length, "it", "them")} have taken what they need.
                 </p>
               )}
             </section>
@@ -238,14 +237,11 @@ function RunResult({ run, hosts, fleet, def, onClose }) {
         </div>
 
         <div className="k-modal__body">
-          {/* The run is the nodes' now. It survives this tab, so the sheet says so rather than
-              pretending the browser is watching it through. */}
-          <p className="batch-sheet__note">
-            {spansNodes
-              ? "Dispatched to " + run.nodesReached + " of " + run.nodesAsked + " nodes. "
-              : ""}
-            Each node paces its own share and runs it to completion — closing this doesn't stop it.
-          </p>
+          {spansNodes && (
+            <p className="batch-sheet__note">
+              Dispatched to {run.nodesReached} of {run.nodesAsked} nodes.
+            </p>
+          )}
 
           {partial && (
             <section className="batch-sheet__section">

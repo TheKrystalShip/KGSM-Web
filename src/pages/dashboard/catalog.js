@@ -211,8 +211,8 @@ registerWidget({
   scope: "host",
   params: ["hostId"],
   describe: (p) => (p.hostId || "node") + " · jobs",
-  // Three lanes want a wide card, but they fold to two and then to one on their own, so the floor is
-  // not "three lanes fit" — it is where ONE lane stops fitting. Measured in a browser: a lane's own
+  // Two lanes want a wide card, but they fold to one on their own, so the floor is not "both lanes
+  // fit" — it is where ONE lane stops fitting. Measured in a browser: a lane's own
   // minimum track is 260px, and below that the card overflows sideways rather than the row getting
   // shorter. 300 keeps a server's name, its verb and its place in the line all legible at the
   // narrowest a lane can be.
