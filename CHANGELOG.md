@@ -121,6 +121,14 @@ reported none is named as unreported rather than counted as zero.
 did in *this* browser. This is server-side truth about the fleet: it outlives the tab and holds work
 nobody here started. They sit apart for that reason.
 
+### Fixed — a cancel says which surface made it
+
+`DELETE /batches/{id}` takes an `origin`, and the node writes an audit row for every member a cancel
+stops. The panel was not declaring one, so the endpoint's default applied and every run called off
+from the Control Panel would have been filed as an unattributed `api` call — next to the dispatch it
+cancels, which has always declared `ui`. The origin rides the query here and the body on dispatch,
+because that is the shape each endpoint takes.
+
 ### Changed — a component shows its data; it does not explain the system
 
 The job queue and the runs board each ended with a paragraph explaining how the thing behind them

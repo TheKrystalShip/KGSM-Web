@@ -183,10 +183,16 @@ function applyNarrowing(run, selectedIds, stuckIds) {
 /// Cancelling a run can partially fail exactly as dispatching one can: a node that does not answer
 /// keeps running its share, and is reported as untouched rather than folded in with the batches that
 /// did stop.
-function cancelRun(run) {
+///
+/// The origin rides the QUERY here and the body on dispatch, because that is the shape each verb's
+/// endpoint takes. It is not optional: the node records a cancelled member as an audit row, and the
+/// endpoint's default is `api` — omitting it would file every cancel this panel makes as an
+/// unattributed API call.
+function cancelRun(run, origin = "ui") {
   const targets = ((run && run.batches) || []).filter((b) => b && b.id && b.hostId && b.state !== "settled");
   if (!targets.length) return Promise.resolve(summarizeCancel([]));
-  return Promise.all(targets.map((b) => api.host(b.hostId).del("/batches/" + encodeURIComponent(b.id)).then(
+  const q = "?origin=" + encodeURIComponent(origin);
+  return Promise.all(targets.map((b) => api.host(b.hostId).del("/batches/" + encodeURIComponent(b.id) + q).then(
     (data) => ({ hostId: b.hostId, batchId: b.id, ok: true, data, err: null }),
     (err) => ({ hostId: b.hostId, batchId: b.id, ok: false, data: null, err }),
   ))).then((nodes) => {

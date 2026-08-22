@@ -1181,8 +1181,10 @@ try {
     return realFetch(url, opts);
   };
   const cancelled = await batch.cancelRun(trayRuns().find((r) => r.runId === "run_smoke_cancel"));
-  assert(deletes.length === 1 && /\/api\/v1\/batches\/b_live$/.test(deletes[0]),
+  assert(deletes.length === 1 && /\/api\/v1\/batches\/b_live\?/.test(deletes[0]),
     "cancelling a run is one DELETE per node holding a share of it — addressed to the node that owns the batch");
+  assert(deletes[0].includes("origin=ui"),
+    "the cancel declares its origin: the node writes an audit row for it, and the endpoint's default would file a panel cancel as an unattributed API call");
   assert(cancelled.cancelled.length === 2 && cancelled.stillRunning.length === 1
     && cancelled.stillRunning[0].serverId === "c-s1",
     "cancel reports what it could NOT stop as still running — an operator who reads 'cancelled' and watches a server stop anyway has been misled");
