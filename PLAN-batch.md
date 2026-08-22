@@ -441,13 +441,18 @@ does not compose over a set, and a batch is precisely a set:
   quick succession can each measure a node that looks nearly empty, each pass honestly, and
   collectively commit far past the floor. The gate never fires and the box fills anyway.
 
-So the batch has to do arithmetic the gate cannot: **subtract what it has already committed**, rather
-than trusting the kernel's reading to have caught up. Three concrete gaps follow, all in the accept
-path this plan owns:
+So something has to **subtract what has already been committed** rather than trust the kernel's
+reading to have caught up. That belongs in `kgsm-watchdog`, which every native start funnels through:
+its `MemoryGate` takes a reservation for the figure a spawn was judged on and discharges it when the
+instance reports ready, so the arithmetic is done once, for every caller, in the only process that
+sees them all. A second sum in the API would be a second answer to one question, and the worse one —
+judging from a reading older than the members it paces.
 
-- **The preflight ignores capacity.** `PostBatchCommand` consults `CommandGate.Inadmissible` and the
-  in-flight guard, and nothing else — so a batch admits members that will not fit and only discovers
-  it one refusal at a time, after the user has committed.
+What is left for the batch is the **category** of the answer and the **override**:
+
+- **A refusal the user cannot see coming.** Nothing warns before the click which members of a `start`
+  selection will not fit. That is a forecast, not a verdict, so it belongs where `capacityHint`
+  already lives — the SPA states a prediction; the engine decides.
 - **A capacity refusal lands as `failed`.** The engine's refusal reaches the member through
   `RunAsync`'s ordinary error path. It is a **refusal**, not a failure — the member vocabulary
   already has the right word, and the distinction matters because a failure invites a retry that
@@ -456,11 +461,16 @@ path this plan owns:
   `CommandRunner.RunAsync` — the batch's entry point — takes no `force` parameter, while
   `Start` does. So the override an operator has on a single start is unreachable for a set.
 
-**The reservation belongs in the watchdog eventually, not here.** It is the one resident process
-every native start funnels through — CLI, batch, autostart, crash-restart, scheduler, assistant, bot
-— so a ledger there would close the lag for all of them. The boot autostart has this same problem
-today by its own description: every enabled instance comes up at once. What this plan does is the
-batch's own share of it, and a note that the general fix is a watchdog concern.
+**The ledger closes the lag for every caller, not just batches** — the boot autostart brings every
+enabled instance up at once and had the identical problem. Two limits are worth knowing before
+treating the gate as complete cover:
+
+- **It is only as good as a blueprint's readiness pattern.** A blueprint with no
+  `startup_success_regex` has "ready == started" as its only honest readiness signal, so its
+  reservation discharges about a poll tick after the spawn and buys almost nothing. Twenty-four of
+  thirty blueprints carry a pattern; the six that do not get no cumulative protection.
+- **It tracks what was declared, not what is used.** An instance that grows past its figure — or one
+  declaring nothing at all, which the gate allows rather than inventing a number for — is outside it.
 
 ---
 
@@ -483,23 +493,34 @@ there to prevent. A fake executor that blocks until released proves the ceiling 
 run, not just the first pass — at no cost. Not yet exercised against a live host: cancel, and the
 narrower `update` window, both covered by those tests.
 
-**S1·b — `kgsm-api`: the batch meets the memory gate.** The three gaps in §4d: a **cumulative**
-capacity preflight that walks admitted `start` members in order against `available − headroom`,
-subtracting each requirement as it goes, and refuses the tail up front; capacity refusals recorded as
-`refused` rather than `failed`; `force` on `BatchRequest`, plumbed through `RunAsync` to the engine,
-refused on any verb but `start` exactly as the single-command path refuses it. Backend alone, and it
-comes before the UI because a preflight the API does not perform is one the SPA would have to
-invent — which would put the panel back in the business of deciding what fits.
+**S1·b — `kgsm-api`: the batch meets the memory gate. BUILT** (`kgsm-api` 0.123.0). `force` on
+`BatchRequest`, stored on the batch and carried through `RunAsync` to the engine, refused on any verb
+but `start`; capacity refusals recorded as `refused` rather than `failed`, keyed on kgsm's
+`EC_INSUFFICIENT_MEMORY` (51) rather than on the engine's prose.
+
+**The cumulative preflight this slice was scoped around is not here, and should not be.** The
+watchdog's reservation ledger now does that arithmetic where every native start funnels through it,
+so a second cumulative calculation in the API would be a second answer to one question — and the
+worse one, since it would judge from a `MemAvailable` reading a request older than the members it
+paces. What the API owes is the *category* of the answer, not the answer.
+
+⚠ **The categorisation is only half-connected.** Only the CLI's own gate reports 51. A refusal from
+the watchdog's ledger arrives as a generic error, because its start endpoint answers `409` for every
+failure and kgsm maps any non-200 to `EC_ERROR` — so the refusal a batch is most likely to hit is
+the one that cannot be named. Carrying that distinction out to callers is upstream work; the rule
+here needs no change when it lands.
 
 **S2 — `kgsm-web`: selection and dispatch.** Selection store, tile checkbox, "select all matching",
 the preflight sheet, the dispatcher (mint `runId`, group by host, fan out), the queued rendering
 across the three `pendingVerb` surfaces, the reporter refactor, and one summary reconciled across
 every node's response — including nodes that never answered.
 
-The preflight sheet gains a capacity line for a `start` selection, built from `capacityHint`
-(`lib/capacity.js`) summed the same way the API sums it, and a single "start anyway" that sends
-`force` for the whole batch — the arming decision (§3b) already made, applied to the one override
-that exists. It states figures and no verdict, for the reason the card does: the requirement is
+The preflight sheet gains a capacity **forecast** for a `start` selection — `capacityHint`
+(`lib/capacity.js`) walked cumulatively over the selection, subtracting each requirement as it goes —
+and a single "start anyway" that sends `force` for the whole batch, the arming decision (§3b) already
+made, applied to the one override that exists. The forecast lives here rather than in the API because
+the SPA already holds all three numbers, the engine decides for real at the instant it acts, and a
+prediction is exactly the kind of thing a surface may state and an authority may not. It states figures and no verdict, for the reason the card does: the requirement is
 usually a vendor estimate, and an operator who knows a game runs in less is exactly who should
 override.
 
@@ -538,7 +559,8 @@ restart) is a scheduler concern and does not belong here — but this is the pie
 | A member whose outcome was lost | Settles `unknown`, reconciled against the engine — never guessed | §4b |
 | A run spanning nodes | One run, N batches, correlated by a client-minted `runId`; no peer relay | §4c |
 | A node unreachable at dispatch | Reported as undispatched and offered as a retry — never counted as failed | §4c |
-| Capacity across a batch's members | The accept path sums it; `MemAvailable` lags a just-started server | §4d |
+| Capacity across a batch's members | The watchdog's ledger, not a second sum in the API | §4d, S1·b |
+| Warning before a start selection | A forecast in the SPA — a surface may predict, an authority may not | S2 |
 | A member the gate turns away | `refused`, not `failed` — a failure invites a retry that refuses identically | §4d |
 | Overriding the gate for a set | `force` on the batch, `start` only, one decision for the whole run | §4d, S1·b |
 | A general reservation ledger | The watchdog's, not the batch's — every native start funnels through it | §4d |
