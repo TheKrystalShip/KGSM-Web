@@ -346,7 +346,7 @@ run record. The three obligations stay together, and the batch is not a second i
 
 ---
 
-## 4. Three problems the codebase surfaces
+## 4. Four problems the codebase surfaces
 
 ### 4a. Nothing limits how much a host runs at once
 
@@ -419,6 +419,49 @@ is why `awaitJob` takes the host separately. The **stream envelope has it** (`ho
 `adaptStreamMessage`); the jobs subscriber simply drops it today. Carry it onto the stored job
 (§3c) rather than resolving a node through `serversStore` at each call site.
 
+### 4d. The memory gate is per-start arithmetic, and a batch is not one start
+
+KGSM refuses a start that would leave the node with less than `memory_gate_headroom_mb` free
+(default 1024). The requirement is the instance's own `memory_cap_mb`, else its blueprint's advisory
+`metadata.min_ram_mb`; with neither declared the gate allows the start rather than inventing a
+figure. The same rule is enforced twice — `kgsm`'s `__memory_gate_check` (`core/resources.sh:107`)
+for CLI starts, and `kgsm-watchdog`'s `MemoryGate` for the boot autostart and crash-restart, which
+never pass through the CLI. `kgsm-api` publishes the requirement per server as
+`startMemoryMb`/`startMemorySource` and the floor per host as `memoryGate`, and the SPA joins them in
+`lib/capacity.js` to warn before the click without ever disabling Start.
+
+**The check reads `MemAvailable` fresh each time and reserves nothing.** That is right for a person
+clicking one button: by the time they click the next, the last server has taken what it needs. It
+does not compose over a set, and a batch is precisely a set:
+
+- The watchdog serialises spawns behind a 1-wide mutex (`InstanceSupervisor._gate`), so N members do
+  not race the same reading — that much is already safe.
+- But **`MemAvailable` lags the server that just started.** A process spawned two seconds ago has
+  claimed almost nothing; a JVM grows into its heap over minutes. Six 8 GB members dispatched in
+  quick succession can each measure a node that looks nearly empty, each pass honestly, and
+  collectively commit far past the floor. The gate never fires and the box fills anyway.
+
+So the batch has to do arithmetic the gate cannot: **subtract what it has already committed**, rather
+than trusting the kernel's reading to have caught up. Three concrete gaps follow, all in the accept
+path this plan owns:
+
+- **The preflight ignores capacity.** `PostBatchCommand` consults `CommandGate.Inadmissible` and the
+  in-flight guard, and nothing else — so a batch admits members that will not fit and only discovers
+  it one refusal at a time, after the user has committed.
+- **A capacity refusal lands as `failed`.** The engine's refusal reaches the member through
+  `RunAsync`'s ordinary error path. It is a **refusal**, not a failure — the member vocabulary
+  already has the right word, and the distinction matters because a failure invites a retry that
+  will refuse identically.
+- **`force` cannot reach a batch at all.** `BatchRequest` has no such field, and
+  `CommandRunner.RunAsync` — the batch's entry point — takes no `force` parameter, while
+  `Start` does. So the override an operator has on a single start is unreachable for a set.
+
+**The reservation belongs in the watchdog eventually, not here.** It is the one resident process
+every native start funnels through — CLI, batch, autostart, crash-restart, scheduler, assistant, bot
+— so a ledger there would close the lag for all of them. The boot autostart has this same problem
+today by its own description: every enabled instance comes up at once. What this plan does is the
+batch's own share of it, and a note that the general fix is a watchdog concern.
+
 ---
 
 ## 5. Slices
@@ -440,10 +483,25 @@ there to prevent. A fake executor that blocks until released proves the ceiling 
 run, not just the first pass — at no cost. Not yet exercised against a live host: cancel, and the
 narrower `update` window, both covered by those tests.
 
+**S1·b — `kgsm-api`: the batch meets the memory gate.** The three gaps in §4d: a **cumulative**
+capacity preflight that walks admitted `start` members in order against `available − headroom`,
+subtracting each requirement as it goes, and refuses the tail up front; capacity refusals recorded as
+`refused` rather than `failed`; `force` on `BatchRequest`, plumbed through `RunAsync` to the engine,
+refused on any verb but `start` exactly as the single-command path refuses it. Backend alone, and it
+comes before the UI because a preflight the API does not perform is one the SPA would have to
+invent — which would put the panel back in the business of deciding what fits.
+
 **S2 — `kgsm-web`: selection and dispatch.** Selection store, tile checkbox, "select all matching",
 the preflight sheet, the dispatcher (mint `runId`, group by host, fan out), the queued rendering
 across the three `pendingVerb` surfaces, the reporter refactor, and one summary reconciled across
 every node's response — including nodes that never answered.
+
+The preflight sheet gains a capacity line for a `start` selection, built from `capacityHint`
+(`lib/capacity.js`) summed the same way the API sums it, and a single "start anyway" that sends
+`force` for the whole batch — the arming decision (§3b) already made, applied to the one override
+that exists. It states figures and no verdict, for the reason the card does: the requirement is
+usually a vendor estimate, and an operator who knows a game runs in less is exactly who should
+override.
 
 **S3 — `JobQueue`.** The per-host component (§3c): the `jobs` node subtab, the `host.jobs` widget,
 the `hostId` carry-through, the settled-job retention cap. It stands alone — a node's queue is worth
@@ -480,5 +538,9 @@ restart) is a scheduler concern and does not belong here — but this is the pie
 | A member whose outcome was lost | Settles `unknown`, reconciled against the engine — never guessed | §4b |
 | A run spanning nodes | One run, N batches, correlated by a client-minted `runId`; no peer relay | §4c |
 | A node unreachable at dispatch | Reported as undispatched and offered as a retry — never counted as failed | §4c |
+| Capacity across a batch's members | The accept path sums it; `MemAvailable` lags a just-started server | §4d |
+| A member the gate turns away | `refused`, not `failed` — a failure invites a retry that refuses identically | §4d |
+| Overriding the gate for a set | `force` on the batch, `start` only, one decision for the whole run | §4d, S1·b |
+| A general reservation ledger | The watchdog's, not the batch's — every native start funnels through it | §4d |
 
 Nothing here is open. The plan is ready to implement, starting at S1.
