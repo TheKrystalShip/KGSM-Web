@@ -31,6 +31,7 @@ export const ROUTE_TABS = {
     { id: "overview",  label: "Overview",  icon: "layout-grid" },
     { id: "resources", label: "Resources", icon: "activity" },
     { id: "services",  label: "Services",  icon: "server-cog" },
+    { id: "jobs",      label: "Jobs",      icon: "list-checks" },
     { id: "logs",      label: "Logs",      icon: "scroll-text" },
   ],
   // The leaf shell's own tabs. A leaf's extra tabs are registered with their bodies in

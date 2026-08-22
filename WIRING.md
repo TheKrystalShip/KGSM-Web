@@ -140,7 +140,7 @@ identical in mock + live. Drives `realtimeStore` only (REST reachability stays o
 |---|---|---|
 | `servers` → `server.patch` | `servers` → `server.patch` | ✅ `adaptServer` on the frame; **upsert by id** (patch existing OR add a new roster member) |
 | `servers` → `server.removed {id}` | `servers` → `server.removed {id}` | ✅ tombstone drops the instance |
-| `jobs` → `job`/`job.patch` | `jobs` → `job.patch` | ✅ `adaptJob` collapses `succeeded\|failed`→`done`; one branch serves mock + live |
+| `jobs` → `job`/`job.patch` | `jobs` → `job.patch` | ✅ `adaptJob` collapses every terminal state (`succeeded\|failed\|cancelled`) to `done` — whether anything more will happen — and keeps the terminal word itself as `outcome`, which is what tells a cancellation from a success. The frame's `hostId` (the node whose socket delivered it) is carried onto the stored job; the DTO has no such field |
 | `console` → `console.line` | `servers/{id}/console` → `console.line` | ✅ per-server topic; `ConsolePanel` hydrates a REST window then follows it. The bare `console` topic in `GLOBAL_TOPICS` carries nothing — the feed is per-server |
 | `alerts` → `alert.raise`/`alert.resolve`/`alert.retract` | same three | ✅ `alert.raise` runs through `adaptAlert` (derived icon); resolve/retract passthrough |
 | `audit` → `audit.append` | `audit` → `audit.append` | ✅ live-prepend to `auditStore` (e2e-verified via a real kgsm emit) |

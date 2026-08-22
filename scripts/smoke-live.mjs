@@ -1026,6 +1026,88 @@ try {
     && ordinal(11) === "11th" && ordinal(12) === "12th" && ordinal(13) === "13th" && ordinal(21) === "21st",
     "ordinal: the teens are the exception a last-digit rule gets wrong");
 
+
+  // ---- the node's job queue: three lanes, and the tail it keeps -------------
+  // What a node is DOING and about to do. Not a history — that is the audit log's, and the surface
+  // says so. Nothing here dispatches anything: the frames go in at the stream seam and the roster row
+  // is patched and put back, the way the queued-button checks above work.
+  const jobFrame = (id, over) => ({
+    id, serverId: "jq-" + id, verb: "stop", state: "succeeded",
+    createdAt: "2026-06-20T00:00:00Z", settledAt: "2026-06-20T00:00:01Z", error: null, ...over,
+  });
+
+  // (a) the envelope's origin reaches the stored job. A serverId no roster row carries, so the
+  // accompanying server patch is a no-op for every other check in this file.
+  api.__dispatch({ topic: "jobs", type: "job.patch", data: jobFrame("jq_origin", { state: "running" }) }, "jq-node-a");
+  assert(st.jobsStore.get("jq_origin").hostId === "jq-node-a",
+    "a job frame's ORIGIN reaches the stored job — a per-node queue is then a filter, not a roster lookup per row");
+  api.__dispatch({ topic: "jobs", type: "job.patch", data: jobFrame("jq_origin") });
+  assert(st.jobsStore.get("jq_origin").hostId === "jq-node-a",
+    "a later frame carrying no origin does not erase the node already recorded for that job");
+
+  // (b) a terminal state closes the row AND says what became of it. Collapsing all three terminal
+  // words leaves only `error` to tell them apart, which reads a job nobody ran as one that succeeded.
+  const jqCancelled = adapt.adaptJob({ id: "c", serverId: "s", verb: "stop", state: "cancelled",
+    createdAt: "2026-06-20T00:00:00Z", settledAt: "2026-06-20T00:00:02Z" });
+  assert(jqCancelled.state === "done" && jqCancelled.outcome === "cancelled" && jqCancelled.settledAt === "2026-06-20T00:00:02Z",
+    "adaptJob: cancelled is terminal, names itself as the outcome, and carries the node's settle time");
+  assert(adapt.adaptJob({ id: "c", serverId: "s", verb: "stop", state: "running" }).outcome === null,
+    "adaptJob: a live job has no outcome — nobody has observed one");
+
+  // (c) the settled tail is capped PER NODE, and live work is never in it. jobsStore is fed by every
+  // connected node for the life of a tab, so a pinned widget left open for a week would otherwise
+  // accumulate every job the cluster ever ran.
+  const JQ_CAP = 25;
+  api.__dispatch({ topic: "jobs", type: "job.patch", data: jobFrame("jq_live", { state: "queued" }) }, "jq-node-a");
+  for (let i = 0; i < JQ_CAP + 4; i++)
+    api.__dispatch({ topic: "jobs", type: "job.patch", data: jobFrame("jq_a" + i) }, "jq-node-a");
+  api.__dispatch({ topic: "jobs", type: "job.patch", data: jobFrame("jq_b0") }, "jq-node-b");
+  api.__dispatch({ topic: "jobs", type: "job.patch", data: jobFrame("jq_b1") }, "jq-node-b");
+  const jqSettled = (h) => st.jobsStore.getState().settled.map(id => st.jobsStore.get(id)).filter(j => j && j.hostId === h);
+  assert(jqSettled("jq-node-a").length === JQ_CAP,
+    `the settled tail keeps the last ${JQ_CAP} per node (kept ${jqSettled("jq-node-a").length} of ${JQ_CAP + 5})`);
+  assert(!st.jobsStore.get("jq_a0") && !!st.jobsStore.get("jq_a" + (JQ_CAP + 3)),
+    "the tail drops the OLDEST settled job, not the newest");
+  assert(jqSettled("jq-node-b").length === 2,
+    "the cap is per node — one busy node never evicts another node's settled work");
+  assert(!!st.jobsStore.get("jq_live") && st.jobsStore.get("jq_live").state === "queued",
+    "queued and running work is never dropped: only the settled tail is trimmed");
+
+  // (d) the three lanes, empty. An empty queue is a node with nothing to do, and it has to read that
+  // way rather than as a surface that lost something — which is the whole reason the note is there.
+  const JQ_HOST = PROBE.hostId;
+  const jqEmpty = await nav("#/cluster/" + JQ_HOST + "/jobs");
+  assert(jqEmpty.includes("Queued") && jqEmpty.includes("Running") && jqEmpty.includes("Recently settled"),
+    "the Jobs sub-tab renders three lanes, never merged");
+  assert(jqEmpty.includes("Nothing queued") && jqEmpty.includes("Nothing running") && jqEmpty.includes("Nothing settled yet"),
+    "an empty queue says so in each lane's own words");
+  assert(jqEmpty.includes("audit log") && jqEmpty.includes("memory"),
+    "the empty queue says where history lives, so an emptied registry never reads as data loss");
+
+  // (e) busy: a queued member states its place in the line, and a running one spins.
+  const jqName = (st.serversStore.find(PROBE.id) || {}).name || PROBE.id;
+  st.batchesStore.upsert("jq_batch", { counts: { total: 8 } });
+  st.serversStore.patch(PROBE.id, { job: { verb: "stop", state: "queued", batchId: "jq_batch", queuedPosition: 3 } });
+  const jqQueued = await nav("#/cluster/" + JQ_HOST + "/jobs");
+  assert(jqQueued.includes("3rd of 8") && jqQueued.includes(jqName) && !jqQueued.includes("Nothing queued"),
+    "a queued member names its server and its place in the batch's line — a count, never a predicted time");
+  assert(jqQueued.includes("part of a batch"),
+    "a row that belongs to a batch says so; a hand-issued command does not");
+
+  st.serversStore.patch(PROBE.id, { job: { verb: "update", state: "running" } });
+  const jqRunning = await nav("#/cluster/" + JQ_HOST + "/jobs");
+  assert(jqRunning.includes("Updating…") && jqRunning.includes("act-spin") && jqRunning.includes("Nothing queued"),
+    "running work is its own lane, with a spinner because something IS spinning — and queued is empty again");
+  st.serversStore.patch(PROBE.id, { job: null });
+
+  // (f) a settled job outlives the server it names — an uninstall settles by removing the row — so
+  // the lane falls back to the id and the row is inert rather than a click that leads nowhere.
+  api.__dispatch({ topic: "jobs", type: "job.patch",
+    data: jobFrame("jq_shown", { serverId: "jq-gone", state: "cancelled" }) }, JQ_HOST);
+  const jqDone = await nav("#/cluster/" + JQ_HOST + "/jobs");
+  assert(jqDone.includes("jq-gone") && jqDone.includes("cancelled") && !jqDone.includes("Nothing settled yet"),
+    "a cancelled job settles into the queue as cancelled — never as a success, which is what a collapsed terminal state reads as");
+
   // ---- the selection store --------------------------------------------------
   sel.clear();
   sel.add([{ id: "x1", hostId: "n1" }, { id: "x2", hostId: "n2" }, { id: "x1", hostId: "n1" }]);

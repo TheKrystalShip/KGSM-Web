@@ -2,17 +2,20 @@ import { Icon } from "../../../components/Icon.jsx";
 import { useNav } from "../../../components/NavContext.jsx";
 import { useStore } from "../../../lib/store.js";
 import { hostsStore } from "../../../lib/stores.js";
+import { JobQueue } from "../../diagnostics/DiagJobs.jsx";
 import { DiagLogs } from "../../diagnostics/DiagLogs.jsx";
 import { DiagServices } from "../../diagnostics/DiagServices.jsx";
 
-// The node deep-dive's two boards, pinnable.
+// The node deep-dive's three boards, pinnable.
 //
-// Both take a host OBJECT; a descriptor can only carry an id, because a layout is JSON that outlives
+// Each takes a host OBJECT; a descriptor can only carry an id, because a layout is JSON that outlives
 // the roster it was written against. These resolve the id against the live store — which also gives
 // them somewhere honest to report the case their own page never faces: the node has been forgotten.
 //
-// The bodies are the SAME components the node page renders. Both read stores keyed by host, so a
-// board pinned here and the tab it came from share one hydrate and one subscription.
+// The bodies are the SAME components the node page renders. The journal and the service board read
+// stores keyed by host, so a board pinned here and the tab it came from share one hydrate and one
+// subscription; the job queue reads the roster and the jobs stream, which every surface shares
+// already, and filters them to this node.
 
 function MissingNode({ hostId, everLoaded, what }) {
   return (
@@ -47,6 +50,12 @@ function HostLogsWidget({ hostId }) {
   return <DiagLogs host={host} />;
 }
 
+function HostJobsWidget({ hostId }) {
+  const { host, everLoaded } = useHost(hostId);
+  if (!host) return <MissingNode hostId={hostId} everLoaded={everLoaded} what="queued jobs" />;
+  return <JobQueue host={host} />;
+}
+
 function HostServicesWidget({ hostId }) {
   const nav = useNav();
   const { host, everLoaded } = useHost(hostId);
@@ -54,4 +63,4 @@ function HostServicesWidget({ hostId }) {
   return <DiagServices host={host} onOpenLeaf={(h, leaf, tab) => nav.openLeaf(h, leaf, tab)} />;
 }
 
-export { HostLogsWidget, HostServicesWidget };
+export { HostJobsWidget, HostLogsWidget, HostServicesWidget };

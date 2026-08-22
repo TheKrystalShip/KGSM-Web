@@ -1,0 +1,115 @@
+/* jobs.css — the node's job queue: three lanes of work, and the note under them.
+   ----------------------------------------------------------------------------
+   The rows are the shared brief-card family (.chat-brief__item), because a queued
+   stop is the same kind of row as an alert or a backup and drawing it twice is how
+   two lists that should look alike stop looking alike. What is here is the LANE
+   layout — three cards side by side that survive being a full page and being a
+   pinned widget — and the two small metas the rows put at their trailing edge. */
+
+.jobq {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  min-height: 0;
+}
+
+/* auto-fit rather than three fixed columns: the same component is a full-width
+   page and a widget somebody may size to a third of the grid, and a lane narrower
+   than this is a column of ellipses. It drops to two lanes and then to one on its
+   own, with no breakpoint to keep in step with the widget grid's own. */
+.jobq__lanes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--s-3);
+  min-height: 0;
+  flex: 1;
+}
+
+.jobq__lanes > .chat-brief {
+  display: flex;
+  flex-direction: column;
+  margin-top: 0;
+  min-height: 0;
+}
+
+/* The body takes the lane's slack and scrolls inside it. Bounded on a page by its
+   own max-height and inside a widget by the cell — either way the lane never
+   pushes the note off the bottom, which is the one line the surface has to keep. */
+.jobq__lanes .chat-brief__list,
+.jobq__lanes .chat-brief__empty {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  max-height: 42vh;
+}
+
+/* The place in a batch's line, and when a settled job settled. Both sit at the
+   trailing edge of a row and neither may be squeezed by a long server name. */
+.jobq-place,
+.jobq-when {
+  flex: none;
+  font-size: 11px;
+  color: var(--fg-3);
+  white-space: nowrap;
+}
+
+.jobq-place {
+  font-variant-numeric: tabular-nums;
+  padding: 2px 6px;
+  border: var(--edge);
+  border-radius: var(--r-pill);
+}
+
+.jobq__foot {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+/* The note is TEXT, not a row of items — the link and the full stop after it are part of a sentence,
+   and a flex container would break every word boundary into a gap it can wrap at. Only the icon and
+   the pin beside it are laid out. */
+.jobq__foot-icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--fg-3);
+}
+
+.jobq__note {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--fg-3);
+}
+
+/* The link and the full stop after it wrap as one. */
+.jobq__nowrap {
+  white-space: nowrap;
+}
+
+.jobq__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--krystal-teal);
+  cursor: pointer;
+}
+
+.jobq__link:hover {
+  text-decoration: underline;
+}
+
+.jobq__link:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-focus);
+  border-radius: var(--r-sm);
+}
+
+/* The pin sits at the end of the note strip rather than in a card header — the
+   three cards here are lanes of one surface, and pinning "Queued" would say this
+   is three pinnable things. A pin outside a card header has nothing to reveal it
+   on hover, so it stays visible, the way the toolbar's and the hero's do. */
+.jobq__foot .pin-btn {
+  opacity: 1;
+  margin-left: auto;
+}

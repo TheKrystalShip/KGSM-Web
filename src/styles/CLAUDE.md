@@ -175,7 +175,7 @@ split. Add a rule to the partial that owns the domain:
 
 `base` · `shell` · `page` · `server` · `catalog` · `modal` · `onboarding` · `dashboard`
 · `observability` · `controls` · `responsive` · `chat` · `rail` · `toast` · `settings`
-· `dock` · `hosts` · `states` · `extras` · `palette` · `batch`
+· `dock` · `hosts` · `states` · `extras` · `palette` · `batch` · `jobs`
 
 `page` is the odd one and is deliberate: the page **heading** (`.dash-head`) and the
 in-page **tab strip** (`.subtabs`) are furniture every screen is built from rather

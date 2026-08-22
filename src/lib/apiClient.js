@@ -870,7 +870,9 @@ import("./stores.js").then((m) => {
     // Test/dev affordance: inject a RAW server→client frame through the full live
     // path (adapt → dispatch), exactly as the WebSocket would. Lets the smoke
     // verify the server.patch/server.removed/job.patch remaps deterministically.
-    __dispatch: (raw) => dispatchMessage(adaptStreamMessage(raw)),
+    // `hostId` is the node the frame is delivered AS — a real socket always stamps one, so a check
+    // that reads the origin off a message has to be able to state it here too.
+    __dispatch: (raw, hostId = null) => dispatchMessage(adaptStreamMessage(raw, hostId)),
   };
 
 export { api, connectionStore, reachStore, realtimeStore };

@@ -644,6 +644,17 @@ export function adaptJob(be) {
     // something anything here has measured.
     batchId: be.batchId ?? null,
     queuedPosition: be.queuedPosition ?? null,
+    // What became of it, beside whether anything more will happen to it. `state` answers the second
+    // question and is all a server's row needs; a queue lane showing settled work has to tell a
+    // cancellation from a success, and collapsing all three terminal words leaves only `error` to
+    // tell them apart — which reads a job nobody ran as one that succeeded. Null while it is live:
+    // an outcome nobody has observed is not a value to carry.
+    outcome: JOB_TERMINAL[be.state] ? be.state : null,
+    // The API's own timestamps, passed through. `settledAt` is when the node finished with it, which
+    // is the only honest "when" a settled row can show — the alternative is stamping the moment this
+    // browser happened to receive the frame.
+    createdAt: be.createdAt ?? null,
+    settledAt: be.settledAt ?? null,
   };
 }
 

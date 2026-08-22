@@ -551,9 +551,50 @@ actually watch it — positions moving as members settle, the selection narrowin
 is proven only against injected frames. The run-settled narrowing also depends on the `batches`
 stream topic, which no live batch has exercised from this client.
 
-**S3 — `JobQueue`.** The per-host component (§3c): the `jobs` node subtab, the `host.jobs` widget,
-the `hostId` carry-through, the settled-job retention cap. It stands alone — a node's queue is worth
-seeing whether or not a batch put anything in it — so it does not have to wait for S2.
+**S3 — `kgsm-web`: `JobQueue`. BUILT** (`kgsm-web` 1.149.0). The `jobs` node sub-tab
+(`pages/diagnostics/DiagJobs.jsx`), the pinnable `host.jobs` widget over the same component, the
+`hostId` carry-through onto the stored job, and the settled-job retention cap.
+
+**Queued and running read from the ROSTER, not from the jobs stream.** There is deliberately no
+`GET /jobs`, so a queue assembled from frames alone shows an empty node to anyone who arrived after
+the batch was accepted — an idle node drawn for one that is working. `activeJob` is the source that
+survives a page load, and §3a named it for exactly this. The settled lane is the stream's, because a
+settled job leaves the roster row; that lane is therefore what this browser has watched happen since
+the tab opened, and it says so.
+
+The cap is **25 settled per node**. A node-wide run is the largest thing worth still seeing the end
+of, so the tail holds one of those plus the hand-issued commands around it. Queued and running are
+never dropped — one job in flight per server bounds them by the roster.
+
+Verified in jsdom against an auth-disabled API: the origin reaching the stored job and surviving a
+later frame that carries none, the cap holding per node while live work stays, `cancelled` adapting
+to a terminal state that still names itself, and the three lanes rendering empty, queued (with its
+place in the line) and running. Verified in Chromium and Firefox against the live host: three lanes
+at 1920 → 390 with no horizontal overflow at any width, the same three lanes inside the pinned
+widget with the lane bodies scrolling in the cell rather than pushing the note out of it, and the two
+engines agreeing on every measured box. Every write is intercepted at the fetch seam; nothing was
+dispatched.
+
+Three things the plan had wrong or left open, found in the code:
+
+- **`adaptJob` collapsed every terminal state to `done`,** so a cancelled job and a successful one
+  differed only by the absence of an error — which reads work that never ran as work that worked.
+  §3a added `Cancelled` to the wire and `JOB_TERMINAL`; nothing carried the word to a surface. The
+  adapter now keeps it as `outcome`, and `createdAt`/`settledAt` with it, since the settled lane's
+  "when" is the node's own timestamp and the alternative is stamping when this browser got the frame.
+- **`queuedPosition` is per BATCH, so a single ordered lane is only honest inside one.** Two batches
+  queued on one node both count from 1; sorting the merged list on that number interleaves them into
+  an order nothing has been told and the worker does not necessarily follow. The lane groups by batch
+  and orders within it, and a hand-issued queued job sits at the end.
+- **Colour by verb is colour by severity.** Drawn in the shared brief-row family, a queued *stop*
+  took the red the same rows use for a firing alert, and three servers waiting their turn read as
+  three things wrong. Colour is the settled lane's alone, and there it means how the work ended.
+
+Not verified: no batch has been dispatched at a live backend, so positions moving as members settle
+and the "3rd **of 8**" denominator arriving from a `batch.patch` frame are proven only against
+injected data — the lane degrades to the bare position without one, which is what the browser was
+shot rendering. A settled row's own layout is likewise unverified in a browser: a settled job can
+only arrive on the stream, and arranging one means running a real command on a real server.
 
 **S4 — the ops tray.** What the whole cluster is doing right now: `GET /batches?active=true` fanned
 across the connected nodes, grouped by `runId`, followed on the stream. The run-level view above

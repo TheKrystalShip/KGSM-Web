@@ -183,6 +183,24 @@ registerWidget({
 });
 
 registerWidget({
+  type: "host.jobs",
+  label: "Node job queue",
+  icon: "list-checks",
+  group: "Nodes",
+  cap: "host.manage",
+  scope: "host",
+  params: ["hostId"],
+  describe: (p) => (p.hostId || "node") + " · jobs",
+  // Three lanes want a wide card, but they fold to two and then to one on their own, so the floor is
+  // not "three lanes fit" — it is where ONE lane stops fitting. Measured in a browser: a lane's own
+  // minimum track is 260px, and below that the card overflows sideways rather than the row getting
+  // shorter. 300 keeps a server's name, its verb and its place in the line all legible at the
+  // narrowest a lane can be.
+  size: { w: 12, h: 5, minPx: 300, minH: 3 },
+  load: () => import("./widgets/NodeWidgets.jsx").then(m => m.HostJobsWidget),
+});
+
+registerWidget({
   type: "host.services",
   label: "Node services",
   icon: "boxes",

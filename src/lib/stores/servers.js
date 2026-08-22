@@ -215,10 +215,44 @@ api.stream.subscribe(["servers"], (m) => {
 });
 
 // ---- Jobs (command outcomes) --------------------------------------------
-const jobsStore = createStore({ byId: {} });
+// How many SETTLED jobs are kept per node. Live work is never dropped: one job in flight per server
+// bounds queued and running by the roster itself, so only the settled tail can grow — and it grows
+// for as long as a tab is open, fed by every node this browser is connected to. A node-wide run is
+// the largest thing worth still seeing the end of (this cluster's biggest node runs seventeen
+// servers), so the tail holds one of those plus the hand-issued commands around it, and nothing
+// older. What happened before that is the audit log's question, not this store's.
+const SETTLED_KEPT_PER_HOST = 25;
+
+// `settled` is the ids of settled jobs in the order they settled, oldest first — the eviction order,
+// and the display order the settled lane reads backwards. A separate list rather than a sort key on
+// the job, because `settledAt` is the NODE's clock and several nodes feed this store.
+const jobsStore = createStore({ byId: {}, settled: [] });
+
 jobsStore.upsert = (job) => {
   if (!job || !job.id) return;
-  jobsStore.setState(s => ({ ...s, byId: { ...s.byId, [job.id]: { ...s.byId[job.id], ...job } } }));
+  jobsStore.setState(s => {
+    const prev = s.byId[job.id];
+    // A job's origin never changes, so a frame that carries none — the dev dispatch hook is the only
+    // one — must not erase the node already recorded for it.
+    const next = { ...prev, ...job, hostId: job.hostId ?? (prev && prev.hostId) ?? null };
+    const byId = { ...s.byId, [job.id]: next };
+    if (next.state !== "done" || (prev && prev.state === "done")) return { ...s, byId };
+
+    // It settled just now: it joins the tail, and the tail is trimmed per node.
+    const settled = [...s.settled, job.id];
+    const kept = [];
+    const seen = {};
+    for (let i = settled.length - 1; i >= 0; i--) {
+      const held = byId[settled[i]];
+      if (!held) continue;
+      const key = held.hostId || "_unattributed";
+      seen[key] = (seen[key] || 0) + 1;
+      if (seen[key] > SETTLED_KEPT_PER_HOST) delete byId[settled[i]];
+      else kept.push(settled[i]);
+    }
+    kept.reverse();
+    return { ...s, byId, settled: kept };
+  });
 };
 jobsStore.get = (id) => (id ? jobsStore.getState().byId[id] || null : null);
 
@@ -232,7 +266,11 @@ const rowJob = (d) => ({
 
 api.stream.subscribe(["jobs"], (m) => {
   if ((m.type === "job" || m.type === "job.patch") && m.data) {
-    jobsStore.upsert(m.data);
+    // The envelope knows which node delivered the frame; the job DTO has no such field and inventing
+    // one would misstate where it came from. Carrying it onto the stored job is what makes a per-node
+    // job list a filter rather than a lookup through the roster for every row — and it is the only
+    // thing that still names the node once a job's server is gone, which an uninstall's is.
+    jobsStore.upsert({ ...m.data, hostId: m.hostId ?? null });
     const { serverId, verb, state, phase, blueprint } = m.data;
 
     if (verb === "install") {

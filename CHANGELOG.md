@@ -59,6 +59,34 @@ actually needs retrying.
 pressed once wants a toast, twenty servers asked at once wants one summary. The optimistic patch, the
 rollback and the wording stay together whoever is reporting.
 
+### Added — what a node is doing, and what it is about to do
+
+A server's own card answers what is happening to *that* server. Nothing answered what a **node** is
+about to do, which is the question a batch creates: ten servers handed to one node and paced two at a
+time is half an hour of committed work, spread over ten cards that each show a fragment of it.
+
+So a node has a **Jobs** sub-tab, and the same component is a pinnable `host.jobs` dashboard widget —
+one component written once and mounted twice, because a widget points at the component the page
+renders. **Three lanes, never merged:** *Queued* (each row naming its place in its batch's line),
+*Running*, and *Recently settled*. Every row names its server, its verb and whether a batch issued it,
+and opens the server it names.
+
+**It is not an audit log and does not read as one.** Audit holds what happened to the fleet: durable,
+server-side, from the engine echo. This holds what one node is doing, out of a registry that is
+in-memory by design — so the surface says both of the things an empty lane would otherwise be read as
+denying: a restart of that node's API empties its queue, and the settled lane is what this browser has
+watched happen since the tab opened. The audit log is a click away for the rest.
+
+Three supporting changes. A job frame's **origin** — the node whose socket delivered it, which the
+envelope has always carried and the subscriber dropped — is now kept on the stored job, so a per-node
+list is a filter rather than a roster lookup per row, and a settled job still names its node after its
+server is gone. `adaptJob` keeps the **terminal word** as `outcome` beside the collapsed `state`,
+because a cancelled job and a successful one are otherwise told apart only by the absence of an error,
+which reads work that never ran as work that worked. And the settled tail is capped at **25 per node**:
+that store is fed by every connected node for the life of a tab, and a pinned widget left open for a
+week would otherwise accumulate every job the cluster ever ran. Queued and running work is never
+dropped.
+
 ### Added — the panel warns before a start the node has no room for
 
 kgsm refuses a start that would leave the node below its free-memory floor. Until now the panel only

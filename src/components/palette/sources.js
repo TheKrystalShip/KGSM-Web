@@ -422,7 +422,7 @@ function buildEntries({ servers, hosts, library, services, players, themePref, s
         run: () => nav.openHostLogs(h.id),
       });
       for (const tab of ROUTE_TABS.cluster) {
-        if (tab.id !== "resources" && tab.id !== "services") continue;
+        if (tab.id !== "resources" && tab.id !== "services" && tab.id !== "jobs") continue;
         push({
           id: "node." + h.id + "." + tab.id,
           kind: "nav", group: "Nodes",
@@ -484,8 +484,8 @@ function buildEntries({ servers, hosts, library, services, players, themePref, s
     }
   }
 
-  // The cluster's own tabs. Four entries, and the only way to reach a node's resources or its
-  // services by name rather than by walking to Cluster and picking a tab.
+  // The cluster's own tabs — the only way to reach a node's resources, services, jobs or journal by
+  // name rather than by walking to Cluster and picking a tab.
   if (can("nav.cluster")) {
     for (const tab of ROUTE_TABS.cluster) {
       if (tab.id === "overview") continue;          // "Cluster" already goes there
