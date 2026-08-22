@@ -240,23 +240,6 @@ function JobQueue({ host }) {
         </BriefCard>
       </div>
 
-      {/* Two facts, both of which an empty lane would otherwise be read as denying: the node's queue
-          is memory, and the settled list is this browser's own observation. Neither is a history, and
-          the one that is has a link. */}
-      <div className="jobq__foot">
-        <Icon name="info" size={12} className="jobq__foot-icon" />
-        <span className="jobq__note">
-          Live work, not a record. {nodeName}&rsquo;s queue lives in its API&rsquo;s memory, so a restart of
-          that service empties it, and the settled list is what this browser has seen since the tab
-          opened. What happened is in the{" "}
-          {/* The link and the stop after it wrap as one — a full stop alone on the next line reads as
-              a typo rather than as the end of the sentence it belongs to. */}
-          <span className="jobq__nowrap">
-            <button type="button" className="jobq__link" onClick={() => nav.audit()}>audit log</button>.
-          </span>
-        </span>
-        <PinButton type="host.jobs" params={{ hostId }} label="this node's job queue" />
-      </div>
     </div>
   );
 }

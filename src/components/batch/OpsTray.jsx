@@ -317,17 +317,6 @@ function RunsBoard() {
         </div>
       )}
 
-      <div className="opsq__foot">
-        <Icon name="info" size={12} className="opsq__foot-icon" />
-        <span className="opsq__note">
-          Live work, held by the nodes. A run keeps going whether or not this tab is open, and the
-          finished ones here are the tail — what happened is in the{" "}
-          <span className="opsq__nowrap">
-            <button type="button" className="opsq__link" onClick={() => nav.audit()}>audit log</button>.
-          </span>
-        </span>
-        <PinButton type="fleet.runs" label="the runs board" />
-      </div>
     </div>
   );
 }
