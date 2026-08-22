@@ -10,6 +10,7 @@ import { artBg } from "../lib/art.js";
 import { PHASE_LABEL, serverRunDuration, serverStatusLabel } from "../lib/servers.js";
 import { formatBps, formatBytes, fmtBytesTight } from "../lib/formatting.js";
 import { useRosterMetrics } from "../lib/hooks/useRosterMetrics.js";
+import { useJobPhase } from "../lib/hooks/useJobPhase.js";
 
 // ServerCard — the reusable game-server tile (art header, live metrics,
 // quick start/restart/stop). Shared by the Dashboard (online
@@ -57,7 +58,7 @@ function ServerPhantomTile({ server }) {
   );
 }
 
-function ServerTile({ server, onOpen, onAction, showHost }) {
+function ServerTile({ server, onOpen, onAction, showHost, selectable, selected, onSelect }) {
   // Pin state (client-local). The star both reads and writes the favorites
   // store; toggling it mirrors the card into the pinned Favorites section on the
   // Servers page without moving it out of its host group. Read before any early
@@ -67,6 +68,9 @@ function ServerTile({ server, onOpen, onAction, showHost }) {
   // `servers` topic carries status only, so without this the numbers below are as old as the last
   // status change. Shared and ref-counted, so a grid of cards costs one subscription.
   useRosterMetrics();
+  // Pending work in three states: idle · queued · running. Read before the phantom early return so
+  // the hook order is stable (Rules of Hooks).
+  const job = useJobPhase(server);
   // Players ride the server element itself (adaptServer), live off the same
   // server.patch stream as status — so a grid of cards costs no roster fetches
   // and every card agrees with the fleet total on the dashboard. null is "this
@@ -81,7 +85,6 @@ function ServerTile({ server, onOpen, onAction, showHost }) {
   const isOnline = server.status === "online";
   // Launched but not yet joinable — the metric labels below read it as running.
   const isStarting = server.status === "starting";
-  const pendingVerb = server.job && server.job.state === "running" ? server.job.verb : null;
   // Live CPU/RAM are host-metrics — when the host's metrics feed is down they
   // go dark with a red status LED, matching the host diagnostics treatment.
   // Only meaningful while the server is online (offline servers report nothing).
@@ -167,6 +170,19 @@ function ServerTile({ server, onOpen, onAction, showHost }) {
         )}
         <div className="server-tile__corner">
           {host && <span className="server-tile__host"><Icon name="server" size={10} strokeWidth={2.2} />{host.name}</span>}
+          {/* The selection checkbox. Shift-click extends from the last row picked, over the list as it
+              is currently ordered and filtered — the page owns that order, so it owns the range. */}
+          {selectable && (
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={!!selected}
+              className={"server-tile__pick" + (selected ? " is-on" : "")}
+              onClick={(e) => { e.stopPropagation(); onSelect(server, { shift: e.shiftKey }); }}
+              title={selected ? "Remove from the selection" : "Select — shift-click to extend the range"}>
+              <Icon name={selected ? "square-check" : "square"} size={14} strokeWidth={2.2} />
+            </button>
+          )}
           <button
             type="button"
             className={"server-tile__fav" + (isFav ? " is-on" : "")}
@@ -256,9 +272,9 @@ function ServerTile({ server, onOpen, onAction, showHost }) {
         )}
         {canOps && (
           <div className="server-tile__quick">
-            <ServerActionButton verb="start"   disabled={guard.start.disabled}   reason={guard.start.reason}   pendingVerb={pendingVerb} warn={startWarn} onRun={(v, o) => onAction(server.id, v, o)} />
-            <ServerActionButton verb="restart" disabled={guard.restart.disabled} reason={guard.restart.reason} pendingVerb={pendingVerb} onRun={(v, o) => onAction(server.id, v, o)} />
-            <ServerActionButton verb="stop"    disabled={guard.stop.disabled}    reason={guard.stop.reason}    pendingVerb={pendingVerb} onRun={(v, o) => onAction(server.id, v, o)} />
+            <ServerActionButton verb="start"   disabled={guard.start.disabled}   reason={guard.start.reason}   {...job} warn={startWarn} onRun={(v, o) => onAction(server.id, v, o)} />
+            <ServerActionButton verb="restart" disabled={guard.restart.disabled} reason={guard.restart.reason} {...job} onRun={(v, o) => onAction(server.id, v, o)} />
+            <ServerActionButton verb="stop"    disabled={guard.stop.disabled}    reason={guard.stop.reason}    {...job} onRun={(v, o) => onAction(server.id, v, o)} />
           </div>
         )}
         {/* Join / connect — shown to everyone (operators play too), below their lifecycle controls.
@@ -272,7 +288,7 @@ function ServerTile({ server, onOpen, onAction, showHost }) {
                 verb="update"
                 variant="cta"
                 label={server.update_version ? "Update to " + server.update_version : "Update"}
-                pendingVerb={pendingVerb}
+                {...job}
                 onRun={(v) => onAction(server.id, v)} />
             : <ServerConnect server={server} variant="tile" />}
         </div>

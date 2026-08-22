@@ -868,6 +868,181 @@ try {
     "a start that did not ask to override sends NO force field (the protection is the default)");
   globalThis.fetch = realFetch;
 
+  // ---- Phase 5b: one verb, a SET of servers (the batch dispatcher) ---------
+  // A run is one verb, one cluster-wide set, one outcome; a batch is one node's share of it. The
+  // browser's whole job is minting a run id, grouping by node and firing one POST per node — so what
+  // this proves is the REQUEST it builds and what it does with each answer.
+  //
+  // NON-DESTRUCTIVE, and this one matters more than most: a real POST here would start or stop real
+  // game servers on the host, several at once. Every batch call below is intercepted at the fetch
+  // seam and answered synthetically; nothing reaches a node.
+  const batch = await vite.ssrLoadModule("/src/lib/batchRun.js");
+  const pre = await vite.ssrLoadModule("/src/components/batch/preflight.js");
+  const sel = (await vite.ssrLoadModule("/src/lib/stores/selection.js")).selectionStore;
+
+  let batchReq = null;
+  const answerBatch = (body) => {
+    globalThis.fetch = async (url, opts) => {
+      const u = typeof url === "string" ? url : (url && url.url) || "";
+      if (opts && opts.method === "POST" && /\/api\/v1\/servers\/commands$/.test(u)) {
+        batchReq = { url: u, body: JSON.parse(opts.body || "null") };
+        return new Response(JSON.stringify(body(batchReq.body)), { status: 202, headers: { "content-type": "application/json" } });
+      }
+      return realFetch(url, opts);
+    };
+  };
+
+  answerBatch((req) => ({
+    batchId: "batch_smoke1", runId: req.runId, verb: req.verb,
+    admitted: [PROBE.id], refused: [{ serverId: "not-here", reason: "no such server on this host" }],
+  }));
+  const run1 = await batch.dispatchRun({
+    verb: "stop",
+    servers: [{ id: PROBE.id, hostId: hmId }, { id: "not-here", hostId: hmId }],
+  });
+  assert(batchReq && /\/api\/v1\/servers\/commands$/.test(batchReq.url)
+    && batchReq.body.verb === "stop" && batchReq.body.origin === "ui"
+    && Array.isArray(batchReq.body.serverIds) && batchReq.body.serverIds.length === 2,
+    "dispatchRun → ONE POST /servers/commands per node, carrying the verb and every id for that node");
+  assert(typeof batchReq.body.runId === "string" && batchReq.body.runId.startsWith("run_")
+    && batchReq.body.runId === run1.runId,
+    "the run id is minted by the CLIENT and sent verbatim — what makes a run reassemblable afterwards");
+  assert(batchReq.body.force === undefined,
+    "a run that did not ask to override sends NO force field");
+  assert(run1.admitted.length === 1 && run1.admitted[0].serverId === PROBE.id
+    && run1.refused.length === 1 && run1.refused[0].reason === "no such server on this host"
+    && run1.undispatched.length === 0,
+    "the summary is read from the node's answer — its refused[] is the authority for its own servers");
+
+  // The fabrication guard. A batch member is patched QUEUED, never "running": writing "running" for
+  // work sitting behind seven other servers claims something that is not happening.
+  const queuedRow = st.serversStore.find(PROBE.id);
+  assert(queuedRow && queuedRow.job && queuedRow.job.state === "queued" && queuedRow.job.verb === "stop",
+    "an admitted member is patched QUEUED from the accept — never 'running'");
+  assert(queuedRow.job.batchId === "batch_smoke1",
+    "the queued job carries its batch, so a row is a way into the run it belongs to");
+  // …and a queued job does not own the row's display status. A queued stop leaves the server reading
+  // exactly what it is; "Stopping…" for twenty minutes about a server that is running is the same
+  // fabrication wearing a pill.
+  assert(queuedRow.status === queuedRow.runStatus,
+    "a QUEUED job leaves the server's own run-state alone (only a running job owns the pill)");
+  st.serversStore.patch(PROBE.id, { job: null });   // local only — nothing was ever sent
+
+  // force reaches the wire only when asked for, and only on start.
+  batchReq = null;
+  answerBatch((req) => ({ batchId: "batch_smoke2", runId: req.runId, verb: req.verb, admitted: [], refused: [] }));
+  await batch.dispatchRun({ verb: "start", servers: [{ id: PROBE.id, hostId: hmId }], force: true });
+  assert(batchReq.body.force === true, "dispatchRun(force) → the whole batch carries force:true");
+  batchReq = null;
+  await batch.dispatchRun({ verb: "stop", servers: [{ id: PROBE.id, hostId: hmId }], force: true });
+  assert(batchReq.body.force === undefined,
+    "force is dropped on any verb but start — the API refuses it there, so it is never sent");
+
+  // A node that never answered is UNDISPATCHED, not failed. Its share was never issued, and counting
+  // it as a failure would claim commands nobody sent.
+  globalThis.fetch = async (url, opts) => {
+    const u = typeof url === "string" ? url : (url && url.url) || "";
+    if (opts && opts.method === "POST" && /\/api\/v1\/servers\/commands$/.test(u)) throw new Error("connection refused");
+    return realFetch(url, opts);
+  };
+  const runDead = await batch.dispatchRun({ verb: "stop", servers: [{ id: PROBE.id, hostId: hmId }] });
+  assert(runDead.undispatched.length === 1 && runDead.undispatched[0].serverId === PROBE.id
+    && runDead.admitted.length === 0 && runDead.refused.length === 0
+    && runDead.nodesReached === 0 && runDead.nodesAsked === 1,
+    "a node that never answered is reported UNDISPATCHED — never folded in as a failure");
+  assert(!st.serversStore.find(PROBE.id).job,
+    "nothing is patched for a node that never answered (no phantom queue on a server nobody asked)");
+  globalThis.fetch = realFetch;
+
+  // ---- the preflight's two gates verbGuard does not cover -------------------
+  const stopped = { id: "s-idle", hostId: hmId, name: "s-idle", status: "online", capabilities: { watchdog: { status: "ok" } } };
+  const busy = { ...stopped, id: "s-busy", name: "s-busy", job: { verb: "update", state: "running" } };
+  const waiting = { ...stopped, id: "s-wait", name: "s-wait", job: { verb: "stop", state: "queued" } };
+  const part = pre.partitionSelection([stopped, busy, waiting], "stop");
+  assert(part.ready.length === 1 && part.ready[0].id === "s-idle",
+    "preflight: a server with work already in flight is held back — verbGuard reads status only");
+  const busyReason = part.refused.find(r => r.server.id === "s-busy").reason;
+  const waitReason = part.refused.find(r => r.server.id === "s-wait").reason;
+  assert(/update/i.test(busyReason) && /running/i.test(busyReason),
+    "preflight: the refusal NAMES what is already happening (a reason that doesn't invites the identical retry)");
+  assert(/stop/i.test(waitReason) && /queued/i.test(waitReason),
+    "preflight: a QUEUED job is named as queued, not as 'already running' — it has not started");
+
+  // The cumulative capacity forecast. capacityHint answers for one server against a live reading;
+  // over a set, each member has to be judged against what the ones before it already committed,
+  // because MemAvailable lags a process that started two seconds ago.
+  const NODE2 = (freeMb) => ({ id: hmId, ram: { free_mb: freeMb }, memory_gate: { enabled: true, headroom_mb: 1024 } });
+  const need = (id, mb) => ({ id, name: id, hostId: hmId, start_memory_mb: mb, start_memory_source: "blueprint" });
+  const fc = pre.capacityForecast([need("a", 4096), need("b", 4096), need("c", 4096)], [NODE2(13000)], "start");
+  assert(fc.rows[0].hint.freeMb === 13000 && fc.rows[1].hint.freeMb === 8904 && fc.rows[2].hint.freeMb === 4808,
+    "capacity forecast: each member is judged against what the run has already committed on that node");
+  assert(!fc.rows[0].hint.tight && !fc.rows[1].hint.tight && fc.rows[2].hint.tight && fc.tight.length === 1,
+    "capacity forecast: the third start is the one that crosses the floor — the first two look fine alone");
+  const fcNone = pre.capacityForecast([need("a", null), need("b", 4096)], [NODE2(13312)], "start");
+  assert(fcNone.rows[0].hint === null && fcNone.rows[1].hint.freeMb === 13312,
+    "capacity forecast: a member declaring no requirement commits NOTHING (the gate allows it rather than inventing a figure)");
+  assert(pre.capacityForecast([need("a", 4096)], [NODE2(13312)], "stop").rows.length === 0,
+    "capacity forecast: only a start has a capacity question to answer");
+
+  // ---- the queued rendering: idle · queued · running ------------------------
+  const { ServerActionButton } = await vite.ssrLoadModule("/src/components/ServerActions.jsx");
+  const renderBtn = async (props) => {
+    const node = w.document.createElement("div");
+    const root = createRoot(node);
+    root.render(React.createElement(ServerActionButton, { onRun: () => {}, ...props }));
+    await sleep(30);
+    const html = node.innerHTML;
+    root.unmount();
+    return html;
+  };
+  const qHtml = await renderBtn({ verb: "stop", variant: "chip", queuedVerb: "stop", queuedPosition: 3, queuedTotal: 8 });
+  assert(qHtml.includes("Stop queued · 3rd of 8"),
+    "a queued verb states its PLACE in the line — a count, never a predicted time");
+  assert(!qHtml.includes("act-spin"),
+    "a queued verb draws NO spinner — nothing is spinning");
+  assert(/disabled/.test(qHtml), "a queued verb's own button is locked: the work is already committed");
+  const noTotal = await renderBtn({ verb: "stop", variant: "chip", queuedVerb: "stop", queuedPosition: 3, queuedTotal: null });
+  assert(noTotal.includes("Stop queued · 3rd") && !noTotal.includes(" of "),
+    "with no member count stated yet, the label degrades to the position rather than guessing a denominator");
+  const sibling = await renderBtn({ verb: "start", variant: "chip", queuedVerb: "stop", queuedPosition: 1, queuedTotal: 4 });
+  assert(/disabled/.test(sibling) && !sibling.includes("queued"),
+    "a sibling verb locks while another is queued, without claiming to be queued itself");
+  const idle = await renderBtn({ verb: "stop", variant: "chip" });
+  assert(!idle.includes("queued") && !/disabled/.test(idle), "idle is still idle");
+  // The two constrained variants drop the verb rather than let an ellipsis eat the position. Measured
+  // in Chromium: the tile's quick row gives a label ~82px and the hero's button 136px, and neither
+  // fits the sentence. The verb is what the button already says; the place is what only the label can.
+  const quickHtml = await renderBtn({ verb: "stop", variant: "quick", queuedVerb: "stop", queuedPosition: 3, queuedTotal: 8 });
+  assert(/class="act-label">3rd of 8</.test(quickHtml),
+    "the tile's quick row keeps the place and drops the verb — the row is 3 equal columns");
+  const glassHtml = await renderBtn({ verb: "stop", variant: "glass", queuedVerb: "stop", queuedPosition: 3, queuedTotal: 8 });
+  assert(glassHtml.includes("Queued · 3rd of 8"),
+    "the hero's button has room for the state word as well as the place");
+  assert(/title="Stop queued · 3rd of 8/.test(quickHtml) && /title="Stop queued · 3rd of 8/.test(glassHtml),
+    "whatever the label had room for, the tooltip carries the whole sentence");
+
+  const { ordinal } = await vite.ssrLoadModule("/src/lib/formatting.js");
+  assert(ordinal(1) === "1st" && ordinal(2) === "2nd" && ordinal(3) === "3rd" && ordinal(4) === "4th"
+    && ordinal(11) === "11th" && ordinal(12) === "12th" && ordinal(13) === "13th" && ordinal(21) === "21st",
+    "ordinal: the teens are the exception a last-digit rule gets wrong");
+
+  // ---- the selection store --------------------------------------------------
+  sel.clear();
+  sel.add([{ id: "x1", hostId: "n1" }, { id: "x2", hostId: "n2" }, { id: "x1", hostId: "n1" }]);
+  assert(sel.getState().ids.length === 2 && sel.has("x1") && sel.has("x2"),
+    "selection: ids are a set, and each carries the node its server belongs to");
+  assert(JSON.stringify(batch.groupByHost(sel.entries()).get("n1")) === '["x1"]',
+    "selection: grouped by node — a run that spans three nodes is three batches");
+  sel.set({ id: "x1", hostId: "n1" }, false);
+  assert(!sel.has("x1") && sel.has("x2"), "selection: deselecting drops the id and its node together");
+  sel.keep(["x2"]);
+  assert(sel.getState().ids.length === 1, "selection: a settled run narrows it to what still needs doing");
+  sel.replace([{ id: "y1", hostId: "n1" }]);
+  assert(sel.getState().ids.length === 1 && sel.has("y1"), "selection: replace takes exactly the set it is given");
+  sel.clear();
+  assert(sel.getState().ids.length === 0 && !w.localStorage.getItem("krystal:selection"),
+    "selection: cleared, and NEVER persisted — it is a gesture, not a preference");
+
   // kgsm's own words for a start the node has no room for, quoted exactly as the engine emits them
   // so a reworded message on either side fails this rather than passing quietly.
   const ENGINE_REFUSAL =
@@ -2721,6 +2896,44 @@ try {
     assert(st.selectedHostStore === undefined && st.useSelectedHostId === undefined && st.scopeServers === undefined,
       "the selected-node store, hook and scope helper no longer exist");
     assert(!w.localStorage.getItem("krystal:selectedHost"), "no selected-node state is persisted");
+    // A run that spans nodes, with the set finally two wide. ONE run id to both, one POST each, and
+    // no relay between them — correlation, not coordination, so losing the node you fired FROM
+    // cannot orphan work on the nodes it runs ON.
+    //
+    // Both POSTs are intercepted: this peer is a second ORIGIN for the SAME backend, so a real one
+    // would issue commands against live game servers twice over. The peer's is answered with a
+    // network failure, which is the case worth proving — its share never started.
+    {
+      const seen = [];
+      const realFetch2 = globalThis.fetch;
+      globalThis.fetch = async (url, opts) => {
+        const u = typeof url === "string" ? url : (url && url.url) || "";
+        if (opts && opts.method === "POST" && /\/api\/v1\/servers\/commands$/.test(u)) {
+          const body = JSON.parse(opts.body || "null");
+          seen.push({ u, body });
+          if (u.startsWith(peerUrl)) throw new Error("peer unreachable");
+          return new Response(JSON.stringify({
+            batchId: "batch_multi", runId: body.runId, verb: body.verb, admitted: body.serverIds, refused: [],
+          }), { status: 202, headers: { "content-type": "application/json" } });
+        }
+        return realFetch2(url, opts);
+      };
+      const runMulti = await batch.dispatchRun({
+        verb: "stop",
+        servers: [{ id: PROBE.id, hostId: realId }, { id: "peer-srv", hostId: "smoke-peer" }],
+      });
+      globalThis.fetch = realFetch2;
+      st.serversStore.patch(PROBE.id, { job: null });   // local only — nothing reached a node
+      assert(seen.length === 2 && new Set(seen.map(x => x.body.runId)).size === 1,
+        "a run spanning two nodes is TWO posts carrying ONE run id (no coordinator, no peer relay)");
+      assert(seen.every(x => x.body.serverIds.length === 1),
+        "each node is handed only its own servers — an id a node does not own is never forwarded to it");
+      assert(runMulti.nodesReached === 1 && runMulti.nodesAsked === 2
+        && runMulti.admitted.length === 1 && runMulti.undispatched.length === 1
+        && runMulti.undispatched[0].hostId === "smoke-peer",
+        "dispatch can partially fail: 1 of 2 nodes reached, the other's share reported as never started");
+    }
+
     const twoNodeHtml = await nav("#/servers");
     assert(twoNodeHtml.includes(PROBE.id), "servers roster renders with two connections and no selection");
     const dashHtml = await nav("#/cluster");

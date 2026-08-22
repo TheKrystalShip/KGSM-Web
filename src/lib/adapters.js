@@ -621,11 +621,13 @@ export function adaptAlerts(page) {
 }
 
 // ---- Jobs (command progress over the `jobs` stream) --------------------
-// API Job state is queued|running|succeeded|failed; the FE job tracker reads a
-// coarse running-vs-done (spinner until terminal, then clears). Collapse the two
-// terminal states to the FE's "done" so the store logic
-// (`state === "done" ? clear : { verb, state }`) stays simple.
-const JOB_TERMINAL = { succeeded: true, failed: true };
+// API Job state is queued|running|succeeded|failed|cancelled; the FE job tracker reads a coarse
+// waiting-vs-working-vs-done — a spinner while it runs, a position while it waits, nothing once it
+// is over. Collapse every terminal state to the FE's "done" so the store logic
+// (`state === "done" ? clear : { verb, state }`) stays simple. `cancelled` is terminal for the same
+// reason the other two are: nothing further will happen to that job, and leaving it live would pin a
+// row to a verb that was never attempted.
+const JOB_TERMINAL = { succeeded: true, failed: true, cancelled: true };
 export function adaptJob(be) {
   if (!be) return be;
   return {
@@ -636,6 +638,12 @@ export function adaptJob(be) {
     error: be.error ?? null,
     phase: be.phase ?? null,       // install sub-phase: "preparing"|"downloading"|"deploying"
     blueprint: be.blueprint ?? null, // carry through so SSE-driven phantom can look up cover art
+    // Which batch issued this job, and where it sits in that batch's line. Null for a hand-issued
+    // command, which is what most jobs are. The position is a COUNT, never a clock: it says which of
+    // eight queued servers moves next, and offers no time, because how long a verb takes is not
+    // something anything here has measured.
+    batchId: be.batchId ?? null,
+    queuedPosition: be.queuedPosition ?? null,
   };
 }
 

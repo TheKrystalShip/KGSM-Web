@@ -40,6 +40,13 @@ const JOB_GRACE_MS = 15000;
 
 const jobIsLive = (job) => !!job && !!job.state && job.state !== "done";
 
+// A job OWNS the row's status only once it is actually working. A queued one has not started: the
+// server is still exactly what it was, and reading a queued stop as "Stopping…" would put a
+// transitional pill on a server that is running normally and may stay queued for as long as the work
+// ahead of it takes. What a queued job changes is the BUTTONS — the verb is committed, and the row
+// says so by naming its place in the line — not the state it reports about the server.
+const jobOwnsStatus = (job) => jobIsLive(job) && job.state !== "queued";
+
 // A row belongs to an install that has not landed yet. This — not "no backend row has arrived" — is
 // what makes a tile a phantom: the engine publishes the instance the moment it writes its config,
 // roughly a minute before the download finishes, so a row can be fully hydrated and still be a server
@@ -59,7 +66,7 @@ function applyPatch(row, partial) {
   next.runStatus = partial && "status" in partial ? partial.status : (row.runStatus ?? row.status);
   const live = jobIsLive(next.job);
   if (live && next.job.at == null) next.job = { ...next.job, at: Date.now() };
-  next.status = (live && JOB_STATUS[next.job.verb]) || next.runStatus;
+  next.status = (jobOwnsStatus(next.job) && JOB_STATUS[next.job.verb]) || next.runStatus;
   if (installInFlight(next.job)) next._phantom = true;
   return next;
 }
@@ -215,6 +222,14 @@ jobsStore.upsert = (job) => {
 };
 jobsStore.get = (id) => (id ? jobsStore.getState().byId[id] || null : null);
 
+// What a job frame leaves on its server's row. `batchId`/`queuedPosition` ride along because a queued
+// job is only legible with them — ten servers all reading "queued" say nothing about which moves next.
+const rowJob = (d) => ({
+  verb: d.verb, state: d.state,
+  batchId: d.batchId ?? null,
+  queuedPosition: d.queuedPosition ?? null,
+});
+
 api.stream.subscribe(["jobs"], (m) => {
   if ((m.type === "job" || m.type === "job.patch") && m.data) {
     jobsStore.upsert(m.data);
@@ -246,7 +261,7 @@ api.stream.subscribe(["jobs"], (m) => {
           ? { status: "install-failed", job: null }
           : { job: null });
       } else {
-        serversStore.patch(serverId, { job: { verb, state, phase: phase ?? null } });
+        serversStore.patch(serverId, { job: { ...rowJob(m.data), phase: phase ?? null } });
       }
     } else if (verb === "uninstall") {
       if (state === "done") {
@@ -254,7 +269,7 @@ api.stream.subscribe(["jobs"], (m) => {
           serversStore.patch(serverId, { _phantom: false, job: null });
         }
       } else {
-        serversStore.patch(serverId, { _phantom: true, job: { verb, state } });
+        serversStore.patch(serverId, { _phantom: true, job: rowJob(m.data) });
       }
     } else if (verb === "update") {
       if (state === "done") {
@@ -272,10 +287,10 @@ api.stream.subscribe(["jobs"], (m) => {
           serversStore.patch(serverId, { job: null });
         }
       } else {
-        serversStore.patch(serverId, { job: { verb, state } });
+        serversStore.patch(serverId, { job: rowJob(m.data) });
       }
     } else {
-      serversStore.patch(serverId, { job: state === "done" ? null : { verb, state } });
+      serversStore.patch(serverId, { job: state === "done" ? null : rowJob(m.data) });
     }
   }
 });

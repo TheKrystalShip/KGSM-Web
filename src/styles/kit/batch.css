@@ -1,0 +1,363 @@
+/* batch.css — selecting a set of servers, and the sheet that arms one run over it.
+   ----------------------------------------------------------------------------
+   Three surfaces: the checkbox on a server tile, the bar that appears once
+   something is picked, and the preflight sheet (which borrows `.k-modal`'s frame
+   and only adds its own body furniture). */
+
+/* ---- The tile's selection checkbox ------------------------------------- */
+/* It sits in the tile's corner beside the favourite star and takes that star's
+   chrome exactly — because it sits on the same thing: cover art nobody chose.
+   `--scrim-media` (dark in every theme) with white content is the house answer
+   for that, and a page foreground like --fg-2 goes dark-on-dark the moment a
+   light theme meets a bright key image.
+   Unlike the star it is NOT hover-revealed: it is the affordance the whole
+   selection feature is reached through, and one you have to find by hovering is
+   one most people never find. */
+.server-tile__pick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  background: var(--scrim-media);
+  backdrop-filter: blur(4px);
+  border: var(--edge);
+  color: rgba(255, 255, 255, 0.62);
+  transition: color var(--d-fast) var(--ease-out), border-color var(--d-fast) var(--ease-out),
+    background var(--d-fast) var(--ease-out);
+}
+
+.server-tile__pick:hover {
+  color: #fff;
+  border-color: var(--border-strong);
+}
+
+.server-tile__pick:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-focus);
+}
+
+/* Selected is a FILLED accent surface, so it takes the accent's own ink rather
+   than a page foreground — see styles/CLAUDE.md. */
+.server-tile__pick.is-on {
+  background: var(--krystal-teal);
+  color: var(--on-accent);
+  border-color: transparent;
+}
+
+/* ---- The selection bar -------------------------------------------------- */
+.sel-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  margin: 0 0 var(--s-4);
+  padding: var(--s-2) var(--s-3);
+  background: var(--surface-1);
+  border: var(--edge-accent);
+  border-radius: var(--r-sm);
+}
+
+.sel-bar__count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  font-weight: var(--w-semibold);
+  color: var(--fg-1);
+}
+
+.sel-bar__nodes {
+  color: var(--fg-3);
+  font-weight: var(--w-regular);
+}
+
+.sel-bar__verbs {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.sel-bar__verb {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  background: var(--surface-3);
+  border: var(--edge);
+  border-radius: var(--r-sm);
+  color: var(--fg-2);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  font-weight: var(--w-semibold);
+  cursor: pointer;
+}
+
+.sel-bar__verb:hover:not(:disabled) {
+  color: var(--fg-1);
+  border-color: var(--border-strong);
+}
+
+.sel-bar__verb:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* The count of how many of the selection this verb could actually run against —
+   the same partition the sheet draws, stated before the sheet is opened. */
+.sel-bar__verb-n {
+  color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.sel-bar__verb--start:not(:disabled) { color: var(--success-fg); }
+.sel-bar__verb--stop:not(:disabled) { color: var(--danger-fg); }
+.sel-bar__verb--restart:not(:disabled) { color: var(--update-fg); }
+.sel-bar__verb--update:not(:disabled) { color: var(--info-fg); }
+
+.sel-bar__spacer {
+  flex: 1 1 auto;
+}
+
+.sel-bar__clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  color: var(--fg-3);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  font-weight: var(--w-semibold);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--r-sm);
+}
+
+.sel-bar__clear:hover {
+  color: var(--fg-1);
+  background: var(--surface-2);
+}
+
+/* ---- A queued lifecycle button ------------------------------------------ */
+/* Deliberately NOT the pending look: no spinner, because nothing is spinning. It
+   is disabled — the work is committed — but must stay readable, since the label
+   is carrying the server's place in the line. So it overrides the generic
+   disabled dimming rather than inheriting it. */
+.server-tile__quick button.is-queued:disabled,
+.chip.is-queued:disabled,
+.gbtn.is-queued:disabled,
+.alert-btn.is-queued:disabled {
+  opacity: 1;
+  cursor: default;
+  color: var(--fg-3);
+  border-color: var(--border-subtle);
+}
+
+/* The hero's buttons are a fixed 136px so that confirm/pending text changes don't shift their
+   siblings. A queued state is not one of those: it lasts as long as the work ahead of it takes, so it
+   settles into place once rather than flickering, and it is worth the width to say "Queued" as well as
+   where in the line. */
+.gbtn.is-queued {
+  width: auto;
+}
+
+.server-tile__quick button.is-queued:disabled:hover,
+.chip.is-queued:disabled:hover,
+.gbtn.is-queued:disabled:hover {
+  color: var(--fg-3);
+}
+
+/* ---- The preflight sheet ------------------------------------------------ */
+.batch-sheet {
+  max-width: 620px;
+}
+
+.batch-sheet__glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--fg-2);
+  flex: none;
+}
+
+.batch-sheet__glyph--start { color: var(--success-fg); background: var(--success-bg); }
+.batch-sheet__glyph--stop { color: var(--danger-fg); background: var(--danger-bg); }
+.batch-sheet__glyph--restart { color: var(--update-fg); background: var(--update-bg); }
+.batch-sheet__glyph--update { color: var(--info-fg); background: var(--info-bg); }
+
+/* The escalation, for a run that takes down every server that is running. It
+   leads with the player total; the GESTURE below is unchanged. */
+.batch-sheet__escalate {
+  display: flex;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--warning-bg);
+  color: var(--fg-1);
+  border: 1px solid color-mix(in srgb, var(--warning) 35%, transparent);
+  font-size: var(--text-sm);
+  line-height: var(--lh-snug);
+}
+
+.batch-sheet__escalate > svg {
+  color: var(--warning-fg);
+  flex: none;
+}
+
+.batch-sheet__players {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+  color: var(--fg-2);
+}
+
+.batch-sheet__players--lead {
+  margin-top: 4px;
+  color: var(--fg-1);
+  font-weight: var(--w-semibold);
+}
+
+/* "At least N" hedging: a sum that leaves out a server whose presence can't be
+   seen is a floor, and this is the half that says how many were left out. */
+.batch-sheet__hedge {
+  color: var(--fg-3);
+  font-weight: var(--w-regular);
+}
+
+.batch-sheet__section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.batch-sheet__h {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  font-weight: var(--w-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-3);
+}
+
+.batch-sheet__h--danger {
+  color: var(--danger-fg);
+}
+
+.batch-sheet__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.batch-sheet__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  font-size: var(--text-sm);
+  color: var(--fg-1);
+}
+
+.batch-sheet__list--muted .batch-sheet__row {
+  background: transparent;
+  color: var(--fg-2);
+}
+
+.batch-sheet__row-name {
+  font-weight: var(--w-medium);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.batch-sheet__row-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--fg-3);
+  flex: none;
+}
+
+.batch-sheet__row-reason {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--fg-3);
+  text-align: right;
+  min-width: 0;
+}
+
+/* The capacity figures. Two numbers and no verdict — `is-tight` marks the ones
+   the panel expects the node to refuse, which is a forecast, not a decision. */
+.batch-sheet__row-fit {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg-3);
+  white-space: nowrap;
+  flex: none;
+}
+
+.batch-sheet__row-fit.is-tight {
+  color: var(--warning-fg);
+}
+
+.batch-sheet__note {
+  font-size: var(--text-sm);
+  color: var(--fg-3);
+  line-height: var(--lh-snug);
+  margin: 0;
+}
+
+.batch-sheet__foot-spacer {
+  flex: 1 1 auto;
+}
+
+/* A primary button that is an override rather than the ordinary action. It stays
+   pressable and stays primary — this is the supported way through — and only says
+   in colour what its label already says in words. */
+.k-modal__btn--warned {
+  background: var(--warning);
+  color: var(--on-warning);
+}
+
+.k-modal__btn--warned:hover {
+  background: var(--warning-fg);
+}
+
+@media (max-width: 680px) {
+  .sel-bar {
+    gap: var(--s-2);
+  }
+
+  .sel-bar__verbs {
+    order: 3;
+    width: 100%;
+  }
+
+  .sel-bar__verb {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}

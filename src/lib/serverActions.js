@@ -29,6 +29,63 @@ function reportFailure(err, verb, server) {
   else toast.fromError(err, "Couldn't " + verb + " " + (server.name || server.id));
 }
 
+/// A REPORTER is where a verb's outcome goes. One button pressed once wants a toast; twenty servers
+/// asked at once wants one summary, because twenty toasts for twenty failures is a wall nobody reads.
+///
+/// It is a parameter rather than something a caller does afterwards because the optimistic patch, the
+/// rollback and the wording are what the action IS — a surface that keeps two of the three and
+/// substitutes its own reporting still tells the truth; one that reimplements all three drifts. So the
+/// reporting is the seam, and everything else stays here.
+const TOAST_REPORTER = {
+  // The command never left: a refusal, a lapsed session, an unreachable node.
+  refused: (err, verb, server) => reportFailure(err, verb, server),
+  // The command ran and the engine turned it down. `detail` is the engine's own sentence.
+  failed: (detail, verb, server) => toast.error("Couldn't " + verb + " " + (server.name || server.id), {
+    detail: detail || "The engine gave no reason.",
+    serverId: server.id,
+  }),
+};
+
+/// Show that a command has been issued, and hand back the undo.
+///
+/// `state` is the job state to write, and the two are not interchangeable. **"running"** is for a
+/// command that starts within the second — start owns the backend's own `starting` run-state, and the
+/// three long verbs own the row with a running job. **"queued"** is for a batch member, which may sit
+/// behind seven other servers for as long as the work ahead of it takes; writing "running" for that is
+/// the never-fabricate rule broken in the one place it is easiest to break by copying a line. A queued
+/// verb has one honest rendering wherever it appears — a job waiting, with its place in the line — so
+/// that path does not branch per verb.
+///
+/// The returned rollback puts the row back, and is what a refused command owes the operator: nothing
+/// is starting, so nothing should look like it is.
+function markCommandIssued(server, action, state = "running", extra = null) {
+  if (state === "queued") {
+    serversStore.patch(server.id, { job: { verb: action, state: "queued", ...extra } });
+    return () => serversStore.patch(server.id, { job: null });
+  }
+
+  // Start is the one verb with a run-state of its own to show. Patch it from the CLICK rather than
+  // from the first frame that reports it, so the button never looks inert — and put it back if the
+  // command is refused, since then nothing is starting.
+  if (action === "start") {
+    const prevStatus = server.status;
+    serversStore.patch(server.id, { status: "starting" });
+    return () => {
+      const cur = serversStore.find(server.id);
+      if (cur && cur.status === "starting") serversStore.patch(server.id, { status: prevStatus });
+    };
+  }
+
+  // These three run long enough to need showing: an update for minutes, a shutdown for as long as the
+  // game takes to drain and save, a restart for both plus the boot.
+  if (action === "update" || action === "stop" || action === "restart") {
+    serversStore.patch(server.id, { job: { verb: action, state: "running", ...extra } });
+    return () => serversStore.patch(server.id, { job: null });
+  }
+
+  return () => {};
+}
+
 /// Watch the job a command was accepted for, and say so if it ends in failure.
 ///
 /// A REFUSED command and a FAILED one arrive by completely different routes, and only the first was
@@ -47,7 +104,7 @@ function reportFailure(err, verb, server) {
 /// host — the CLI's, the assistant's, another operator's — and toasting those would break what the
 /// notifications tray is: what YOU did in THIS browser, and how it went. That is also why this hangs
 /// off the POST's own response rather than off the stream.
-function reportJobOutcome(resp, verb, server) {
+function reportJobOutcome(resp, verb, server, reporter = TOAST_REPORTER) {
   const jobId = resp && resp.job && resp.job.id;
   if (!jobId) return resp;
 
@@ -56,10 +113,7 @@ function reportJobOutcome(resp, verb, server) {
     // settled — the command may well have succeeded, and calling that a failure would invent an
     // outcome nobody observed.
     if (outcome && outcome.status === "failed") {
-      toast.error("Couldn't " + verb + " " + (server.name || server.id), {
-        detail: (outcome.job && outcome.job.error) || "The engine gave no reason.",
-        serverId: server.id,
-      });
+      reporter.failed((outcome.job && outcome.job.error) || null, verb, server);
     }
     return resp;
   }, () => resp); // watching an outcome must never turn a fired command into a failed one
@@ -74,44 +128,23 @@ function reportJobOutcome(resp, verb, server) {
 /// predicts that a start looks too tight, says so on the button, and a second press is the operator
 /// saying the prediction is wrong. Nothing sets it automatically — an automatic override would
 /// silently remove the protection for everyone.
+/// `opts.reporter` is where the outcome goes; it defaults to a toast, which is right for one button
+/// pressed once and wrong for a set (see TOAST_REPORTER).
 function runServerAction(action, target, opts) {
   const server = typeof target === "string" ? serversStore.find(target) : target;
   if (!server || !action) return Promise.resolve();
   // Only start has a capacity check to override; the API rejects the flag on any other verb, so it
   // is dropped here rather than sent and refused.
   const force = !!(opts && opts.force) && action === "start";
+  const reporter = (opts && opts.reporter) || TOAST_REPORTER;
 
-  // Start is the one verb with a status of its own to show. Patch it from the CLICK rather than from
-  // the first frame that reports it, so the button never looks inert — and put it back if the
-  // command is refused, since then nothing is starting.
-  if (action === "start") {
-    const prevStatus = server.status;
-    serversStore.patch(server.id, { status: "starting" });
-    return commandServer(server, action, "ui", force)
-      .then(resp => reportJobOutcome(resp, "start", server))
-      .catch(err => {
-        reportFailure(err, "start", server);
-        const cur = serversStore.find(server.id);
-        if (cur && cur.status === "starting") serversStore.patch(server.id, { status: prevStatus });
-      });
-  }
-
-  // These three run long enough to need showing: an update for minutes, a shutdown for as long as
-  // the game takes to drain and save, a restart for both plus the boot. Same reasoning as start —
-  // own the server with the job from the click, and drop it again if the command is refused.
-  if (action === "update" || action === "stop" || action === "restart") {
-    serversStore.patch(server.id, { job: { verb: action, state: "running" } });
-    return commandServer(server, action)
-      .then(resp => reportJobOutcome(resp, action, server))
-      .catch(err => {
-        reportFailure(err, action, server);
-        serversStore.patch(server.id, { job: null });
-      });
-  }
-
-  return commandServer(server, action)
-    .then(resp => reportJobOutcome(resp, action, server))
-    .catch(err => reportFailure(err, action, server));
+  const rollback = markCommandIssued(server, action, "running");
+  return commandServer(server, action, "ui", force)
+    .then(resp => reportJobOutcome(resp, action, server, reporter))
+    .catch((err) => {
+      reporter.refused(err, action, server);
+      rollback();
+    });
 }
 
 /// Ask a node to take a backup of one server. Returns the raw response, job and all.
@@ -141,4 +174,4 @@ function backupServer(target) {
     .catch((err) => { reportFailure(err, "back up", server); });
 }
 
-export { backupServer, noteAuthFailure, requestBackup, runServerAction };
+export { backupServer, markCommandIssued, noteAuthFailure, requestBackup, runServerAction, TOAST_REPORTER };

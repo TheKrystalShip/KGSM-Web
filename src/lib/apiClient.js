@@ -396,7 +396,7 @@ import("./stores.js").then((m) => {
   // The primary stream carries a fixed global topic set and drives realtimeStore
   // mode + rehydrateAll on open. Resource-scoped topics (containing '/') get
   // their own ref-counted dynamic streams.
-  const GLOBAL_TOPICS = ["servers", "jobs", "audit", "alerts", "console", "players"];
+  const GLOBAL_TOPICS = ["servers", "jobs", "audit", "alerts", "console", "players", "batches"];
   const isResourceScoped = (t) => t.includes("/");
 
   const listeners = new Set();

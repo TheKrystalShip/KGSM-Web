@@ -8,6 +8,7 @@ import { serverOperable } from "../lib/persona.js";
 import { heroArtBg } from "../lib/art.js";
 import { serverStatusLabel } from "../lib/servers.js";
 import { hostsStore } from "../lib/stores.js";
+import { useJobPhase } from "../lib/hooks/useJobPhase.js";
 
 // Server hero card — top status, name, action chips, IP.
 
@@ -59,7 +60,9 @@ function ServerHero({ server, onAction }) {
   // Can the signed-in user operate this server's host? Players (viewer / consumer
   // preview) get the Join + connect surface only — no lifecycle controls, no rename.
   const canOps = serverOperable(server);
-  const pendingVerb = server.job && server.job.state === "running" ? server.job.verb : null;
+  // Pending work in three states: idle · queued · running. One derivation, shared with the tile and
+  // an alert card's suggested action.
+  const job = useJobPhase(server);
   // Lifecycle actions are watchdog-mediated — when the host's watchdog is down
   // the supervisor can't start/stop/restart/update, so the chips lock out.
   const watchdogDown = !serverCapUsable(server, "watchdog");
@@ -109,10 +112,10 @@ function ServerHero({ server, onAction }) {
           {canOps && (
             <>
               <div className="hero__group">
-                <ServerActionButton verb="start"   variant="glass" disabled={guard.start.disabled}   reason={guard.start.reason}   pendingVerb={pendingVerb} warn={startWarn} onRun={onAction} />
-                <ServerActionButton verb="update"  variant="glass" disabled={guard.update.disabled}  reason={guard.update.reason}  pendingVerb={pendingVerb} onRun={onAction} />
-                <ServerActionButton verb="stop"    variant="glass" disabled={guard.stop.disabled}    reason={guard.stop.reason}    pendingVerb={pendingVerb} onRun={onAction} />
-                <ServerActionButton verb="restart" variant="glass" disabled={guard.restart.disabled} reason={guard.restart.reason} pendingVerb={pendingVerb} onRun={onAction} />
+                <ServerActionButton verb="start"   variant="glass" disabled={guard.start.disabled}   reason={guard.start.reason}   {...job} warn={startWarn} onRun={onAction} />
+                <ServerActionButton verb="update"  variant="glass" disabled={guard.update.disabled}  reason={guard.update.reason}  {...job} onRun={onAction} />
+                <ServerActionButton verb="stop"    variant="glass" disabled={guard.stop.disabled}    reason={guard.stop.reason}    {...job} onRun={onAction} />
+                <ServerActionButton verb="restart" variant="glass" disabled={guard.restart.disabled} reason={guard.restart.reason} {...job} onRun={onAction} />
               </div>
               <span className="hero__bardiv" aria-hidden="true"></span>
             </>

@@ -14,6 +14,8 @@ export { blueprintFileStore } from "./blueprintFile.js";
 export { logsStore, logSourcesStore, leafLogsStore, leafLogsKey, servicesStore, subscribeHostLogs, subscribeLeafLogs, subscribeHostServices, setLeafProvisioned, fetchLeafConfig, fetchLeafCommands, applyLeafConfig, fetchLeafMetricsHistory, fetchLeafSchedules, fetchLeafSupervision, fetchLeafMonitorStats, fetchLeafBotStatus, fetchLeafSpeechStatus, fetchLeafReactorStatus, fetchLeafReactorDecisions } from "./diagnostics.js";
 export { fetchAssistantStats, fetchAssistantReviewUsers, fetchAssistantConversations, fetchAssistantTranscript } from "./assistantReview.js";
 export { favoritesStore, useIsFavorite, pingStore, startPingLoop, stopPingLoop } from "./ui.js";
+export { selectionStore, useIsSelected, useSelectionIds } from "./selection.js";
+export { batchesStore } from "./batches.js";
 export { clusterStore } from "./cluster.js";
 export { PREF_KEYS, prefsStore } from "./prefs.js";
 export { AVAILABILITY_WINDOW, fleetOpsStore, startFleetOps, stopFleetOps } from "./fleet.js";

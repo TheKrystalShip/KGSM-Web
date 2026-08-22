@@ -1,6 +1,7 @@
 import React from "react";
 import { Icon } from "./Icon.jsx";
 import { serverCapUsable } from "../lib/capabilities.js";
+import { ordinal } from "../lib/formatting.js";
 
 // ServerActions.jsx — confirm-first, job-aware lifecycle buttons.
 //
@@ -13,9 +14,13 @@ import { serverCapUsable } from "../lib/capabilities.js";
 //      second click. It reverts on its own after a short timeout. Start is NOT
 //      gated by default (bringing a server up is safe); Stop/Restart/Update are.
 //
-//   2. Job progress. While the server's command job is in flight (tracked on
-//      serversStore via the `jobs` channel), the acting button shows a spinner
-//      and its pending label, and the sibling actions are disabled until done.
+//   2. Job progress, in THREE states rather than two: idle · queued · running.
+//      While the server's command job is running (tracked on serversStore via the
+//      `jobs` channel) the acting button shows a spinner and its pending label.
+//      While it is QUEUED — a batch took it and has not reached it yet — the
+//      button shows no spinner, because nothing is spinning, and states its place
+//      in the line instead. Either way the sibling actions disable: the work is
+//      committed whether or not it has started.
 
 const SERVER_ACTION = {
   start:   { label: "Start",    pending: "Starting…",   icon: "play",      tone: "start",   confirm: false },
@@ -109,7 +114,13 @@ function useConfirmAction(onConfirm, ms = 3500) {
 }
 
 // verb: lifecycle verb · variant: "chip" | "glass" | "quick" | "alert" | "cta" · disabled: base guard
-// pendingVerb: the verb of the server's in-flight job (or null) · onRun(verb)
+// pendingVerb: the verb of the server's RUNNING job (or null) · onRun(verb)
+// queuedVerb: the verb of a job the node has taken but not started · queuedPosition/queuedTotal:
+//        where it sits in that batch's line. The position is a COUNT, never a clock — ten servers
+//        reading "queued" say nothing about which moves next, and no completion time is offered
+//        because nothing here has measured how long a verb takes. The total is simply omitted until
+//        a node has stated it, so the label degrades to the position rather than guessing at a
+//        denominator.
 // reason: optional tooltip shown when disabled (e.g. why the watchdog blocks it)
 // label: overrides the verb's idle label only (the pending and armed words are the
 //        verb's own, so a renamed button still reports the same action in flight)
@@ -129,17 +140,36 @@ function useConfirmAction(onConfirm, ms = 3500) {
 // Arming instead says what the panel knows and hands the decision back. Confirming passes
 // { force: true } to onRun, since somebody who has read the numbers and pressed again IS the
 // override.
-function ServerActionButton({ verb, variant = "quick", disabled, pendingVerb, onRun, reason, label, warn }) {
+function ServerActionButton({ verb, variant = "quick", disabled, pendingVerb, queuedVerb, queuedPosition, queuedTotal, onRun, reason, label, warn }) {
   const def = SERVER_ACTION[verb];
   // A warned verb is armed whether or not it normally would be, and confirming it means "anyway".
   const arms = def.confirm || !!warn;
   const { armed, trigger } = useConfirmAction(() => onRun(verb, { force: !!warn }));
-  const jobRunning = !!pendingVerb;
   const isPending = pendingVerb === verb;
-  const isDisabled = disabled || (jobRunning && !isPending);
+  const isQueued = !!queuedVerb && queuedVerb === verb;
+  // Committed, not merely busy: a queued verb has been accepted by the node and will run. Every
+  // button locks, including the queued one — there is nothing left to decide, and a press would only
+  // earn a refusal.
+  const committed = !!pendingVerb || !!queuedVerb;
+  const isDisabled = disabled || isQueued || (committed && !isPending);
   const size = variant === "quick" ? 11 : 13;
   const iconCls = variant === "chip" ? "chip__icon" : (variant === "glass" ? "gbtn__icon" : undefined);
   const labelCls = variant === "chip" ? "chip__label" : (variant === "quick" ? "act-label" : undefined);
+  const place = Number.isFinite(queuedPosition)
+    ? ordinal(queuedPosition) + (Number.isFinite(queuedTotal) ? " of " + queuedTotal : "")
+    : null;
+  // The full sentence, for the tooltip and for the variants with room for it.
+  const queuedTitle = def.label + " queued" + (place ? " · " + place : "");
+  // Measured in a browser, the sentence does not fit either of the two constrained variants, and an
+  // ellipsis eats exactly the position the label exists to carry. Both drop the verb, which the button
+  // already says — its own icon, its own slot in the row — and keep the place.
+  //
+  // The tile's quick row is three equal grid columns with ~82px of label each, which takes the place
+  // and nothing else. The hero's button is wider and grows for this one state (see .gbtn.is-queued),
+  // so it keeps the word.
+  const queuedLabel = variant === "quick" ? (place || "Queued")
+    : variant === "glass" ? "Queued" + (place ? " · " + place : "")
+    : queuedTitle;
 
   const click = (e) => {
     e.stopPropagation();
@@ -154,11 +184,17 @@ function ServerActionButton({ verb, variant = "quick", disabled, pendingVerb, on
     : "";
   const cls = base
     + (armed ? " is-armed" : "")
-    + (isPending ? " is-pending" : "");
+    + (isPending ? " is-pending" : "")
+    + (isQueued ? " is-queued" : "");
 
   let inner;
   if (isPending) {
     inner = <><span className="act-spin"></span><span className={labelCls}>{def.pending}</span></>;
+  } else if (isQueued) {
+    // Deliberately NOT the pending rendering: no spinner, because nothing is spinning. An hourglass
+    // and a place in the line.
+    inner = <><Icon name="hourglass" size={size} strokeWidth={2.2} className={iconCls} />
+      <span className={labelCls}>{queuedLabel}</span></>;
   } else if (armed) {
     // A warned verb says what confirming MEANS. "Confirm?" on a start the node looks too full for
     // would hide the only thing worth knowing at that moment.
@@ -171,9 +207,11 @@ function ServerActionButton({ verb, variant = "quick", disabled, pendingVerb, on
   return (
     <button className={cls + (warn && !isPending ? " is-warned" : "")} disabled={isDisabled}
       aria-label={label || def.label}
-      title={armed
-        ? (warn || "Click again to confirm")
-        : (isDisabled && reason ? reason : (warn || label || def.label))}
+      title={isQueued
+        ? queuedTitle + " — the node has taken this and has not reached it yet"
+        : armed
+          ? (warn || "Click again to confirm")
+          : (isDisabled && reason ? reason : (warn || label || def.label))}
       onClick={click}>
       {inner}
     </button>

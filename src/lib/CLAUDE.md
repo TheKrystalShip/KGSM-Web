@@ -179,7 +179,12 @@ backend id, since the home node is addressed by that id.
   disposing what another still holds. The SSE transport already ref-counts topics, so this is about
   the REST hydrate and the store slot.
 - `serverActions.js` — `runServerAction(verb, server|id)`: the optimistic patch, the rollback and
-  the wording of a lifecycle verb. Also `requestBackup(server)` (the POST alone, for a surface that
+  the wording of a lifecycle verb. **Where the outcome goes is a parameter** (`opts.reporter`,
+  defaulting to the toast one): one button pressed once wants a toast, twenty servers asked at once
+  wants one summary. The other three obligations stay here whoever is reporting —
+  `markCommandIssued(server, verb, state)` makes the patch and hands back the undo, and its `state`
+  is the honesty boundary: `"running"` for a command that starts within the second, `"queued"` for a
+  batch member that may sit behind seven others. Also `requestBackup(server)` (the POST alone, for a surface that
   owns its own busy state and error line — the Backups tab) and `backupServer(server)` (the POST,
   the job wait and the failure report, for one that has nowhere to render an outcome). A module rather than a shell callback because a card that can be
   PINNED has no shell above it to be handed one, and a surface offering Start has to do all three or
@@ -194,6 +199,20 @@ backend id, since the home node is addressed by that id.
   there was room for three. `minW` remains for the few whose constraint really is a column count (a
   KPI tile); the wider of the two wins. The span then snaps to the full row only when the remainder
   is narrower than `MIN_USEFUL_COLS`, i.e. when nothing could be placed beside it anyway.
+- `batchRun.js` — one verb fired at a SET of servers. A **run** is what a person starts (one verb,
+  one cluster-wide set, one outcome); a **batch** is one node's share of it, and the node owns it
+  from the moment it accepts. So this mints a `runId`, groups the selection by node, fires one POST
+  per node and reconciles the answers — it paces nothing and retries nothing. Three properties:
+  the run id is **client-minted** and stored verbatim by every node, which is what lets any client
+  reassemble the run afterwards without a coordinator; a node that never answered is reported
+  **undispatched, never failed** (its commands were never issued); and each node's `refused[]` is
+  the authority for its own servers, so the summary reads the responses rather than the local
+  prediction.
+- `hooks/useJobPhase.js` — pending work in three states: **idle · queued · running**. Derived once
+  and read by every surface that draws a lifecycle button (the tile, the hero, an alert card's
+  suggested action), because a fourth derivation is how one of them comes to disagree about a server
+  nobody is watching. `useJobPhase` subscribes; `jobPhaseOf` is the same answer for a caller that has
+  already returned early and cannot take a hook.
 - `registerSW.js` — production-only PWA service-worker registration.
 - `push.js` — the browser half of Web Push: capability probe, subscribe/unsubscribe, device list.
   `support()` distinguishes **`needs-install`** from `unsupported`, because on iOS push works only

@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — one verb, a set of servers
+
+The panel could reach any server and arrange any card, and act on exactly one at a time. Bringing a
+fleet down for maintenance meant twelve confirms; patching everything that reports an update meant
+re-expressing a filter that had already run, one checkbox at a time. Servers now carry a selection
+checkbox (shift-click extends a range over the list as it is drawn), the toolbar offers **"Select all
+N"** over the active filter, and a bar states what is picked and offers the four lifecycle verbs
+against it.
+
+**A selection is cluster-wide; the work is owned by the nodes.** Seventeen servers over three nodes is
+one selection and one confirm; underneath, each node is handed its own share as a durable batch it
+paces and completes whether or not the tab stays open. The browser mints one `runId`, sends it to
+every node verbatim and groups by it afterwards — no coordinator, no peer relay, so losing the node
+you fired *from* cannot orphan work on the nodes it runs *on*.
+
+**The run arms once, on a preflight sheet.** It partitions the selection through the same `verbGuard`
+every button asks, and adds the two gates that guard does not cover: a server with work already in
+flight, named by what it is waiting for (*"A stop is queued for this server"*), and per-host
+permission. It sums the players a stop or restart would disconnect, states the node count whenever a
+run crosses more than one, and **escalates its wording** — leading with the player total — when the
+selection is every server that is running. The gesture does not escalate: stop is reversible, and
+uninstall is not offered to a batch at all.
+
+**A start selection gets a capacity forecast.** `capacityHint` answers for one server against a live
+`MemAvailable` reading and does not compose over a set — six 8 GB starts in quick succession each
+measure a node that still looks nearly empty. So each member is judged against what the ones before it
+have already committed. It states figures and no verdict, and a single *"Start anyway"* sends `force`
+for the whole run.
+
+**Queued work now renders as queued.** Pending work was two states — running or nothing — which was
+harmless while `queued` lasted milliseconds and wrong the moment a batch makes it last twenty minutes:
+a server eighth in a stop queue looked untouched, with a Stop button inviting a command the node would
+refuse. It is three states now — idle · queued · running — and the queued one is deliberately not the
+pending one: no spinner, because nothing is spinning, and a label carrying its place in the line
+(*"Stop queued · 3rd of 8"*), a count and never a predicted time.
+
+Two honesty fixes fall out of that. A batch member is patched **`queued`**, never `running` — writing
+"running" for work sitting behind seven other servers claims something that is not happening. And a
+queued job no longer owns the row's display status: a queued stop leaves the server reading exactly
+what it is, because *"Stopping…"* for twenty minutes about a server that is running normally is the
+same fabrication wearing a pill.
+
+**A node that never answered is reported undispatched, never failed** — its commands were never
+issued — and is offered as a retry. Each node's own `refused[]` is the authority for its own servers,
+so the result reconciles across every response rather than assuming the local prediction held. A
+settled run narrows the selection to what still needs doing, so a retry can only ever address what
+actually needs retrying.
+
+`lib/serverActions.js` grows a **reporter** parameter, defaulting to the toast one: a single button
+pressed once wants a toast, twenty servers asked at once wants one summary. The optimistic patch, the
+rollback and the wording stay together whoever is reporting.
+
 ### Added — the panel warns before a start the node has no room for
 
 kgsm refuses a start that would leave the node below its free-memory floor. Until now the panel only

@@ -238,6 +238,19 @@ function fmtFootprintMb(mb) {
   return Math.round(mb) + " MB";
 }
 
+/// 1 → "1st". Used where a position in a queue has to read as a place rather than a count — "3rd of
+/// 8" says which server moves next, where "3 of 8" reads like a progress bar.
+///
+/// The teens are the exception a last-digit rule gets wrong: 11th, 12th and 13th, not 11st.
+function ordinal(n) {
+  if (!Number.isFinite(n)) return "";
+  const abs = Math.abs(Math.trunc(n));
+  const tens = abs % 100;
+  if (tens >= 11 && tens <= 13) return abs + "th";
+  const ones = abs % 10;
+  return abs + (ones === 1 ? "st" : ones === 2 ? "nd" : ones === 3 ? "rd" : "th");
+}
+
 export {
   ACTION_META,
   CATEGORY_LABEL,
@@ -251,6 +264,7 @@ export {
   fmtTime,
   fmtTimeFull,
   fmtUntil,
+  ordinal,
   parseTs,
   statusTone,
   uptimeShort,

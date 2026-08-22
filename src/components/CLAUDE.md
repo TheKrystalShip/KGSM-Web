@@ -217,13 +217,26 @@ matcher that agrees with itself still fails it.
 ## Lifecycle buttons: `verbGuard` is the one answer
 
 `ServerActions.jsx` owns both halves of every start/stop/restart/update control. `ServerActionButton`
-is the button (confirm-first arming, the job spinner, one `variant` per surface's chrome);
+is the button (confirm-first arming, the job state, one `variant` per surface's chrome);
 **`verbGuard(server, verb)` is whether that verb can run right now and the sentence explaining why
 not**. The hero, the server tile and an alert card's suggested action all ask it, which is the point
 — a card offering Update while the hero refuses it would be two answers to one question. It checks
 the watchdog, the observed run state, and (for `update`) whether there is anything to apply; it
 deliberately does **not** check tier, which decides whether the control renders at all
 (`serverOperable`), a different question.
+
+**Pending work is THREE states, not two: idle · queued · running.** A queued job is one a node has
+accepted and not yet reached, which a batch can leave sitting for as long as the work ahead of it
+takes. Its rendering is deliberately **not** the pending one — no spinner, because nothing is
+spinning — and the label carries its place in the line (*"Stop queued · 3rd of 8"*), a count and
+never a predicted time. Every button on the server locks while one is queued: the work is committed.
+The phase is derived once by `lib/hooks/useJobPhase.js` and spread into each button, so the tile, the
+hero and an alert card's action cannot disagree about it.
+
+⚠ Two variants are too narrow for the sentence, measured in a browser: the tile's quick row is three
+equal grid columns (~82px of label each) and the hero's button is a fixed 136px. Both drop the verb
+— which the button already says, by its icon and its slot in the row — rather than let an ellipsis
+eat the position, which is the one thing only the label can carry. The tooltip keeps the sentence.
 
 ⚠ A refused verb renders **disabled with its reason** wherever the control has a fixed home — the
 hero's chip row, the tile's quick row, an alert card's suggested action. kgsm-api's `CommandGate` 409s
@@ -249,6 +262,35 @@ card pads out every sibling in its row.
 backend chooses the **verb** (its catalog is shared with Web Push, so a crash cannot suggest Stop on
 a phone and Restart here); this side chooses the **wording and the chrome**, and re-derives every
 gate live. An unrecognized kind draws nothing rather than guessing.
+
+## `batch/` — one verb, a set of servers
+
+Selecting servers and arming one run over them. Three pieces, and the split is the point: what is
+predicted, what is armed, and what the nodes actually said.
+
+- **`preflight.js`** — the partition. It adds the two gates `verbGuard` does not cover: a server with
+  work already in flight (`verbGuard` reads status only, so a preflight that skipped this would report
+  refusals as failures), and per-host permission (a selection can span nodes this person operates
+  unevenly — those are refusals, not errors, and are dropped before dispatch because a node's batch
+  endpoint is Operator-gated for the whole request). It also holds the cumulative capacity forecast:
+  `capacityHint` answers for one server against a live `MemAvailable` reading and does not compose
+  over a set, so each member is judged against what the ones before it have already committed.
+- **`SelectionBar.jsx`** — the bar that appears once something is picked. It states the count, the node
+  count whenever the selection crosses more than one, and how many of the selection each verb could
+  actually run against. *"Select all N matching"* deliberately lives in the page's **toolbar** instead:
+  it is how a selection starts, and a control that only appears once you have selected something
+  cannot be the thing that starts one.
+- **`BatchPreflight.jsx`** — the sheet, and the one place a run is armed. **Once, for the whole run**:
+  the safety is the sheet stating the count, the refusals and the players lost, not a gesture repeated
+  N times, because a confirm clicked twenty times is read zero times. The wording **escalates** when
+  the selection is every running server (it leads with the player total and says so in those words);
+  the gesture does not, because stop is reversible and uninstall is excluded from batching entirely.
+  Pressing it hands off to `lib/batchRun.js` and the sheet switches to the run's result.
+
+⚠ **The two screens are different on purpose.** Everything before the press is a prediction this
+client made so it could explain itself; everything after it is read from the nodes' answers, which may
+contradict it — each node's `refused[]` is the authority for its own servers, and a node that never
+answered is reported **undispatched**, never counted as a failure.
 
 ## `<Toasts>` / `<NotificationsPanel>` — outcome reporting
 

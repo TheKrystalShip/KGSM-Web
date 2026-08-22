@@ -3,6 +3,7 @@ import { SurfaceError } from "../components/ErrorBoundary.jsx";
 import { ClusterReach, nodeFilterOptions } from "../components/host-helpers.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { Pagination, useDebouncedValue } from "../components/Pagination.jsx";
+import { SelectionBar } from "../components/batch/SelectionBar.jsx";
 import { ServerTile } from "../components/ServerCard.jsx";
 import { ServersSkeleton, Skel } from "../components/Skeletons.jsx";
 import { Toolbar, ToolbarButton, ToolbarCount, ToolbarFilters, ToolbarSearch, ToolbarSort, ToolbarSpacer } from "../components/Toolbar.jsx";
@@ -11,7 +12,7 @@ import { can } from "../lib/persona.js";
 import { playerTally } from "../lib/servers.js";
 import { sortByAccessor } from "../lib/sorting.js";
 import { useStore } from "../lib/store.js";
-import { favoritesStore, hostsStore, serversStore } from "../lib/stores.js";
+import { favoritesStore, hostsStore, selectionStore, serversStore, useSelectionIds } from "../lib/stores.js";
 
 // ServersPage — the dedicated home for every installed game server.
 //
@@ -44,7 +45,7 @@ function groupPlayers(items) {
   };
 }
 
-function ServerGroup({ group, groupBy, solo, onOpenServer, onAction, showHost }) {
+function ServerGroup({ group, groupBy, solo, onOpenServer, onAction, showHost, pick }) {
   const [open, setOpen] = React.useState(true);
   const items = group.items;
   const online = items.filter(s => s.status === "online").length;
@@ -53,7 +54,7 @@ function ServerGroup({ group, groupBy, solo, onOpenServer, onAction, showHost })
   const grid = (
     <div className="server-grid server-grid--page server-group__grid">
       {items.map(s => (
-        <ServerTile key={s.id} server={s} onOpen={onOpenServer} onAction={onAction} showHost={showHost} />
+        <ServerTile key={s.id} server={s} onOpen={onOpenServer} onAction={onAction} showHost={showHost} {...pick(s)} />
       ))}
     </div>
   );
@@ -97,7 +98,7 @@ function ServerGroup({ group, groupBy, solo, onOpenServer, onAction, showHost })
 // mirrors the user's starred servers (it never removes them from their host
 // group below), always shows host badges (favorites span hosts), and hides
 // itself entirely when there's nothing pinned in the current filter view.
-function FavoritesSection({ items, onOpenServer, onAction }) {
+function FavoritesSection({ items, onOpenServer, onAction, pick }) {
   const [open, setOpen] = React.useState(true);
   const online = items.filter(s => s.status === "online").length;
   const players = groupPlayers(items);
@@ -119,7 +120,7 @@ function FavoritesSection({ items, onOpenServer, onAction }) {
       {open && (
         <div className="server-grid server-grid--page server-group__grid">
           {items.map(s => (
-            <ServerTile key={s.id} server={s} onOpen={onOpenServer} onAction={onAction} showHost={true} />
+            <ServerTile key={s.id} server={s} onOpen={onOpenServer} onAction={onAction} showHost={true} {...pick(s)} />
           ))}
         </div>
       )}
@@ -280,6 +281,42 @@ function ServersPage({ onOpenServer, onAction, onLibrary, initialStatus, initial
   // user can create on any host.
   const canCreate = can("server.create");
 
+  // ---- Selection (a gesture over this list, never persisted) ----
+  // Aggregate for REACH: a checkbox appears for anyone who operates servers somewhere. Whether a
+  // particular node's rows may actually be acted on is a per-host question, and the preflight asks it
+  // — a selection can span nodes this person operates unevenly, and those are refusals, not errors.
+  const canSelect = can("server.operate");
+  const selectedIds = useSelectionIds();
+  const selectedSet = React.useMemo(() => new Set(selectedIds), [selectedIds]);
+  // Cleared whenever a filter moves. A selected row hidden behind a filter is how a batch reaches a
+  // server nobody meant. Sort, grouping and the page number are deliberately NOT in this list: none
+  // of them changes WHICH servers are selected, and clearing on a page turn would make a selection
+  // wider than one page impossible — the bar states the count and the preflight names every server,
+  // so nothing is acted on unseen.
+  React.useEffect(() => { selectionStore.clear(); }, [q, status, game, node]);
+
+  // The order shift-click extends over: the list exactly as it is drawn. Grouping sections it, and
+  // pagination cuts it — a range is over what is on screen, because that is what was pointed at.
+  const visualOrder = grouped ? grouped.flatMap(g => g.items) : pageItems;
+  const lastPicked = React.useRef(null);
+  const onSelect = (server, opts) => {
+    if (opts && opts.shift && lastPicked.current && lastPicked.current !== server.id) {
+      const a = visualOrder.findIndex(s => s.id === lastPicked.current);
+      const b = visualOrder.findIndex(s => s.id === server.id);
+      if (a >= 0 && b >= 0) {
+        const [lo, hi] = a < b ? [a, b] : [b, a];
+        selectionStore.add(visualOrder.slice(lo, hi + 1));
+        lastPicked.current = server.id;
+        return;
+      }
+    }
+    selectionStore.toggle(server);
+    lastPicked.current = server.id;
+  };
+  const pick = (s) => (canSelect
+    ? { selectable: true, selected: selectedSet.has(s.id), onSelect }
+    : { selectable: false });
+
   return (
     <>
       <div className="dash-head">
@@ -322,6 +359,18 @@ function ServersPage({ onOpenServer, onAction, onLibrary, initialStatus, initial
 
         <ToolbarSpacer />
         <ToolbarCount shown={filtered.length} total={servers.length} unit="servers" />
+        {/* The one that matters. The filters are already good enough that `status=updates` +
+            `game=factorio` IS the selection — clicking twelve boxes to re-express a filter that has
+            already run is the friction being removed. It takes the whole filtered set, not the page,
+            because the filter is what was expressed. */}
+        {canSelect && filtered.length > 0 && (
+          <ToolbarButton
+            icon="check-check"
+            onClick={() => selectionStore.add(filtered)}
+            title={"Select all " + filtered.length + " servers matching the current filters"}>
+            Select all {filtered.length}
+          </ToolbarButton>
+        )}
         <ToolbarButton
           icon="refresh-cw"
           onClick={refresh}
@@ -331,6 +380,8 @@ function ServersPage({ onOpenServer, onAction, onLibrary, initialStatus, initial
           {refreshing ? "Refreshing…" : "Refresh"}
         </ToolbarButton>
       </Toolbar>
+
+      {canSelect && <SelectionBar />}
 
       {srvStatus === "error" && (
         <SurfaceError
@@ -363,7 +414,7 @@ function ServersPage({ onOpenServer, onAction, onLibrary, initialStatus, initial
           {grouped ? (
             <div className="server-groups">
               {favItems.length > 0 && (
-                <FavoritesSection items={favItems} onOpenServer={onOpenServer} onAction={onAction} />
+                <FavoritesSection items={favItems} onOpenServer={onOpenServer} onAction={onAction} pick={pick} />
               )}
               {grouped.map(g => (
                 <ServerGroup
@@ -373,19 +424,20 @@ function ServersPage({ onOpenServer, onAction, onLibrary, initialStatus, initial
                   solo={grouped.length === 1 && groupBy === "host"}
                   onOpenServer={onOpenServer}
                   onAction={onAction}
-                  showHost={spansNodes} />
+                  showHost={spansNodes}
+                  pick={pick} />
               ))}
             </div>
           ) : (
             <>
               {favItems.length > 0 && (
                 <div className="server-groups server-groups--fav">
-                  <FavoritesSection items={favItems} onOpenServer={onOpenServer} onAction={onAction} />
+                  <FavoritesSection items={favItems} onOpenServer={onOpenServer} onAction={onAction} pick={pick} />
                 </div>
               )}
               <div className="server-grid server-grid--page">
                 {pageItems.map(s => (
-                  <ServerTile key={s.id} server={s} onOpen={onOpenServer} onAction={onAction} showHost={spansNodes} />
+                  <ServerTile key={s.id} server={s} onOpen={onOpenServer} onAction={onAction} showHost={spansNodes} {...pick(s)} />
                 ))}
               </div>
               <Pagination

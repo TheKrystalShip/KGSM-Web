@@ -6,6 +6,7 @@ import { serverOperable } from "../lib/persona.js";
 import { useStore } from "../lib/store.js";
 import { hostsStore, serversStore } from "../lib/stores.js";
 import { fmtRelative, parseTs } from "../lib/formatting.js";
+import { jobPhaseOf } from "../lib/hooks/useJobPhase.js";
 
 // AlertCard.jsx — the shared alert card component, extracted from AlertsPage.jsx.
 // Used by AlertsPage and ContextualAlerts (InlineAlertCard).
@@ -53,7 +54,10 @@ function useAlertActions(item, onRun) {
   const server = item.serverId ? servers.find(s => s.id === item.serverId) : null;
   if (!server || !serverOperable(server)) return [];
 
-  const pendingVerb = server.job && server.job.state === "running" ? server.job.verb : null;
+  // Pending work in three states: idle · queued · running — the same derivation the tile and the hero
+  // use. The non-hook read, because this helper has already returned early above and cannot take one;
+  // it re-reads on every render its caller does, which is every server frame.
+  const job = jobPhaseOf(server);
 
   return offers
     .map(offer => ({ offer, verb: ACTION_VERB[offer.kind] }))
@@ -63,7 +67,7 @@ function useAlertActions(item, onRun) {
     .map(({ offer, verb }) => ({
       key: offer.kind,
       verb,
-      pendingVerb,
+      job,
       guard: verbGuard(server, verb),
       run: (v) => onRun(offer.target || item.serverId, v),
     }));
@@ -137,7 +141,7 @@ function AlertCard({ item, onAsk, onOpenServer, onOpenHost, onOpenAudit, onRun, 
           {actions.map(a => (
             <ServerActionButton key={a.key} verb={a.verb} variant="alert"
               disabled={a.guard.disabled} reason={a.guard.reason}
-              pendingVerb={a.pendingVerb} onRun={a.run} />
+              {...a.job} onRun={a.run} />
           ))}
           <button className={"alert-btn" + (hasActions ? "" : " alert-btn--primary")}
             disabled={!askAssistantUsable(item)}

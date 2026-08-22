@@ -510,19 +510,46 @@ failure and kgsm maps any non-200 to `EC_ERROR` — so the refusal a batch is mo
 the one that cannot be named. Carrying that distinction out to callers is upstream work; the rule
 here needs no change when it lands.
 
-**S2 — `kgsm-web`: selection and dispatch.** Selection store, tile checkbox, "select all matching",
-the preflight sheet, the dispatcher (mint `runId`, group by host, fan out), the queued rendering
-across the three `pendingVerb` surfaces, the reporter refactor, and one summary reconciled across
-every node's response — including nodes that never answered.
+**S2 — `kgsm-web`: selection and dispatch. BUILT** (`kgsm-web` 1.148.0). `stores/selection.js`
+(cluster-wide, unpersisted, cleared on a filter change, narrowed by a settled run), the tile
+checkbox with shift-click ranges, "select all N matching" in the toolbar, the selection bar, the
+preflight sheet with its partition and its cumulative capacity forecast, `lib/batchRun.js` (mint
+`runId`, group by node, one POST each, reconcile), the queued rendering across all three
+`pendingVerb` surfaces, and the reporter refactor.
 
-The preflight sheet gains a capacity **forecast** for a `start` selection — `capacityHint`
-(`lib/capacity.js`) walked cumulatively over the selection, subtracting each requirement as it goes —
-and a single "start anyway" that sends `force` for the whole batch, the arming decision (§3b) already
-made, applied to the one override that exists. The forecast lives here rather than in the API because
-the SPA already holds all three numbers, the engine decides for real at the instant it acts, and a
-prediction is exactly the kind of thing a surface may state and an authority may not. It states figures and no verdict, for the reason the card does: the requirement is
-usually a vendor estimate, and an operator who knows a game runs in less is exactly who should
-override.
+The forecast is `capacityHint` walked cumulatively, subtracting each member's requirement from its
+node's free figure before judging the next. It states figures and no verdict, for the reason the card
+does: the requirement is usually a vendor estimate, and an operator who knows a game runs in less is
+exactly who should override. A single "Start anyway" sends `force` for the whole run.
+
+Verified in jsdom against an auth-disabled API — the request the SPA builds (one POST per node, one
+client-minted `runId` to all of them, `force` only on `start` and only when asked), a member patched
+`queued` rather than `running`, a node that never answered reported undispatched with nothing patched
+for it, both preflight gates naming what they are waiting for, the cumulative arithmetic, and the
+selection store's own rules. Multi-node dispatch is covered by the same suite's two-connection
+section: two POSTs, one run id, one node reachable and the other's share reported as never started.
+Every write is intercepted at the fetch seam; nothing reached a node.
+
+Verified in Chromium against the live host: the checkbox on real cover art, the bar and the sheet at
+1440 and 390 wide with no overflow, a real refusal partition drawn from the live roster, and — with a
+queued `activeJob` injected into the roster response — the queued button on the tile and the hero.
+
+Three things the plan had wrong, found in the code:
+
+- **A queued job used to own the row's display status.** `stores/servers.js` mapped verb → status for
+  any live job, so a queued stop would have read "Stopping…" on a server that is running normally, for
+  as long as the queue lasted. Only a *running* job owns the pill now.
+- **`adaptJob` had no terminal case for `cancelled`**, so a cancelled job would have stayed live on
+  its row forever. It is terminal alongside `succeeded` and `failed`.
+- **The queued label does not fit two of the button variants.** Measured in a browser, the tile's
+  quick row gives a label ~82px and the hero's button is a fixed 136px, against ~193px for
+  *"Stop queued · 12th of 24"*. Both drop the verb — the button already says which verb it is —
+  rather than let an ellipsis eat the position. The tooltip keeps the sentence.
+
+Not verified: nothing was ever dispatched at a live backend, so the queue as an operator would
+actually watch it — positions moving as members settle, the selection narrowing when the run ends —
+is proven only against injected frames. The run-settled narrowing also depends on the `batches`
+stream topic, which no live batch has exercised from this client.
 
 **S3 — `JobQueue`.** The per-host component (§3c): the `jobs` node subtab, the `host.jobs` widget,
 the `hostId` carry-through, the settled-job retention cap. It stands alone — a node's queue is worth
