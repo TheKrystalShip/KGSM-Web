@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — a command the engine refuses now says so
+
+A lifecycle verb the API **accepts** and the engine then **refuses** reported nothing. The two arrive
+by different routes and only one was ever read: a command rejected up front rejects the POST, which
+`reportFailure` answers, while an accepted one returns `202` and does the work off-request, so the
+engine's own refusals reach the client on the settled job's `error`. Nothing read that field for
+start/stop/restart, so the button spun, the settle frame cleared it, and the server sat at offline
+with the reason nowhere on screen — indistinguishable from a command that never happened.
+
+`runServerAction` now watches the job it started and reports a settled failure with the engine's
+sentence **verbatim**, because that sentence is the half naming what to do about it. Only a settled
+failure is reported: `awaitJob`'s `unknown` means the stream went away before the job settled, and
+calling that a failure would invent an outcome nobody observed.
+
+Scoped to the command this browser issued, off the POST's own response rather than the `jobs` topic —
+that topic carries the CLI's jobs, the assistant's and other operators', and toasting those would
+break what the notifications tray is.
+
+kgsm's memory gate is the live instance of this path: it refuses a start the node has no room for
+from **inside** the job, long after the 202. The smoke drives that case end to end.
+
 ### Command palette — nodes, views, the connect address, and habit
 
 - **The cluster's machines are entries.** A node by name, its journal, its resources and services

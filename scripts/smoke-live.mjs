@@ -807,6 +807,49 @@ try {
   assert(captured && captured.url.endsWith("/api/v1/servers")
     && captured.body.blueprint === "factorio" && captured.body.name === "My Factorio" && captured.body.origin === "ui",
     "installServer → POST /servers { blueprint, name, origin:'ui' } (no fabricated server row)");
+  // kgsm's own words for a start the node has no room for, quoted exactly as the engine emits them
+  // so a reworded message on either side fails this rather than passing quietly.
+  const ENGINE_REFUSAL =
+    "Not enough memory to start factorio-test: it needs 8192MB, the node has 2048MB available, "
+    + "and starting it would leave -6144MB against a required floor of 1024MB.";
+  const { runServerAction } = await vite.ssrLoadModule("/src/lib/serverActions.js");
+  const { toastStore } = await vite.ssrLoadModule("/src/lib/toasts.js");
+
+  // An ACCEPTED command that then FAILS must say why. This is the engine-refusal path — the memory
+  // gate is the live instance of it: kgsm refuses a start the node has no room for, which happens
+  // INSIDE the job, long after the 202. The reason rides the settled job's `error`, and nothing used
+  // to read it, so a refused start was indistinguishable from one that never happened.
+  //
+  // Driven end to end: intercept the POST (nothing reaches the engine), then push the settle frame
+  // the backend would have pushed, and assert the toast carries the engine's sentence VERBATIM —
+  // that sentence is the half naming what to do about it.
+  globalThis.fetch = async (url, opts) => {
+    const u = typeof url === "string" ? url : (url && url.url) || "";
+    if (opts && opts.method === "POST" && /\/api\/v1\/servers\/[^/]+\/commands$/.test(u)) {
+      // Settle the job on the next turn, the way the real stream does: after the POST resolves and
+      // `runServerAction` has begun awaiting it.
+      setTimeout(() => api.__dispatch({
+        topic: "jobs", type: "job.patch",
+        data: {
+          id: "job_refused", serverId: "factorio-test", verb: "start", state: "failed",
+          createdAt: "2026-06-20T00:00:00Z", settledAt: "2026-06-20T00:00:01Z",
+          error: ENGINE_REFUSAL,
+        },
+      }), 0);
+      return new Response(JSON.stringify({ job: {
+        id: "job_refused", serverId: "factorio-test", verb: "start",
+        state: "queued", createdAt: "2026-06-20T00:00:00Z", settledAt: null, error: null,
+      } }), { status: 202, headers: { "content-type": "application/json" } });
+    }
+    return realFetch(url, opts);
+  };
+  const toastsBefore = toastStore.getState().history.length;
+  await runServerAction("start", { id: "factorio-test", hostId: hmId, name: "factorio-test", status: "offline" });
+  const refusalToast = toastStore.getState().history.find(t => t.detail === ENGINE_REFUSAL);
+  assert(!!refusalToast && refusalToast.tone === "error",
+    "an accepted-then-failed start reports the ENGINE's reason verbatim (the memory-gate path)");
+  assert(toastStore.getState().history.length > toastsBefore,
+    "the refusal is recorded in the notifications history, not only on screen");
   globalThis.fetch = realFetch;
 
   // The Update chip is gated on the server's REAL state: lit only when the update-check

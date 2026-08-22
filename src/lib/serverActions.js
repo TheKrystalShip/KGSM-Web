@@ -29,6 +29,42 @@ function reportFailure(err, verb, server) {
   else toast.fromError(err, "Couldn't " + verb + " " + (server.name || server.id));
 }
 
+/// Watch the job a command was accepted for, and say so if it ends in failure.
+///
+/// A REFUSED command and a FAILED one arrive by completely different routes, and only the first was
+/// ever reported. A command the API rejects outright — a bad verb, a busy server — rejects the POST,
+/// and `reportFailure` above answers it. A command the API ACCEPTS returns 202 and then does the work
+/// off-request: the engine's own refusals live there, and their reason reaches the client on the
+/// settled job's `error` rather than as a rejected promise. Without this, a start the engine turned
+/// down looked exactly like one that never happened — the button spun "Starting…", the settle frame
+/// cleared it, and the server sat at offline with the reason nowhere on screen.
+///
+/// The engine's sentence is shown VERBATIM as the detail. It is the half that says what to do about
+/// it — "stop another instance, lower this instance's memory_cap_mb, or start it anyway with
+/// --force" — and rewording it here would replace an answer with a paraphrase.
+///
+/// Scoped to the command THIS browser issued, deliberately. The `jobs` topic carries every job on the
+/// host — the CLI's, the assistant's, another operator's — and toasting those would break what the
+/// notifications tray is: what YOU did in THIS browser, and how it went. That is also why this hangs
+/// off the POST's own response rather than off the stream.
+function reportJobOutcome(resp, verb, server) {
+  const jobId = resp && resp.job && resp.job.id;
+  if (!jobId) return resp;
+
+  return awaitJob(jobId, server.hostId).then((outcome) => {
+    // Only a SETTLED failure is reported. `unknown` means the stream went away before the job
+    // settled — the command may well have succeeded, and calling that a failure would invent an
+    // outcome nobody observed.
+    if (outcome && outcome.status === "failed") {
+      toast.error("Couldn't " + verb + " " + (server.name || server.id), {
+        detail: (outcome.job && outcome.job.error) || "The engine gave no reason.",
+        serverId: server.id,
+      });
+    }
+    return resp;
+  }, () => resp); // watching an outcome must never turn a fired command into a failed one
+}
+
 /// Run a lifecycle verb. `target` is a server object or an id.
 ///
 /// Returns the in-flight promise so a caller that wants to wait can, but the UI feedback is already
@@ -43,11 +79,13 @@ function runServerAction(action, target) {
   if (action === "start") {
     const prevStatus = server.status;
     serversStore.patch(server.id, { status: "starting" });
-    return commandServer(server, action).catch(err => {
-      reportFailure(err, "start", server);
-      const cur = serversStore.find(server.id);
-      if (cur && cur.status === "starting") serversStore.patch(server.id, { status: prevStatus });
-    });
+    return commandServer(server, action)
+      .then(resp => reportJobOutcome(resp, "start", server))
+      .catch(err => {
+        reportFailure(err, "start", server);
+        const cur = serversStore.find(server.id);
+        if (cur && cur.status === "starting") serversStore.patch(server.id, { status: prevStatus });
+      });
   }
 
   // These three run long enough to need showing: an update for minutes, a shutdown for as long as
@@ -55,13 +93,17 @@ function runServerAction(action, target) {
   // own the server with the job from the click, and drop it again if the command is refused.
   if (action === "update" || action === "stop" || action === "restart") {
     serversStore.patch(server.id, { job: { verb: action, state: "running" } });
-    return commandServer(server, action).catch(err => {
-      reportFailure(err, action, server);
-      serversStore.patch(server.id, { job: null });
-    });
+    return commandServer(server, action)
+      .then(resp => reportJobOutcome(resp, action, server))
+      .catch(err => {
+        reportFailure(err, action, server);
+        serversStore.patch(server.id, { job: null });
+      });
   }
 
-  return commandServer(server, action).catch(err => reportFailure(err, action, server));
+  return commandServer(server, action)
+    .then(resp => reportJobOutcome(resp, action, server))
+    .catch(err => reportFailure(err, action, server));
 }
 
 /// Ask a node to take a backup of one server. Returns the raw response, job and all.
