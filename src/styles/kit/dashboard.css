@@ -994,6 +994,37 @@
    track, not from the item's content, so "Confirm?" and "Stopping…" occupy the
    same third as "Start". `minmax(0, 1fr)` is what stops a long label pushing its
    own track wider (the automatic minimum is min-content). */
+/* The node-capacity hint — shown only when the owning node looks too full for this server, so it is
+   an exception on a card rather than a permanent row. Warning-toned but quiet: it reports two
+   measurements and does not refuse anything, and the Start button beside it stays live. */
+.server-tile__capacity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--warning-bg);
+  border-radius: var(--r-sm);
+  background: var(--warning-bg);
+  color: var(--warning-fg);
+  font-size: 11px;
+  line-height: 1.25;
+  /* The figures are the point; never let them wrap into an unreadable stack on a narrow card. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.server-tile__capacity svg { flex: none; }
+
+/* A warned button reads as a caution BEFORE it is armed, so the state is visible without hovering
+   for the title. It deliberately does not look disabled — it is pressable, and pressing it is the
+   supported way through. */
+.server-tile__quick button.is-warned:not(.is-armed):not(.is-pending) {
+  border-color: var(--warning-bg);
+  color: var(--warning-fg);
+}
+
 .server-tile__quick {
   display: grid;
   grid-auto-flow: column;

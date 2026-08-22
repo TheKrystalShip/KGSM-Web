@@ -48,14 +48,14 @@ function AppRouter({ route, setRoute, user, activeGame, serverForRender,
       onOpenHost={(hostId) => setRoute({ kind: "cluster", hostId })}
       onOpenAudit={() => setRoute({ kind: "audit" })}
       onAsk={askAboutAlert}
-      onRun={(id, action) => handleAction(action, id)}
+      onRun={(id, action, opts) => handleAction(action, id, opts)}
     />}
     {route.kind === "servers" && <ServersPage
       key={(route.status || "all") + ":" + (route.node || "all")}
       initialStatus={route.status}
       initialNode={route.node}
       onOpenServer={(id) => setRoute({ kind: "server", id })}
-      onAction={(id, action) => handleAction(action, id)}
+      onAction={(id, action, opts) => handleAction(action, id, opts)}
       onLibrary={() => setRoute({ kind: "library" })}
     />}
     {route.kind === "library" && <Library key={route.filter || "all"} onOpenGame={openGame} onDeploy={handleInstall} initialFilter={route.filter}
@@ -72,7 +72,7 @@ function AppRouter({ route, setRoute, user, activeGame, serverForRender,
           onTabChange={(t) => setRoute({ kind: "game", id: route.id, tab: t === "overview" ? undefined : t })}
           onCreate={(g) => setInstalling(g)}
           onOpenServer={(id) => setRoute({ kind: "server", id })}
-          onAction={(id, action) => handleAction(action, id)}
+          onAction={(id, action, opts) => handleAction(action, id, opts)}
         />
       : <div style={{ padding: "60px 0", textAlign: "center", color: "var(--fg-3)" }}>
           That game isn’t in the library. <button className="dash-servers-empty__link" onClick={() => setRoute({ kind: "library" })}>Back to the library</button>

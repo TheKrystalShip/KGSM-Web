@@ -240,10 +240,10 @@ function AppInner({ user, setUser, route, setRoute }) {
   // The verb itself — the optimistic patch, the rollback, the wording — lives in
   // lib/serverActions.js, because a pinned card has no shell above it to be handed a callback. This
   // only resolves WHICH server the shell means when a caller names none.
-  const handleAction = (action, targetId) => {
+  const handleAction = (action, targetId, opts) => {
     const s = targetId ? servers.find(x => x.id === targetId) || activeServer : activeServer;
     if (!s) return;
-    runServerAction(action, s);
+    runServerAction(action, s, opts);
   };
 
   const openGame = (game) => setRoute({ kind: "game", id: game.id });

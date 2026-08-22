@@ -305,9 +305,14 @@ libraryStore.subscribe(resolveGameNames);
 resolveGameNames();
 
 // ---- Server write actions -----------------------------------------------
-function commandServer(server, verb, origin = "ui") {
+// `force` overrides the engine's node-capacity check and is start-only; the API refuses it on any
+// other verb. Sent only when true, so a command body stays exactly what it was for every caller that
+// does not ask — and a caller that does not ask keeps the protection.
+function commandServer(server, verb, origin = "ui", force = false) {
   if (!server || !server.hostId) return Promise.reject(new Error("commandServer: server.hostId required"));
-  return api.host(server.hostId).post("/servers/" + server.id + "/commands", { verb, origin });
+  const body = { verb, origin };
+  if (force) body.force = true;
+  return api.host(server.hostId).post("/servers/" + server.id + "/commands", body);
 }
 
 function sendConsoleInput(server, text, origin = "ui") {

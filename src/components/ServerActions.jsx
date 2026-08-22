@@ -120,9 +120,20 @@ function useConfirmAction(onConfirm, ms = 3500) {
 // full-width primary button a server card promotes into its connect row. All share
 // the chip's confirm-first + pending behaviour (is-armed / is-pending); only the
 // chrome differs, which is the point — a verb pressed anywhere behaves the same.
-function ServerActionButton({ verb, variant = "quick", disabled, pendingVerb, onRun, reason, label }) {
+// `warn` turns a normally-unarmed verb into an arming one and supplies the sentence it arms WITH.
+// Start uses it for the node-capacity hint: the panel cannot know a start will be refused — the
+// reading is a moment old and the requirement may be a vendor estimate — so it must not DISABLE the
+// button. Disabling on a prediction strands an operator with no way forward, while letting a doomed
+// start through costs nothing: the engine refuses it, which is what the gate is for.
+//
+// Arming instead says what the panel knows and hands the decision back. Confirming passes
+// { force: true } to onRun, since somebody who has read the numbers and pressed again IS the
+// override.
+function ServerActionButton({ verb, variant = "quick", disabled, pendingVerb, onRun, reason, label, warn }) {
   const def = SERVER_ACTION[verb];
-  const { armed, trigger } = useConfirmAction(() => onRun(verb));
+  // A warned verb is armed whether or not it normally would be, and confirming it means "anyway".
+  const arms = def.confirm || !!warn;
+  const { armed, trigger } = useConfirmAction(() => onRun(verb, { force: !!warn }));
   const jobRunning = !!pendingVerb;
   const isPending = pendingVerb === verb;
   const isDisabled = disabled || (jobRunning && !isPending);
@@ -133,7 +144,7 @@ function ServerActionButton({ verb, variant = "quick", disabled, pendingVerb, on
   const click = (e) => {
     e.stopPropagation();
     if (isDisabled || isPending) return;
-    if (def.confirm) trigger(); else onRun(verb);
+    if (arms) trigger(); else onRun(verb);
   };
 
   const base = variant === "chip" ? "chip chip--" + def.tone
@@ -149,14 +160,21 @@ function ServerActionButton({ verb, variant = "quick", disabled, pendingVerb, on
   if (isPending) {
     inner = <><span className="act-spin"></span><span className={labelCls}>{def.pending}</span></>;
   } else if (armed) {
-    inner = <><Icon name="check" size={size} strokeWidth={2.6} className={iconCls} /><span className={labelCls}>Confirm?</span></>;
+    // A warned verb says what confirming MEANS. "Confirm?" on a start the node looks too full for
+    // would hide the only thing worth knowing at that moment.
+    inner = <><Icon name={warn ? "triangle-alert" : "check"} size={size} strokeWidth={2.6} className={iconCls} />
+      <span className={labelCls}>{warn ? "Start anyway?" : "Confirm?"}</span></>;
   } else {
     inner = <><Icon name={def.icon} size={size} strokeWidth={2.2} className={iconCls} /><span className={labelCls}>{label || def.label}</span></>;
   }
 
   return (
-    <button className={cls} disabled={isDisabled} aria-label={label || def.label}
-      title={armed ? "Click again to confirm" : (isDisabled && reason ? reason : (label || def.label))} onClick={click}>
+    <button className={cls + (warn && !isPending ? " is-warned" : "")} disabled={isDisabled}
+      aria-label={label || def.label}
+      title={armed
+        ? (warn || "Click again to confirm")
+        : (isDisabled && reason ? reason : (warn || label || def.label))}
+      onClick={click}>
       {inner}
     </button>
   );

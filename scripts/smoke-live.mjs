@@ -807,6 +807,67 @@ try {
   assert(captured && captured.url.endsWith("/api/v1/servers")
     && captured.body.blueprint === "factorio" && captured.body.name === "My Factorio" && captured.body.origin === "ui",
     "installServer → POST /servers { blueprint, name, origin:'ui' } (no fabricated server row)");
+  // The node-capacity hint: the panel's PREDICTION of what the engine will decide, computed from the
+  // three numbers the gate compares. Asserted as a pure function against fixed inputs — the live host
+  // has plenty of memory, so the tight case would never occur naturally, and the arithmetic is exactly
+  // what must not drift from kgsm's.
+  const cap = await vite.ssrLoadModule("/src/lib/capacity.js");
+  const NODE = (freeMb, headroomMb = 1024) =>
+    ({ ram: { free_mb: freeMb }, memory_gate: { enabled: true, headroom_mb: headroomMb } });
+  const SRV = (mb, source = "blueprint") => ({ start_memory_mb: mb, start_memory_source: source });
+
+  assert(cap.startLooksTight(SRV(8192), NODE(8192)) === true,
+    "capacity: a start leaving 0MB against a 1024MB floor is tight (the PZ-on-8GB case)");
+  assert(cap.startLooksTight(SRV(8192), NODE(20000)) === false,
+    "capacity: the same start on a node with room is not tight");
+  assert(cap.startLooksTight(SRV(8192), NODE(9215)) === true,
+    "capacity: the FLOOR is what refuses — 1023MB left is still short of 1024");
+  assert(cap.startLooksTight(SRV(8192), NODE(9216)) === false,
+    "capacity: exactly the floor fits (>=, matching the engine)");
+
+  // Every missing input means "say nothing", never a substituted default — most servers declare no
+  // requirement at all, so this is the common path rather than an edge.
+  assert(cap.capacityHint(SRV(null), NODE(512)) === null,
+    "capacity: no declared requirement → no hint (never an invented figure)");
+  assert(cap.capacityHint(SRV(8192), { ram: { free_mb: null }, memory_gate: { enabled: true, headroom_mb: 1024 } }) === null,
+    "capacity: no MemAvailable reading → no hint (total-used is not a substitute)");
+  assert(cap.capacityHint(SRV(8192), { ram: { free_mb: 512 }, memory_gate: null }) === null,
+    "capacity: a node publishing no gate policy → no hint (the floor is not guessed)");
+  assert(cap.capacityHint(SRV(8192), { ram: { free_mb: 512 }, memory_gate: { enabled: false, headroom_mb: 1024 } }) === null,
+    "capacity: a DISABLED gate refuses nothing, so warning would be a lie");
+
+  // The sentence states the two figures and no verdict — an operator who knows the estimate is wrong
+  // can only judge that if the numbers are visible.
+  const tightHint = cap.capacityHint(SRV(8192), NODE(2048));
+  assert(/8 GB/.test(cap.capacityText(tightHint)) && /2 GB free/.test(cap.capacityText(tightHint)),
+    "capacity: the hint names what it needs and what is free");
+  assert(/blueprint's estimate/.test(cap.capacityDetail(tightHint)),
+    "capacity: a blueprint-sourced figure says so, since that is what makes overriding reasonable");
+  assert(!/blueprint's estimate/.test(cap.capacityDetail(cap.capacityHint(SRV(8192, "cap"), NODE(2048)))),
+    "capacity: an enforced cap is NOT hedged as an estimate");
+
+  // force reaches the wire only when asked for, and only on start — the API refuses it elsewhere.
+  globalThis.fetch = async (url, opts) => {
+    const u = typeof url === "string" ? url : (url && url.url) || "";
+    if (opts && opts.method === "POST" && /\/api\/v1\/servers\/[^/]+\/commands$/.test(u)) {
+      captured = { url: u, body: JSON.parse(opts.body || "null") };
+      return new Response(JSON.stringify({ job: {
+        id: "job_forced", serverId: "factorio-test", verb: "start",
+        state: "queued", createdAt: "2026-06-20T00:00:00Z", settledAt: null, error: null,
+      } }), { status: 202, headers: { "content-type": "application/json" } });
+    }
+    return realFetch(url, opts);
+  };
+  captured = null;
+  await st.commandServer({ id: "factorio-test", hostId: hmId }, "start", "ui", true);
+  assert(captured && captured.body.force === true,
+    "commandServer(force) → POST body carries force:true");
+  captured = null;
+  await st.commandServer({ id: "factorio-test", hostId: hmId }, "start");
+  assert(captured && captured.body.force === undefined,
+    "a start that did not ask to override sends NO force field (the protection is the default)");
+  globalThis.fetch = realFetch;
+
   // kgsm's own words for a start the node has no room for, quoted exactly as the engine emits them
   // so a reworded message on either side fails this rather than passing quietly.
   const ENGINE_REFUSAL =

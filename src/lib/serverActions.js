@@ -69,9 +69,17 @@ function reportJobOutcome(resp, verb, server) {
 ///
 /// Returns the in-flight promise so a caller that wants to wait can, but the UI feedback is already
 /// handled here — the common case is fire-and-forget.
-function runServerAction(action, target) {
+/// `opts.force` overrides the ENGINE's node-capacity check (kgsm's --force), and reaches it as the
+/// command body's `force`. It is only ever set by a person confirming a warned Start: the panel
+/// predicts that a start looks too tight, says so on the button, and a second press is the operator
+/// saying the prediction is wrong. Nothing sets it automatically — an automatic override would
+/// silently remove the protection for everyone.
+function runServerAction(action, target, opts) {
   const server = typeof target === "string" ? serversStore.find(target) : target;
   if (!server || !action) return Promise.resolve();
+  // Only start has a capacity check to override; the API rejects the flag on any other verb, so it
+  // is dropped here rather than sent and refused.
+  const force = !!(opts && opts.force) && action === "start";
 
   // Start is the one verb with a status of its own to show. Patch it from the CLICK rather than from
   // the first frame that reports it, so the button never looks inert — and put it back if the
@@ -79,7 +87,7 @@ function runServerAction(action, target) {
   if (action === "start") {
     const prevStatus = server.status;
     serversStore.patch(server.id, { status: "starting" });
-    return commandServer(server, action)
+    return commandServer(server, action, "ui", force)
       .then(resp => reportJobOutcome(resp, "start", server))
       .catch(err => {
         reportFailure(err, "start", server);

@@ -3,6 +3,7 @@ import { Icon } from "./Icon.jsx";
 import { ServerActionButton, verbGuard } from "./ServerActions.jsx";
 import { ServerConnect } from "./ServerConnect.jsx";
 import { serverCapUsable } from "../lib/capabilities.js";
+import { capacityHint, capacityText, capacityDetail } from "../lib/capacity.js";
 import { serverOperable } from "../lib/persona.js";
 import { favoritesStore, hostsStore, serversStore, useIsFavorite } from "../lib/stores.js";
 import { artBg } from "../lib/art.js";
@@ -92,6 +93,13 @@ function ServerTile({ server, onOpen, onAction, showHost }) {
   // so the tile, the hero and an alert card's suggested action never disagree.
   const guard = { start: verbGuard(server, "start"), stop: verbGuard(server, "stop"),
                   restart: verbGuard(server, "restart"), update: verbGuard(server, "update") };
+  // Does this server still fit on its node? Read against the OWNING host — the gate is per node, and
+  // a fleet roll-up would answer for the wrong machine. Null whenever the question cannot be
+  // answered, which is most servers today, and the card then shows nothing.
+  const capacity = capacityHint(server, hostsStore.find(server.hostId));
+  // Only a TIGHT fit is worth saying. Announcing the requirement on every card would be noise on the
+  // servers that comfortably fit, which is nearly all of them.
+  const startWarn = capacity && capacity.tight && !guard.start.disabled ? capacityDetail(capacity) : null;
   // An update waiting is announced in EVERY run state, by the chip on the artwork — a fact about the
   // installed build, which stays true whether or not anything is running. It goes quiet only while the
   // update is actually being applied, because the status pill is already saying "Updating…" and two
@@ -237,11 +245,20 @@ function ServerTile({ server, onOpen, onAction, showHost }) {
             )}
           </div>
         </div>
+        {/* The capacity hint, shown only when the node looks too full for this server. Two figures and
+            no verdict: an operator who knows the blueprint overstates what this game uses can see the
+            shape of the problem and decide, which "cannot start" would not let them do. */}
+        {canOps && startWarn && (
+          <div className="server-tile__capacity" title={startWarn}>
+            <Icon name="triangle-alert" size={11} strokeWidth={2.2} />
+            <span>{capacityText(capacity)}</span>
+          </div>
+        )}
         {canOps && (
           <div className="server-tile__quick">
-            <ServerActionButton verb="start"   disabled={guard.start.disabled}   reason={guard.start.reason}   pendingVerb={pendingVerb} onRun={(v) => onAction(server.id, v)} />
-            <ServerActionButton verb="restart" disabled={guard.restart.disabled} reason={guard.restart.reason} pendingVerb={pendingVerb} onRun={(v) => onAction(server.id, v)} />
-            <ServerActionButton verb="stop"    disabled={guard.stop.disabled}    reason={guard.stop.reason}    pendingVerb={pendingVerb} onRun={(v) => onAction(server.id, v)} />
+            <ServerActionButton verb="start"   disabled={guard.start.disabled}   reason={guard.start.reason}   pendingVerb={pendingVerb} warn={startWarn} onRun={(v, o) => onAction(server.id, v, o)} />
+            <ServerActionButton verb="restart" disabled={guard.restart.disabled} reason={guard.restart.reason} pendingVerb={pendingVerb} onRun={(v, o) => onAction(server.id, v, o)} />
+            <ServerActionButton verb="stop"    disabled={guard.stop.disabled}    reason={guard.stop.reason}    pendingVerb={pendingVerb} onRun={(v, o) => onAction(server.id, v, o)} />
           </div>
         )}
         {/* Join / connect — shown to everyone (operators play too), below their lifecycle controls.

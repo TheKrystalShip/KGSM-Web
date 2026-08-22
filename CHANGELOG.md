@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the panel warns before a start the node has no room for
+
+kgsm refuses a start that would leave the node below its free-memory floor. Until now the panel only
+learned that afterwards, from the refusal. It now shows what it can know beforehand: a card whose
+node looks too full carries the two figures — *"Needs 8 GB · 22 GB free"* — read against the server's
+**owning** node, since the gate is per node and a fleet roll-up would answer for the wrong machine.
+
+**The hint is a prediction and is treated as one.** The reading is a moment old and the requirement is
+often the blueprint's advisory estimate, so it does **not** disable Start. Disabling on a prediction
+strands an operator with no way forward; letting a doomed start through costs nothing, because the
+engine refuses it — which is what the gate is for. Instead Start **arms**: one press shows *"Start
+anyway?"*, and confirming sends `force`, reaching kgsm's `--force`. It is the same confirm-first
+mechanism Stop and Restart already use, so no new interaction was invented.
+
+Nothing is guessed. A server declaring no requirement, a node with no `MemAvailable` reading, a node
+publishing no gate policy, or a gate switched off all produce **no hint at all** rather than a
+substituted default — and warning about a disabled gate would be a lie, since it refuses nothing.
+`capacity.js` is the one place the rule lives, so the card and the hero cannot warn differently about
+one server.
+
+The figures come from the API: `startMemoryMb` + `startMemorySource` on each server (the instance's
+enforced `memory_cap_mb`, else its blueprint's estimate — the source travels because the two differ in
+how much they should be trusted) and `memoryGate` on each host. `free_mb` rides the host's memory block
+unrounded, because `free_gb` is rounded to a tenth of a gibibyte — about 100MB, enough on its own to
+move a start from "fits" to "doesn't".
+
 ### Fixed — a command the engine refuses now says so
 
 A lifecycle verb the API **accepts** and the engine then **refuses** reported nothing. The two arrive

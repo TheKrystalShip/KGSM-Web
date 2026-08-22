@@ -48,6 +48,16 @@ export function adaptServer(be) {
     // dashboard counts the servers it cannot see and says so instead. `max` stays null: no instance
     // declares a capacity, so there is nothing honest to render a "x / y" against.
     players: be.onlinePlayers == null ? null : { current: be.onlinePlayers, max: null },
+    // What starting this server is expected to cost the node, and which figure that is ("cap" — the
+    // enforced cgroup ceiling — or "blueprint", a vendor estimate that is uncurated for many games).
+    // Both null when nothing is declared, which is the common case and means the engine's memory gate
+    // cannot answer either: the panel then warns about nothing rather than inventing a requirement.
+    //
+    // It is the gate's INPUT, not its verdict. Whether there is room depends on the node's free memory
+    // at the instant the engine looks, so a surface joins this against the owning host and the ENGINE
+    // still decides — see capacityHint in lib/capacity.js.
+    start_memory_mb: be.startMemoryMb != null ? be.startMemoryMb : null,
+    start_memory_source: be.startMemorySource || null,
     // When the current run started / when the last one ended, both ISO-UTC or null. The backend joins
     // these from the run-state authority (the watchdog's persisted spawn time and its durable run
     // ledger), so they survive a daemon restart and are not derived from the audit feed. A surface
@@ -244,6 +254,15 @@ function mapHostTelemetry(be) {
         total_gb: round(be.mem.total, 1),
         used_gb: round(be.mem.used, 1),
         free_gb: be.mem.available != null ? round(be.mem.available, 1) : round(Math.max(0, be.mem.total - be.mem.used), 1),
+        // The same figure in MB and UNROUNDED, for the capacity hint. free_gb is rounded to a tenth of a
+        // gibibyte — about 100MB of slop — which is enough to move a start from "fits" to "doesn't" on
+        // its own, and the engine judges in MB.
+        //
+        // Sourced ONLY from `available`. The gate compares against MemAvailable specifically, so when the
+        // backend has no such reading the honest answer is that there is nothing comparable to show —
+        // total-used is a different number (it omits reclaimable cache) and substituting it would have
+        // the panel warn against a figure the engine never uses.
+        free_mb: be.mem.available != null ? Math.round(be.mem.available * 1024) : null,
         // M-diag depth (Monitor.Contracts 1.1.0) — measured page cache + buffers; honest-null when absent.
         cached_gb: be.mem.cached != null ? round(be.mem.cached, 1) : null,
         buffers_gb: be.mem.buffers != null ? round(be.mem.buffers, 1) : null,
@@ -338,6 +357,12 @@ export function adaptHost(be) {
     // modal shows this real base instead of a hardcoded path. null when the engine/config didn't supply it
     // (honest unknown, never a fabricated path).
     installDirectory: be.installDirectory || null,
+    // This host's node-capacity policy, as the engine will apply it — the floor a start must leave free.
+    // Null when the engine did not answer or the keys are unset; the gate still runs there on its own
+    // coded defaults, which this client does not know, so it warns about nothing rather than guessing.
+    memory_gate: be.memoryGate
+      ? { enabled: !!be.memoryGate.enabled, headroom_mb: be.memoryGate.headroomMb }
+      : null,
     _metricsOk: metricsOk,
   };
 }

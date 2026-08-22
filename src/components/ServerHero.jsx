@@ -3,9 +3,11 @@ import { ServerActionButton, verbGuard } from "./ServerActions.jsx";
 import { PinButton } from "./widgets/PinButton.jsx";
 import { ServerConnect } from "./ServerConnect.jsx";
 import { serverCapUsable } from "../lib/capabilities.js";
+import { capacityHint, capacityDetail } from "../lib/capacity.js";
 import { serverOperable } from "../lib/persona.js";
 import { heroArtBg } from "../lib/art.js";
 import { serverStatusLabel } from "../lib/servers.js";
+import { hostsStore } from "../lib/stores.js";
 
 // Server hero card — top status, name, action chips, IP.
 
@@ -67,6 +69,10 @@ function ServerHero({ server, onAction }) {
   // "Confirm?" → fires on the second, so a lit chip needs two deliberate presses.
   const guard = { start: verbGuard(server, "start"), update: verbGuard(server, "update"),
                   stop: verbGuard(server, "stop"), restart: verbGuard(server, "restart") };
+  // The same capacity read the card does, against the same owning node — one helper, so the hero and
+  // the tile cannot warn differently about one server.
+  const capacity = capacityHint(server, hostsStore.find(server.hostId));
+  const startWarn = capacity && capacity.tight && !guard.start.disabled ? capacityDetail(capacity) : null;
   // The cinematic background prefers the LANDSCAPE banner (`hero` = RAWG
   // background_image_additional), then falls back to the 2:3 portrait `cover`,
   // then to the hero's dark gradient placeholder when neither is available.
@@ -103,7 +109,7 @@ function ServerHero({ server, onAction }) {
           {canOps && (
             <>
               <div className="hero__group">
-                <ServerActionButton verb="start"   variant="glass" disabled={guard.start.disabled}   reason={guard.start.reason}   pendingVerb={pendingVerb} onRun={onAction} />
+                <ServerActionButton verb="start"   variant="glass" disabled={guard.start.disabled}   reason={guard.start.reason}   pendingVerb={pendingVerb} warn={startWarn} onRun={onAction} />
                 <ServerActionButton verb="update"  variant="glass" disabled={guard.update.disabled}  reason={guard.update.reason}  pendingVerb={pendingVerb} onRun={onAction} />
                 <ServerActionButton verb="stop"    variant="glass" disabled={guard.stop.disabled}    reason={guard.stop.reason}    pendingVerb={pendingVerb} onRun={onAction} />
                 <ServerActionButton verb="restart" variant="glass" disabled={guard.restart.disabled} reason={guard.restart.reason} pendingVerb={pendingVerb} onRun={onAction} />
