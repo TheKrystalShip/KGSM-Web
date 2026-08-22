@@ -596,11 +596,66 @@ injected data — the lane degrades to the bare position without one, which is w
 shot rendering. A settled row's own layout is likewise unverified in a browser: a settled job can
 only arrive on the stream, and arranging one means running a real command on a real server.
 
-**S4 — the ops tray.** What the whole cluster is doing right now: `GET /batches?active=true` fanned
-across the connected nodes, grouped by `runId`, followed on the stream. The run-level view above
-`JobQueue`'s per-node one. Deliberately separate from the Notifications tray, which is per-browser
-and is explicitly *what you did in this browser* (`components/NotificationsPanel.jsx`). Registered as
-a dashboard widget.
+**S4 — the ops tray. BUILT** (`kgsm-web` 1.150.0). `components/batch/OpsTray.jsx` — the sidebar
+tray beside Notifications and the pinnable `fleet.runs` widget over the same `RunsBoard`, the
+hydrate + grouping in `stores/batches.js`, and `cancelRun` in `lib/batchRun.js`.
+
+A run states its verb once, its servers and its node count, its progress in the nodes' own counts, and
+who started it; opening one shows each node's share and every member's standing, with a queued
+member's place in its node's line. Cancel is one `DELETE` per node holding a share, addressed only to
+the nodes this person may operate, and its outcome names what it stopped **and** what was already
+running and was not.
+
+**Fleet-scoped, so it takes no `hostId`.** `host.jobs` is bound to a node because "what is this node
+doing" is a question about one; a run is not, and binding it would have made the same run appear once
+per node with a share of itself in each.
+
+Verified in jsdom against an auth-disabled API: the hydrate reaching every connection, three nodes'
+batches with one run id reassembling into one run, counts summed from each node's own block, a run
+staying active while any share is, a share reporting no counts named as unreported, a batch with no
+run id standing as a run of one, the cancel request the SPA builds and both halves of what came back,
+a batch the node no longer has dropped on the next read, and — with two connections, one of them
+refusing — the reachable node's share shown and the silent one named. The tray was opened and read in
+jsdom for the badge, the words and the audit link. Every write is intercepted at the fetch seam;
+nothing was dispatched and no batch was cancelled.
+
+Verified in Chromium and Firefox against the live host (`scripts/visual-harness/runs-tray.mjs`): the
+card, its meter and its chips at 1920 → 390 with no horizontal overflow at any width, the expanded
+shares, the same board in a pinned cell scrolling inside it rather than pushing the note out, the
+unreachable banner drawn with the runs it does not shrink, and the empty board. The two engines agree
+on every measured box. The `minPx` floor is **300**, measured: the head, the meter and the chips all
+read down to there with the chips wrapping to a second row, and at 260 the scope line — the one thing
+on the card that cannot be guessed from the rest — starts being clipped.
+
+Six things the plan had wrong or left open, found in the code:
+
+- **"Hydrates on mount" is too late.** The tray's job is saying a run is going before anybody thinks
+  to look, and a badge that only counts what this tab has watched cannot do it. The hydrate is at
+  `startDataLayer` and on every stream re-open; the board re-reads on mount as well, because a tray
+  opened twenty minutes later is asking about now.
+- **`?active=true` alone cannot keep a board honest.** A batch this browser holds as active which the
+  node no longer lists has settled, and the read gives no way to learn how — dropping it makes a run
+  vanish mid-glance, keeping it shows work that is not happening. The straggler is re-read
+  individually (`GET /batches/{id}`) and dropped only on a `404`.
+- **`runId` is nullable, so "group by runId" has a hole.** Pooling every id-less batch under one key
+  assembles a run nobody started. Each is a run of one, keyed on its own batch id.
+- **Counts cannot simply be summed.** A batch learned from an accept carries a total and no `counts`
+  block, and summing treats it as zero members — a run drawn further along than anybody said. The run
+  carries `countsPartial` and names the unreported share.
+- **An active-only board loses a run the moment it finishes**, which is exactly when somebody wants to
+  see how it went. Settled runs stay, capped at ten, and the board says the tail is a tail — the read
+  cannot hydrate one that finished before this tab opened, so that list is what this browser watched,
+  the same rule `JobQueue`'s settled lane follows.
+- **Cancel is filtered by per-node permission** (§4c's third consequence, which the S4 entry did not
+  carry): a run can hold servers this person may not operate on one node while operating freely on
+  another, so the button addresses only the nodes it may and the card states how many it left alone.
+
+Not verified: no batch has been dispatched at a live backend, so a run watched moving — positions
+advancing, a batch settling on the stream, the board narrowing to the settled tail — is proven only
+against fixtures. Cancel has never been sent: the request is asserted at the fetch seam, and issuing
+a real one means dispatching a real run at real game servers first. A run that genuinely spans several
+nodes is proven in jsdom only; the browser harness drives one connection, so its three shares belong
+to one node.
 
 **S5 — back up the selection.** Reuses S1 and S2 wholesale; only the guard differs, since backup has
 no `verbGuard` case and no engine verb behind it.

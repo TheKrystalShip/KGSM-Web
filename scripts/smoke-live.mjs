@@ -1108,6 +1108,138 @@ try {
   assert(jqDone.includes("jq-gone") && jqDone.includes("cancelled") && !jqDone.includes("Nothing settled yet"),
     "a cancelled job settles into the queue as cancelled — never as a success, which is what a collapsed terminal state reads as");
 
+  // ---- S4: the ops tray — one run, however many nodes ----------------------
+  // A run is what a person started; a batch is one node's share of it. No node knows about any
+  // other, so the run id every node was handed verbatim is the only thing that puts the shares back
+  // together — including a run this browser never dispatched.
+  //
+  // NON-DESTRUCTIVE throughout: the hydrate is a real READ against the live backend, and the cancel
+  // below is intercepted at the fetch seam. Nothing is dispatched and no batch is cancelled on a node.
+  const hydrated = await st.batchesStore.refresh();
+  assert(hydrated.hydrated === true && Object.values(hydrated.nodes).length > 0
+    && Object.values(hydrated.nodes).every((n) => n.ok),
+    "the tray hydrates from GET /batches?active=true on every connected node — a run that started before this tab opened is exactly who it is for");
+
+  const TRAY_RUN = "run_smoke_tray";
+  const trayMember = (serverId, state, extra) => ({ serverId, state, jobId: "j_" + serverId, error: null, settledAt: null, ...extra });
+  const trayBatch = (id, hostId, state, counts, members, extra) => st.batchesStore.upsert(id, {
+    id, hostId, runId: TRAY_RUN, verb: "update", state, actor: "smoke", origin: "ui",
+    createdAt: "2026-08-22T10:00:00Z", settledAt: state === "settled" ? "2026-08-22T10:04:00Z" : null,
+    counts, members, ...extra,
+  });
+  trayBatch("b_tray1", "tray-n1", "active",
+    { total: 2, pending: 1, running: 1, succeeded: 0, failed: 0, refused: 0, cancelled: 0, unknown: 0 },
+    [trayMember("tray-s1", "running"), trayMember("tray-s2", "pending", { queuedPosition: 2 })]);
+  trayBatch("b_tray2", "tray-n2", "settled",
+    { total: 2, pending: 0, running: 0, succeeded: 1, failed: 1, refused: 0, cancelled: 0, unknown: 0 },
+    [trayMember("tray-s3", "succeeded"), trayMember("tray-s4", "failed", { error: "the engine refused it" })]);
+  trayBatch("b_tray3", "tray-n3", "settled",
+    { total: 1, pending: 0, running: 0, succeeded: 0, failed: 0, refused: 0, cancelled: 0, unknown: 1 },
+    [trayMember("tray-s5", "unknown")]);
+
+  const trayRuns = () => st.runsFrom(st.batchesStore.getState().byId);
+  let trayRun = trayRuns().find((r) => r.runId === TRAY_RUN);
+  assert(trayRun && trayRun.batches.length === 3 && trayRun.nodes.length === 3,
+    "three nodes' batches carrying one run id reassemble into ONE run — the grouping IS the correlation");
+  assert(trayRun.counts.total === 5 && trayRun.counts.succeeded === 1 && trayRun.counts.unknown === 1
+    && trayRun.countsPartial === false,
+    "the counts are each node's own `counts` summed — never re-derived from the member rows");
+  assert(trayRun.state === "active",
+    "a run is still active while ANY node's share is: two settled shares do not finish a run");
+  assert(trayRun.members.length === 5 && trayRun.members.every((m) => m.hostId),
+    "every member carries the node it belongs to — the merge unions and de-dups, and invents no attribution");
+
+  // A node that has not stated its counts is NAMED as unreported rather than folded in as zero, which
+  // would draw a run further along than anybody has been told it is.
+  st.batchesStore.upsert("b_tray4", { id: "b_tray4", hostId: "tray-n4", runId: TRAY_RUN, verb: "update", state: "active", members: [] });
+  trayRun = trayRuns().find((r) => r.runId === TRAY_RUN);
+  assert(trayRun.countsPartial === true && trayRun.counts.total === 5,
+    "a share that has reported no counts is stated as unreported — never counted as zero members");
+  st.batchesStore.drop("b_tray4");
+
+  // A node that recorded no run id holds a run of one. Pooling every id-less batch under one key
+  // would invent a run nobody started.
+  st.batchesStore.upsert("b_lonely", { id: "b_lonely", hostId: "tray-n1", runId: null, verb: "stop", state: "settled",
+    createdAt: "2026-08-22T09:00:00Z", settledAt: "2026-08-22T09:01:00Z",
+    counts: { total: 1, pending: 0, running: 0, succeeded: 1, failed: 0, refused: 0, cancelled: 0, unknown: 0 },
+    members: [trayMember("tray-s9", "succeeded")] });
+  assert(trayRuns().some((r) => r.key === "batch:b_lonely" && r.batches.length === 1),
+    "a batch whose node recorded no run id is a run of ONE — never pooled with every other id-less batch");
+  assert(trayRuns()[0].state === "active",
+    "live runs sort ahead of finished ones: a run still going is why the tray is open");
+
+  // Cancel. The request is asserted, never sent: a real DELETE here would stop work on a live node.
+  st.batchesStore.upsert("b_live", { id: "b_live", hostId: hmId, runId: "run_smoke_cancel", verb: "stop", state: "active",
+    createdAt: "2026-08-22T10:00:00Z",
+    counts: { total: 3, pending: 2, running: 1, succeeded: 0, failed: 0, refused: 0, cancelled: 0, unknown: 0 },
+    members: [trayMember("c-s1", "running"), trayMember("c-s2", "pending", { queuedPosition: 2 }), trayMember("c-s3", "pending", { queuedPosition: 3 })] });
+  const deletes = [];
+  globalThis.fetch = async (url, opts) => {
+    const u = typeof url === "string" ? url : (url && url.url) || "";
+    if (opts && opts.method === "DELETE" && /\/api\/v1\/batches\//.test(u)) {
+      deletes.push(u);
+      return new Response(JSON.stringify({ batchId: "b_live", cancelled: ["c-s2", "c-s3"], stillRunning: ["c-s1"] }),
+        { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return realFetch(url, opts);
+  };
+  const cancelled = await batch.cancelRun(trayRuns().find((r) => r.runId === "run_smoke_cancel"));
+  assert(deletes.length === 1 && /\/api\/v1\/batches\/b_live$/.test(deletes[0]),
+    "cancelling a run is one DELETE per node holding a share of it — addressed to the node that owns the batch");
+  assert(cancelled.cancelled.length === 2 && cancelled.stillRunning.length === 1
+    && cancelled.stillRunning[0].serverId === "c-s1",
+    "cancel reports what it could NOT stop as still running — an operator who reads 'cancelled' and watches a server stop anyway has been misled");
+  assert(cancelled.untouched.length === 0 && cancelled.nodesReached === 1,
+    "a node that answered is not reported as untouched");
+  globalThis.fetch = realFetch;
+  // The re-read the cancel fires settles the record: this node no longer has a batch by that id, so
+  // it leaves the board rather than sitting on it as live work nobody can account for.
+  await sleep(400);
+  assert(!st.batchesStore.get("b_live"),
+    "a batch the owning node no longer has a record of is dropped on the next read — never left on the board as live work");
+
+  // A node that cannot be reached is STATED. Its share of any run is unknown, which is a different
+  // sentence from having none — and the runs already known are not shrunk to match its silence.
+  globalThis.fetch = async (url, opts) => {
+    const u = typeof url === "string" ? url : (url && url.url) || "";
+    if (/\/api\/v1\/batches/.test(u)) throw new Error("connection refused");
+    return realFetch(url, opts);
+  };
+  await st.batchesStore.refresh();
+  assert(st.batchesStore.unreachableNodes().length === 1,
+    "a node that didn't answer the hydrate is recorded unreachable — never silently skipped");
+  assert(trayRuns().find((r) => r.runId === TRAY_RUN).batches.length === 3,
+    "a node going quiet does not shrink the runs already known: its silence is about ITS share");
+
+  // The tray itself, drawn with that node still silent so the board has to say so.
+  const trayHtml = await nav("#/servers");
+  assert(trayHtml.length > 200, "the shell still renders with the ops tray mounted in the sidebar");
+  const trayNav = w.document.querySelector(".opstray .nav-item");
+  const notifNav = w.document.querySelector(".notif .nav-item");
+  assert(!!trayNav && !!notifNav,
+    "the ops tray sits beside the notifications tray in the sidebar's foot, and is a separate control");
+  const trayBadge = w.document.querySelector(".opstray .nav-item__badge");
+  assert(trayBadge && Number(trayBadge.textContent) >= 1,
+    "the badge counts RUNS in flight across the cluster, not batches and not toasts");
+  trayNav.click();
+  await sleep(300);
+  const pop = w.document.querySelector(".opstray__pop");
+  assert(!!pop, "the tray opens onto the runs board");
+  const popText = pop.textContent || "";
+  assert(popText.includes("Update") && popText.includes("on 3 nodes"),
+    "a run names its verb once for the whole run and states the node count whenever it crosses more than one");
+  assert(/couldn.t be read/.test(popText) && popText.includes("not counted here"),
+    "the board says outright that an unreachable node may hold a share of any run below — never draws a smaller run");
+  assert(popText.includes("1 running") && popText.includes("1 queued") && popText.includes("1 unknown"),
+    "the run's progress is the nodes' own counts, in their own words — 'unknown' keeps its hedge");
+  assert(popText.includes("audit log"),
+    "the board says where history lives, so a short tail never reads as data loss");
+  trayNav.click();
+  await sleep(120);
+  globalThis.fetch = realFetch;
+  st.batchesStore.drop("b_tray1"); st.batchesStore.drop("b_tray2");
+  st.batchesStore.drop("b_tray3"); st.batchesStore.drop("b_lonely");
+
   // ---- the selection store --------------------------------------------------
   sel.clear();
   sel.add([{ id: "x1", hostId: "n1" }, { id: "x2", hostId: "n2" }, { id: "x1", hostId: "n1" }]);
@@ -3014,6 +3146,36 @@ try {
         && runMulti.admitted.length === 1 && runMulti.undispatched.length === 1
         && runMulti.undispatched[0].hostId === "smoke-peer",
         "dispatch can partially fail: 1 of 2 nodes reached, the other's share reported as never started");
+    }
+
+    // The hydrate, fanned across two nodes with one of them down. This is the shape the tray has to
+    // get right: a run reassembled while a node is unreachable is a run whose share THERE is unknown,
+    // not a run with fewer members — so the reachable node's share is shown and the silence is named.
+    {
+      const realFetch2 = globalThis.fetch;
+      globalThis.fetch = async (url, opts) => {
+        const u = typeof url === "string" ? url : (url && url.url) || "";
+        if (/\/api\/v1\/batches\?/.test(u)) {
+          if (u.startsWith(peerUrl)) throw new Error("peer unreachable");
+          return new Response(JSON.stringify({ data: [{
+            id: "b_fan", runId: "run_fan", verb: "restart", state: "active", actor: "smoke", origin: "ui",
+            createdAt: "2026-08-22T11:00:00Z", settledAt: null,
+            counts: { total: 2, pending: 1, running: 1, succeeded: 0, failed: 0, refused: 0, cancelled: 0, unknown: 0 },
+            members: [{ serverId: "fan-a", state: "running", jobId: "j1", queuedPosition: null, error: null, settledAt: null },
+                      { serverId: "fan-b", state: "pending", jobId: "j2", queuedPosition: 2, error: null, settledAt: null }],
+          }] }), { status: 200, headers: { "content-type": "application/json" } });
+        }
+        return realFetch2(url, opts);
+      };
+      await st.batchesStore.refresh();
+      globalThis.fetch = realFetch2;
+      const fanRun = st.runsFrom(st.batchesStore.getState().byId).find(r => r.runId === "run_fan");
+      assert(fanRun && fanRun.nodes.length === 1 && fanRun.nodes[0] === realId && fanRun.counts.total === 2,
+        "the hydrate fans across every connection and keeps each node's batches under the node that answered");
+      const silent = st.batchesStore.unreachableNodes();
+      assert(silent.length === 1 && silent[0].hostId === "smoke-peer",
+        "the node that refused the hydrate is named — its share of any run is unknown, which is not the same as none");
+      st.batchesStore.drop("b_fan");
     }
 
     const twoNodeHtml = await nav("#/servers");

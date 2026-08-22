@@ -435,7 +435,7 @@ import("./stores.js").then((m) => {
   // On every (re)open of the primary stream, re-hydrate the REST stores to catch
   // deltas missed while the stream was down (§3·j).
   function rehydrateAll() {
-    ["serversStore", "hostsStore", "auditStore", "libraryStore"].forEach(name => {
+    ["serversStore", "hostsStore", "auditStore", "libraryStore", "batchesStore"].forEach(name => {
       const st = storesNs && storesNs[name];
       if (st && st.refresh) st.refresh().catch(() => {});
     });

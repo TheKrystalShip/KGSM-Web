@@ -207,7 +207,9 @@ backend id, since the home node is addressed by that id.
   reassemble the run afterwards without a coordinator; a node that never answered is reported
   **undispatched, never failed** (its commands were never issued); and each node's `refused[]` is
   the authority for its own servers, so the summary reads the responses rather than the local
-  prediction.
+  prediction. `cancelRun` is the same shape in reverse — one `DELETE` per node holding a share, of
+  **pending** members only — and it carries out what it could NOT stop: a kgsm invocation under way
+  is not interruptible, and a node that did not answer the cancel keeps running its share.
 - `hooks/useJobPhase.js` — pending work in three states: **idle · queued · running**. Derived once
   and read by every surface that draws a lifecycle button (the tile, the hero, an alert card's
   suggested action), because a fourth derivation is how one of them comes to disagree about a server

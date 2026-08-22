@@ -2,6 +2,7 @@ import React from "react";
 import { AccountAvatar } from "./AccountAvatar.jsx";
 import { Icon } from "./Icon.jsx";
 import { NotificationsPanel } from "./NotificationsPanel.jsx";
+import { OpsTray } from "./batch/OpsTray.jsx";
 import { KRYSTAL_LABELS } from "../lib/labels.js";
 import { can } from "../lib/persona.js";
 import { sessionStore } from "../lib/sessionStore.js";
@@ -216,8 +217,11 @@ function Sidebar({ route = {}, onNavigate, serversCount = 0, serversTone = "info
         )}
       </nav>
       <div className="sidebar__foot">
-        {/* Above the account, and deliberately out of Monitoring: this is what YOU
-            did in this browser, not what the AlertEngine says about the fleet. */}
+        {/* Two trays above the account, and they answer different questions. Runs is the FLEET's:
+            work the nodes are executing, hydrated from every one of them and the same for everybody.
+            Notifications is this browser's own — what YOU did in it, and how it went. Both sit out of
+            Monitoring, which is what the AlertEngine says about the fleet. */}
+        <OpsTray />
         <NotificationsPanel onOpenServer={(id) => onNavigate && onNavigate({ kind: "server", id })} />
         {user && <SidebarAccount user={user} onSettings={go("settings")} onLogout={onLogout} collapsed={collapsed} />}
         <div className={"nav-item" + (isActive("settings") ? " nav-item--active" : "")} onClick={go("settings")} data-tip="Settings" aria-label="Settings">

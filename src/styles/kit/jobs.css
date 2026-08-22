@@ -1,10 +1,11 @@
-/* jobs.css — the node's job queue: three lanes of work, and the note under them.
+/* jobs.css — work in flight: one node's job queue, and the cluster's runs.
    ----------------------------------------------------------------------------
-   The rows are the shared brief-card family (.chat-brief__item), because a queued
-   stop is the same kind of row as an alert or a backup and drawing it twice is how
-   two lists that should look alike stop looking alike. What is here is the LANE
-   layout — three cards side by side that survive being a full page and being a
-   pinned widget — and the two small metas the rows put at their trailing edge. */
+   Two surfaces onto the same domain at two granularities. `.jobq` is what ONE node
+   is doing, in three lanes; `.opsq` is what a person STARTED, one card per run with
+   each node's share inside it. Both are written to survive being a full-width page
+   and a pinned widget, and both put their rows in the shared brief-card family
+   (.chat-brief__item) — a queued stop is the same kind of row as an alert or a
+   backup, and drawing it twice is how two lists that should look alike drift. */
 
 .jobq {
   display: flex;
@@ -113,3 +114,363 @@
   opacity: 1;
   margin-left: auto;
 }
+
+
+/* ---- the runs board: what the cluster is doing, one card per run ---------- */
+
+.opsq {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  min-height: 0;
+}
+
+/* Stated, never subtracted: a node that did not answer may hold a share of any run
+   below, so the banner sits above every one of them rather than inside one. */
+.opsq__unreachable {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 7px 9px;
+  border: var(--edge);
+  border-radius: var(--r-sm);
+  background: var(--warning-bg);
+  color: var(--fg-2);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.opsq__unreachable > span:first-child,
+.opsq__unreachable svg {
+  flex: none;
+  color: var(--warning-fg);
+  margin-top: 1px;
+}
+
+/* The list takes the slack and scrolls inside it — bounded on a page by its own
+   max-height and inside a widget by the cell, so the note under it is never pushed
+   out of view. Same rule the job lanes follow. */
+.opsq__runs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  max-height: 52vh;
+}
+
+.opsq > .chat-brief__empty {
+  flex: 1;
+  min-height: 0;
+}
+
+.opsq__foot {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.opsq__foot-icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--fg-3);
+}
+
+.opsq__note {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--fg-3);
+}
+
+/* The link and the full stop after it wrap as one — a stop alone on the next line
+   reads as a typo rather than as the end of the sentence it belongs to. */
+.opsq__nowrap { white-space: nowrap; }
+
+.opsq__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--krystal-teal);
+  cursor: pointer;
+}
+
+.opsq__link:hover { text-decoration: underline; }
+
+.opsq__link:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-focus);
+  border-radius: var(--r-sm);
+}
+
+.opsq__foot .pin-btn {
+  opacity: 1;
+  margin-left: auto;
+}
+
+/* ---- one run ------------------------------------------------------------- */
+
+.opsrun {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 9px;
+  border: var(--edge);
+  border-radius: var(--r-sm);
+  background: var(--surface-1);
+}
+
+/* A finished run is still on the board — it is the thing being checked on — but it
+   is not the thing to look at first. */
+.opsrun--settled { opacity: .82; }
+
+.opsrun__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.opsrun__glyph {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--fg-2);
+}
+
+.opsrun__glyph--start { color: var(--success-fg); }
+.opsrun__glyph--stop { color: var(--danger-fg); }
+.opsrun__glyph--restart,
+.opsrun__glyph--update { color: var(--info-fg); }
+
+/* The whole title is the expander: a run's node-by-node breakdown is inside it, and
+   a separate chevron target would be a second, smaller way to ask for one thing. */
+.opsrun__title {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.opsrun__verb {
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--fg-1);
+  white-space: nowrap;
+}
+
+.opsrun__scope {
+  font-size: 11.5px;
+  color: var(--fg-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.opsrun__chev {
+  flex: none;
+  margin-left: auto;
+  color: var(--fg-3);
+}
+
+.opsrun__cancel {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: var(--edge);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  font: inherit;
+  font-size: 11px;
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.opsrun__cancel:hover:not(:disabled) {
+  color: var(--danger-fg);
+  border-color: var(--danger);
+}
+
+.opsrun__cancel:disabled { opacity: .6; cursor: default; }
+
+/* ---- how a run is going -------------------------------------------------- */
+
+.opsrun__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* Segments in the members' own proportions, drawn only when every node has reported
+   its counts — a meter missing a share would read as a run that is further along
+   than anybody knows it is. */
+.opsrun__meter {
+  display: flex;
+  height: 4px;
+  gap: 2px;
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+
+.opsrun__seg { display: block; min-width: 3px; border-radius: var(--r-pill); }
+.opsrun__seg--running { background: var(--info); }
+.opsrun__seg--pending { background: var(--fg-4); }
+.opsrun__seg--succeeded { background: var(--success); }
+.opsrun__seg--failed { background: var(--danger); }
+.opsrun__seg--refused { background: var(--warning); }
+.opsrun__seg--cancelled { background: var(--border-strong); }
+.opsrun__seg--unknown { background: var(--warning); }
+
+.opsrun__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-size: 11px;
+  color: var(--fg-3);
+}
+
+.opsrun__chip { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.opsrun__chip--succeeded { color: var(--success-fg); }
+.opsrun__chip--failed { color: var(--danger-fg); }
+.opsrun__chip--refused,
+.opsrun__chip--unknown { color: var(--warning-fg); }
+.opsrun__chip--running { color: var(--info-fg); }
+
+.opsrun__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 11px;
+  color: var(--fg-3);
+}
+
+.opsrun__meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.opsrun__meta-warn { color: var(--warning-fg); }
+
+/* ---- what a cancel actually did ------------------------------------------ */
+
+.opsrun__cancelled {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border: var(--edge);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+.opsrun__cancelled-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--fg-2);
+}
+
+.opsrun__cancelled-line svg { flex: none; margin-top: 2px; color: var(--fg-3); }
+
+/* The half a cancel could NOT stop carries the warning colour: it is the sentence an
+   operator most needs to read, and it contradicts the button they just pressed. */
+.opsrun__cancelled-line--warn { color: var(--warning-fg); }
+.opsrun__cancelled-line--warn svg { color: var(--warning-fg); }
+
+/* ---- one node's share ---------------------------------------------------- */
+
+.opsrun__shares {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.opsrun__share-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--fg-3);
+}
+
+.opsrun__share-state { margin-left: auto; }
+
+.opsrun__share-empty {
+  font-size: 11.5px;
+  color: var(--fg-3);
+  padding: 4px 0;
+}
+
+/* ---- the sidebar tray ---------------------------------------------------- */
+
+/* The collapsed rail hides `.nav-item__label` and re-places `.nav-item__badge`
+   itself (kit/extras.css), so the entry needs no rail-specific markup — the same
+   arrangement the notifications entry beside it uses. */
+.opstray__pop {
+  position: fixed;
+  z-index: 95;
+  width: min(420px, calc(100vw - 24px));
+  max-height: min(520px, 74vh);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-1);
+  border: var(--edge);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+}
+
+.opstray__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+
+/* Says whose truth this is, in the one place somebody could mistake it for the
+   notification history sitting directly below it. */
+.opstray__head-sub {
+  margin-left: auto;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 10.5px;
+}
+
+.opstray__body {
+  padding: 10px 12px 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* In the popover the board is already inside a scrolling shell, so the inner list
+   takes its height from the content instead of scrolling within a scroller. */
+.opstray__body .opsq__runs { max-height: none; overflow: visible; }

@@ -15,6 +15,7 @@ import { serversStore } from "./servers.js";
 import { libraryStore } from "./library.js";
 import { hostsStore, syncCapabilitySubscriptions } from "./hosts.js";
 import { auditStore } from "./audit.js";
+import { batchesStore } from "./batches.js";
 import { startDiscovery, stopDiscovery } from "./cluster.js";
 import { prefsStore } from "./prefs.js";
 import { startPingLoop, stopPingLoop } from "./ui.js";
@@ -53,6 +54,10 @@ function startDataLayer() {
     serversStore.refresh().catch(swallow);
     libraryStore.refresh().catch(swallow);
     auditStore.refresh().catch(swallow);
+    // The runs the nodes are already executing. Hydrated at boot rather than when a tray is opened:
+    // a run started before this browser existed is exactly what the tray is for, and its badge has
+    // to be right before anybody thinks to look at it.
+    batchesStore.refresh().catch(swallow);
     // ⚠ Preferences hydrate AFTER the host roster, not beside it. The home node is addressed by its
     // BACKEND id, and a seeded connection holds none until `GET /hosts` reconciles it — so hydrating
     // in parallel finds no node, concludes the account has no stored preferences, and the dashboard

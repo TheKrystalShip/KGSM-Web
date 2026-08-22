@@ -87,6 +87,43 @@ that store is fed by every connected node for the life of a tab, and a pinned wi
 week would otherwise accumulate every job the cluster ever ran. Queued and running work is never
 dropped.
 
+### Added — the ops tray: what the whole cluster is doing
+
+`JobQueue` answers what one **node** is doing. Nothing answered what a **person started**, which is a
+different question with a different granularity: one verb over a cluster-wide selection is one run,
+dispatched as one batch per node, and each node knows only its own share. The sidebar's foot grows a
+**Runs** tray beside Notifications — and the same board is a pinnable `fleet.runs` widget, one
+component mounted twice.
+
+**A run is reassembled from the id every node was handed.** The board fans `GET /batches?active=true`
+across every connection and groups the rows by `runId`, so a run this browser never dispatched — from
+another tab, another person, or before this tab existed — reads exactly like one it did. Each card
+states the verb once, the servers and the node count, the progress in the nodes' own counts, who
+started it and when; opening one shows each node's share and every member's standing, with a queued
+member's place in its node's line. It follows the `batches` topic afterwards, so nothing polls.
+
+**Hydration is the point, so it happens at sign-in rather than when the tray is opened.** A board
+assembled from stream frames alone shows nothing to a client that arrived after the run started, which
+is the person this exists for — and a badge that only counts what this tab has watched cannot be the
+thing that tells you a run is going.
+
+**Cancel lives here, and says what it could not do.** Cancelling a run is one `DELETE` per node holding
+a share, addressed to the nodes the person may operate — permission is per node — and it stops
+**pending** members only. A kgsm invocation already under way is not interruptible, so the outcome
+names what was stopped *and* what was already running and was not, because an operator who reads
+"cancelled" and then watches a server stop anyway has been misled about the one thing they were trying
+to prevent. A node that does not answer the cancel keeps running its share and is said to.
+
+**A node that cannot be read is stated, never subtracted.** Its share of any run is unknown, which is
+not the same as none, so the board says so above every run rather than drawing a smaller one. Counts
+are each node's own `counts` summed — never re-derived from the member rows — and a share that has
+reported none is named as unreported rather than counted as zero.
+
+**Deliberately not the Notifications tray.** That one is per-browser `localStorage` and is what *you*
+did in *this* browser. This is server-side truth about the fleet: it outlives the tab and holds work
+nobody here started. They sit apart for that reason, and this is not a second toast history — finished
+runs are a short tail, and the board says where history lives.
+
 ### Added — the panel warns before a start the node has no room for
 
 kgsm refuses a start that would leave the node below its free-memory floor. Until now the panel only

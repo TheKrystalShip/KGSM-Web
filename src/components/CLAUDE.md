@@ -287,6 +287,15 @@ predicted, what is armed, and what the nodes actually said.
   the gesture does not, because stop is reversible and uninstall is excluded from batching entirely.
   Pressing it hands off to `lib/batchRun.js` and the sheet switches to the run's result.
 
+- **`OpsTray.jsx`** — what the whole cluster is doing, and how it is going. `RunsBoard` is the board;
+  `OpsTray` is the sidebar entry and its popover. The board hydrates `stores/batches.js` and renders
+  one card per **run**, reassembled by grouping the nodes' batches on the client-minted `runId` — so a
+  run this browser never dispatched reads exactly like one it did. Opening a card shows each node's
+  share and every member's standing. **Cancel is here**: one `DELETE` per node holding a share,
+  addressed only to the nodes this person may operate, stopping **pending** members and naming what
+  was already running and could not be stopped. Mounted twice, as ever — the tray and the `fleet.runs`
+  widget are the same component, and it is fleet-scoped, so it takes no `hostId`.
+
 ⚠ **The two screens are different on purpose.** Everything before the press is a prediction this
 client made so it could explain itself; everything after it is read from the nodes' answers, which may
 contradict it — each node's `refused[]` is the authority for its own servers, and a node that never
@@ -323,6 +332,11 @@ would promise a continuation of this list that isn't there.
 conditions about the fleet, server-side and the same for everyone; Notifications
 are yours and this browser's. The foot placement and the `bell` vs `triangle-alert`
 icons are what hold them apart.
+
+⚠ And distinct from the **Runs** tray sitting directly above it (`batch/OpsTray.jsx`). That one is
+server-side truth about the fleet — work the nodes are executing, hydrated from every one of them,
+the same for everybody and outliving this tab. This one is per-browser and is what *you* did in it.
+They are two trays a foot apart, which is exactly why each says whose truth it holds.
 
 ## The rest, by rough category
 

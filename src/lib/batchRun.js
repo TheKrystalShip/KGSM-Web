@@ -173,4 +173,45 @@ function applyNarrowing(run, selectedIds, stuckIds) {
   selectionStore.keep([...keep]);
 }
 
-export { dispatchRun, groupByHost, mintRunId, narrowSelectionWhenSettled };
+/// Cancel a run: one DELETE per node holding a share of it.
+///
+/// A cancel stops PENDING members only. A kgsm invocation already under way is not interruptible, so
+/// each node answers with what it could not stop, and that half is carried out to the caller intact —
+/// an operator who reads "cancelled" and then watches a server stop anyway has been misled about the
+/// one thing they were trying to prevent.
+///
+/// Cancelling a run can partially fail exactly as dispatching one can: a node that does not answer
+/// keeps running its share, and is reported as untouched rather than folded in with the batches that
+/// did stop.
+function cancelRun(run) {
+  const targets = ((run && run.batches) || []).filter((b) => b && b.id && b.hostId && b.state !== "settled");
+  if (!targets.length) return Promise.resolve(summarizeCancel([]));
+  return Promise.all(targets.map((b) => api.host(b.hostId).del("/batches/" + encodeURIComponent(b.id)).then(
+    (data) => ({ hostId: b.hostId, batchId: b.id, ok: true, data, err: null }),
+    (err) => ({ hostId: b.hostId, batchId: b.id, ok: false, data: null, err }),
+  ))).then((nodes) => {
+    // Re-read rather than patch: what a cancel left behind is the nodes' to state, and each one
+    // republishes its batch as it settles the jobs it stopped.
+    batchesStore.refresh().catch(() => {});
+    return summarizeCancel(nodes);
+  });
+}
+
+function summarizeCancel(nodes) {
+  const cancelled = [];
+  const stillRunning = [];
+  const untouched = [];
+  for (const n of nodes) {
+    if (!n.ok) { untouched.push({ hostId: n.hostId, batchId: n.batchId, err: n.err }); continue; }
+    const data = n.data || {};
+    for (const serverId of data.cancelled || []) cancelled.push({ serverId, hostId: n.hostId });
+    for (const serverId of data.stillRunning || []) stillRunning.push({ serverId, hostId: n.hostId });
+  }
+  return {
+    cancelled, stillRunning, untouched,
+    nodesAsked: nodes.length,
+    nodesReached: nodes.filter((n) => n.ok).length,
+  };
+}
+
+export { cancelRun, dispatchRun, groupByHost, mintRunId, narrowSelectionWhenSettled };

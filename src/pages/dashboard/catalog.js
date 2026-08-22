@@ -1,6 +1,6 @@
 // dashboard/catalog.js — the widget types this build offers.
 //
-// It lives under pages/ rather than lib/ because every entry names a PAGE component. `lib/` never
+// It lives under pages/ rather than lib/ because most entries name a PAGE component. `lib/` never
 // imports a page (src/CLAUDE.md), and the registry mechanism in lib/widgets/registry.js holds to
 // that: it knows how to hold a type, not which types exist.
 //
@@ -92,6 +92,26 @@ registerWidget({
   describe: () => "Recent activity",
   size: { w: 6, h: 4, minPx: 380, minH: 3 },
   load: () => import("./widgets/FeedWidgets.jsx").then(m => m.ActivityRecent),
+});
+
+// Runs — cluster-wide, so it takes no `hostId` and is not a bound widget: a run is the thing a
+// person started, and the nodes' shares of it are inside. `host.jobs` answers the other question
+// ("what is THIS node doing") and is bound for that reason.
+//
+// No `cap`: the reads behind it are viewer-gated on every node, the same as the servers and jobs a
+// viewer can already see. Cancelling is the operator half, and the board asks per node for it.
+registerWidget({
+  type: "fleet.runs",
+  label: "Runs",
+  icon: "layers",
+  group: "Activity",
+  describe: () => "Runs",
+  // Measured in a browser: a run card holds its head, its meter and its chips down to 300px, where
+  // the chips wrap to a second row and everything still reads. At 260 the scope line ("6 servers on
+  // 3 nodes") starts being clipped, which is the one thing on the card that cannot be guessed from
+  // the rest of it.
+  size: { w: 6, h: 4, minPx: 300, minH: 3 },
+  load: () => import("../../components/batch/OpsTray.jsx").then(m => m.RunsBoard),
 });
 
 registerWidget({
