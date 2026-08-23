@@ -9,8 +9,9 @@
 # API, each repo's version means what it says, and a node can run the API headless by simply not
 # installing this.
 #
-# Requires the API's web root to point here (/usr/share/kgsm-web). Installing these files into the
-# API's own prefix instead would mean two packages owning one path, which pacman refuses.
+# The API's web root is pointed here (/usr/share/kgsm-web) by a systemd drop-in this package ships
+# for kgsm-api's unit. Installing these files into the API's own prefix instead would mean two
+# packages owning one path, which pacman refuses.
 
 pkgname=kgsm-web
 pkgver=1.110.0
@@ -51,6 +52,19 @@ package() {
     cp -a "${stage}/." "${root}/"
     find "$root" -type f -exec chmod 0644 {} +
     find "$root" -type d -exec chmod 0755 {} +
-    install -Dm644 "${startdir}/../LICENSE" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
 
+    # Point kgsm-api's web root at this bundle. ASPNETCORE_WEBROOT is the standard host-configuration
+    # key behind IWebHostEnvironment.WebRootPath, which is what the API's same-origin SPA delivery
+    # gates on and serves from — so the panel is reached with no code in the API naming this path.
+    #
+    # The drop-in belongs to THIS package: it is only ever correct while these files exist. ASP.NET
+    # creates a missing web root at startup, which the service user could not do under /usr/share, so
+    # a drop-in outliving the bundle would take the API down rather than merely serve no panel.
+    install -Dm644 /dev/stdin \
+        "${pkgdir}/usr/lib/systemd/system/kgsm-api.service.d/50-${pkgname}.conf" <<DROPIN
+[Service]
+Environment=ASPNETCORE_WEBROOT=/usr/share/${pkgname}
+DROPIN
+
+    install -Dm644 "${startdir}/../LICENSE" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
 }

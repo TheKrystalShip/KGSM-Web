@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the package points the API at the bundle it installs
+
+`packaging/PKGBUILD` ships `/usr/lib/systemd/system/kgsm-api.service.d/50-kgsm-web.conf`, setting
+`ASPNETCORE_WEBROOT=/usr/share/kgsm-web` — the standard host-configuration key behind
+`IWebHostEnvironment.WebRootPath`, which is what the API's same-origin SPA delivery gates on and
+serves from. Installing the panel is the whole of wiring it up, and the API names this path nowhere.
+
+The drop-in belongs to this package because it is only correct while these files exist: ASP.NET
+creates a missing web root at startup, and the API's service user cannot write under `/usr/share`,
+so a drop-in outliving the bundle would stop the API rather than merely serve no panel.
+
 ### Added — a server has a name you can change, and an id that never moves
 
 Every server now carries two names. The **id** is the engine's — `factorio-42`, the thing in a path,
