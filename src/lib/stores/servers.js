@@ -139,9 +139,18 @@ serversStore.mergeRosterMetrics = (rows, hostId) => {
   }));
 };
 
-serversStore.addPhantom = (id, { blueprint, cover, hero, displayName, hostId } = {}) => {
-  if (serversStore.find(id)) return;
-  serversStore.add(adaptPhantom({ id, blueprint, cover, hero, displayName, hostId }));
+serversStore.addPhantom = (id, { blueprint, cover, hero, displayName, hostId, label } = {}) => {
+  const existing = serversStore.find(id);
+  if (existing) {
+    // The jobs stream raises a phantom for every install it can see, this browser's included, and it
+    // knows only the id the engine assigned — the frame carries no label. A caller that ASKED for the
+    // install knows the label too, so it fills one in rather than being turned away by a row it
+    // raced. It is the same row either way, and the engine's own label arrives with the server.patch
+    // that hands it over.
+    if (label && existing._phantom && existing.name === id) serversStore.patch(id, { name: label });
+    return;
+  }
+  serversStore.add(adaptPhantom({ id, blueprint, cover, hero, displayName, hostId, label }));
 };
 
 serversStore.refresh = () => {
@@ -454,7 +463,13 @@ function awaitJob(jobId, hostId) {
 function installServer(cfg) {
   const hostId = (cfg && cfg.hostId) || null;
   if (!hostId) return Promise.reject(new Error("installServer: hostId required"));
+  // `name` is the LABEL — free text, the instance's display name, which decorates and never
+  // identifies. `id` is the durable key, and it is sent only when the caller named one: left out, the
+  // backend derives a slug from the label and the engine falls back to its own blueprint/blueprint-NN
+  // when that is unusable or taken. A slug this client guessed is never sent as an id, because the
+  // engine owns the roster and an id it refuses is a 400 rather than a quietly adjusted install.
   const body = { blueprint: cfg.game.id, name: cfg.name, origin: (cfg && cfg.origin) || "ui" };
+  if (cfg && cfg.id) body.id = cfg.id;
   const port = Number(cfg.port);
   if (Number.isInteger(port) && port >= 1 && port <= 65535) body.port = port;
   body.autostart = !!cfg.autostart;
@@ -492,6 +507,28 @@ function saveServerNote(hostId, serverId, body) {
   });
 }
 
+// The label a server is read by. The id in the path is the durable one and never changes — nothing on
+// disk is renamed and every store keyed on it (audit, players, metrics, the watchdog's desired state)
+// keeps its history — which is what makes this safe on a running server.
+//
+// An empty label is a CLEAR → DELETE, after which the server reads as its id again; the backend
+// deliberately refuses an empty PUT so an accidentally-emptied field can never silently unname a
+// server. Both answer `{ serverId, displayName }` re-read from the engine, and that value is what
+// lands in the store — never the string that was typed, since the engine normalizes what it stores.
+// The `server.patch` the write also triggers carries the same label to every other open panel.
+function setServerDisplayName(hostId, serverId, label) {
+  const text = (label || "").trim();
+  const req = text
+    ? api.host(hostId).put("/servers/" + serverId + "/display-name", { displayName: text, origin: "ui" })
+    : api.host(hostId).del("/servers/" + serverId + "/display-name?origin=ui");
+
+  return req.then(res => {
+    const name = res?.displayName || serverId;
+    if (serversStore.find(serverId)) serversStore.patch(serverId, { name });
+    return name;
+  });
+}
+
 // Move an instance's files onto another registered disk. The node answers 202 + a job, and that job —
 // which arrives on the servers stream like any other — is what the row renders "Moving…" from for the
 // whole copy. ⚠ It has to be: the engine starts the server once on its new path to confirm it runs
@@ -511,5 +548,5 @@ function deleteServer(hostId, serverId, origin) {
 export {
   __setJobTiming, serversStore, jobsStore, resolveGameNames,
   commandServer, sendConsoleInput, moderatePlayer, awaitJob, installServer,
-  fetchSettings, patchSettings, deleteServer, moveServer, saveServerNote,
+  fetchSettings, patchSettings, deleteServer, moveServer, saveServerNote, setServerDisplayName,
 };

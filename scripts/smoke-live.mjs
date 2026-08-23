@@ -596,6 +596,38 @@ try {
   assert(top && top.id === injectedId && top.id !== beforeTop && top.action === "server.start",
     "audit.append: a stream frame prepends a server.start row onto auditStore (wire shape passes through unadapted)");
 
+  // (b2) `server.rename` is a MAPPED action. An unmapped one renders with the neutral circle-dot,
+  // which is how a rename would come to look like every other unremarkable row in the feed.
+  {
+    const { ACTION_META } = await vite.ssrLoadModule("/src/lib/formatting.js");
+    const renameMeta = ACTION_META["server.rename"];
+    assert(renameMeta && renameMeta.icon && renameMeta.icon !== "circle-dot" && renameMeta.label,
+      `audit: server.rename carries its own icon and label (${renameMeta && renameMeta.icon}) — not the unmapped fallback`);
+    const { AuditEventRow } = await vite.ssrLoadModule("/src/components/AuditEventRow.jsx");
+    const node = w.document.createElement("div");
+    const root = createRoot(node);
+    root.render(React.createElement(AuditEventRow, {
+      ev: {
+        id: "evt_rename_smoke", ts: new Date().toISOString(), origin: "ui",
+        actor: { kind: "user", name: "smoke", provider: "discord" },
+        action: "server.rename", severity: "info",
+        target: { kind: "server", id: PROBE.id, name: PROBE.id },
+        serverId: PROBE.id, hostId: PROBE.hostId,
+        summary: "renamed " + PROBE.id + " from 'A' to 'B'",
+        meta: { oldDisplayName: "A", newDisplayName: "B" },
+      },
+      now: Date.now(), hosts: st.hostsStore.getState().list,
+    }));
+    await sleep(30);
+    const rowHtml = node.innerHTML;
+    root.unmount();
+    assert(rowHtml.includes("server.rename") && rowHtml.includes("renamed " + PROBE.id)
+      && rowHtml.includes("oldDisplayName") && rowHtml.includes("newDisplayName"),
+      "AuditEventRow: a server.rename row states the action, the backend's summary and both labels it moved between");
+    assert(!/lucide-circle-dot/.test(rowHtml),
+      "AuditEventRow: server.rename draws its OWN icon, never the unmapped grey dot");
+  }
+
   // (c) server.patch remap: RAW API status 'running' → adapted 'online'. Patched onto a
   // REAL roster row so this proves the merge-by-id path, not an insert — then the row's
   // true status is put back, because later checks (the Performance tab needs a genuinely
@@ -607,6 +639,41 @@ try {
   assert((st.serversStore.find(PROBE.id) || {}).status === "online",
     "server.patch: raw 'running' adapted to 'online' and merged by id");
   patchProbe(rawProbe.status);
+
+  // (c2) a RENAME arrives as an ordinary server.patch carrying a new `name`, and it must re-label
+  // the row everywhere without a reload. The id is untouched, so nothing keyed on it moves — which
+  // is the whole point of the design and the thing to prove: the label changes and the row is still
+  // found, opened and acted on by the same id.
+  const probeNameBefore = (st.serversStore.find(PROBE.id) || {}).name;
+  const RENAMED = "Smoke Renamed \u2714 Server";
+  api.__dispatch({ topic: "servers", type: "server.patch", data: { ...rawProbe, name: RENAMED } });
+  const renamedRow = st.serversStore.find(PROBE.id);
+  assert(renamedRow && renamedRow.name === RENAMED && renamedRow.id === PROBE.id,
+    "server.patch: a name diff re-labels the row in place and leaves the id alone (a rename is not a new server)");
+  {
+    // The label reaches the surfaces that render it, live — not just the store. The servers list is
+    // the one that would most obviously go stale, since it holds a filtered+sorted copy.
+    const renamedList = await nav("#/servers");
+    assert(renamedList.includes(RENAMED),
+      "a renamed server re-renders under its new label on the servers list, with no reload");
+    // And it is still reachable by the id somebody knows it as, which is what keeps a rename from
+    // hiding a server from the person who typed its engine name.
+    const { instanceIdSlug, isValidInstanceId } = await vite.ssrLoadModule("/src/lib/servers.js");
+    assert(instanceIdSlug("Typo Proof \u2714 Server") === "typo-proof-server",
+      "instanceIdSlug: runs of anything outside [a-z0-9] collapse to one '-' (mirrors kgsm-api's InstanceIdSlug)");
+    assert(instanceIdSlug("  My  Server!!  ") === "my-server",
+      "instanceIdSlug: no leading or trailing separator, however the label is spaced or punctuated");
+    assert(instanceIdSlug("Factorio_2.0") === "factorio-2-0",
+      "instanceIdSlug: '.' and '_' are separators too — the slug is lower-case ASCII alphanumerics and hyphens");
+    assert(instanceIdSlug("\u3042\u3044\u3046") === null && instanceIdSlug("   ") === null,
+      "instanceIdSlug: a label with nothing usable in it yields null — the engine mints the id, never a placeholder");
+    assert(instanceIdSlug("x".repeat(80)).length === 64,
+      "instanceIdSlug: capped at the engine's 64 characters");
+    assert(isValidInstanceId("factorio-42") && isValidInstanceId("a") && !isValidInstanceId("-nope")
+      && !isValidInstanceId("bad name") && !isValidInstanceId("x".repeat(65)),
+      "isValidInstanceId: the engine's charset ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$");
+  }
+  api.__dispatch({ topic: "servers", type: "server.patch", data: { ...rawProbe, name: probeNameBefore } });
 
   // (d) server.removed tombstone drops the instance
   api.__dispatch({ topic: "servers", type: "server.patch",
@@ -2211,6 +2278,75 @@ try {
     } finally {
       globalThis.fetch = realFetch;
       restoreProbeNote();
+    }
+  }
+
+  // ---- display name (the label a server is read by) -----------------------
+  // The label lives in the kgsm instance's own config, so writing one is a journal event on the
+  // operator's real host — the note's split applies verbatim. READ against the live roster; the
+  // WRITE proven on the request the SPA builds.
+  {
+    // Every row carries a label, and it is never blank: an instance nobody has named reads as its
+    // id. That is what lets every surface render `server.name` with no fallback of its own, and it
+    // is the adapter's guarantee (`be.name ?? be.id`), asserted here against real rows.
+    const roster = st.serversStore.getState().list.filter((x) => !x._phantom);
+    assert(roster.length > 0 && roster.every((x) => typeof x.name === "string" && x.name.length > 0),
+      `every server on the live roster carries a non-blank label (${roster.length} rows) — an unnamed instance reads as its id`);
+
+    const { IdentitySection } = await vite.ssrLoadModule("/src/pages/serverSettings/IdentitySection.jsx");
+    const renderIdentity = async (server) => {
+      const node = w.document.createElement("div");
+      const root = createRoot(node);
+      root.render(React.createElement(IdentitySection, { server }));
+      await sleep(30);
+      const html = node.innerHTML;
+      root.unmount();
+      return html;
+    };
+    const idHtml = await renderIdentity(PROBE);
+    assert(idHtml.includes(PROBE.id) && idHtml.includes("Instance id"),
+      "IdentitySection: states the immutable instance id beside the label it can change");
+    assert(idHtml.includes("Display name") && idHtml.includes("srv-rename"),
+      "IdentitySection: an operator gets the rename field on the server it is rendered for");
+    // The no-prose rule (root CLAUDE.md): this card shows two names and offers to change one. It
+    // does not explain what a rename does to the id, however tempting that sentence is.
+    assert(!/\b(is renamed|never changes|keeps its history|decorat|identif)/i.test(idHtml),
+      "IdentitySection: carries no explanatory prose — a component shows its data, it does not teach the system");
+
+    const realFetch = globalThis.fetch;
+    const nameBefore = st.serversStore.find(PROBE.id).name;
+    let nameReq = null;
+    globalThis.fetch = async (url, opts) => {
+      const u = typeof url === "string" ? url : (url && url.url) || "";
+      if (/\/api\/v1\/servers\/[^/]+\/display-name(\?|$)/.test(u) && opts && /^(PUT|DELETE)$/.test(opts.method || "")) {
+        nameReq = { url: u, method: opts.method, body: opts.body ? JSON.parse(opts.body) : null };
+        // The backend re-reads the engine and answers what it STORED. A clear answers the id, which
+        // is what makes an unlabelled instance read as its id with nothing client-side deciding so.
+        const stored = opts.method === "PUT" ? (nameReq.body || {}).displayName : PROBE.id;
+        return new Response(JSON.stringify({ serverId: PROBE.id, displayName: stored }),
+          { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return realFetch(url, opts);
+    };
+    try {
+      const LABEL = "Smoke Sunday Server";
+      const written = await st.setServerDisplayName(hmId, PROBE.id, LABEL);
+      assert(nameReq && nameReq.method === "PUT"
+        && nameReq.url.endsWith("/servers/" + PROBE.id + "/display-name")
+        && nameReq.body.displayName === LABEL && nameReq.body.origin === "ui",
+        "setServerDisplayName → PUT /servers/{id}/display-name { displayName, origin:'ui' } — the route takes the ID, never the label");
+      assert(written === LABEL && st.serversStore.find(PROBE.id).name === LABEL
+        && st.serversStore.find(PROBE.id).id === PROBE.id,
+        "setServerDisplayName: the store takes the backend's authoritative label; the id is untouched");
+      nameReq = null;
+      const clearedName = await st.setServerDisplayName(hmId, PROBE.id, "   ");
+      assert(nameReq && nameReq.method === "DELETE" && nameReq.url.includes("origin=ui"),
+        "setServerDisplayName: an empty label routes to DELETE (never an empty PUT, which the backend refuses)");
+      assert(clearedName === PROBE.id && st.serversStore.find(PROBE.id).name === PROBE.id,
+        "setServerDisplayName: a cleared server reads as its id again");
+    } finally {
+      globalThis.fetch = realFetch;
+      if (st.serversStore.find(PROBE.id)) st.serversStore.patch(PROBE.id, { name: nameBefore });
     }
   }
 

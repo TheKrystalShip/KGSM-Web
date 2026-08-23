@@ -9,6 +9,7 @@ import { heroArtBg } from "../lib/art.js";
 import { serverStatusLabel } from "../lib/servers.js";
 import { hostsStore } from "../lib/stores.js";
 import { useJobPhase } from "../lib/hooks/useJobPhase.js";
+import { useNav } from "./NavContext.jsx";
 
 // Server hero card — top status, name, action chips, IP.
 
@@ -65,6 +66,7 @@ function StatusPill({ server, status, uptime, watchdogDown }) {
 }
 
 function ServerHero({ server, onAction }) {
+  const nav = useNav();
   // Can the signed-in user operate this server's host? Players (viewer / consumer
   // preview) get the Join + connect surface only — no lifecycle controls, no rename.
   const canOps = serverOperable(server);
@@ -99,8 +101,24 @@ function ServerHero({ server, onAction }) {
         <div className="hero__heading">
           <h1 className="hero__name">
             {server.name}
-            {canOps && <button className="hero__edit" aria-label="Rename"><Icon name="pencil" size={16} /></button>}
+            {canOps && (
+              <button
+                className="hero__edit"
+                aria-label="Rename"
+                title="Rename in Settings"
+                onClick={() => nav.openServer(server.id, "settings")}>
+                <Icon name="pencil" size={16} />
+              </button>
+            )}
           </h1>
+          {/* The id, whenever the label is not it. A label decorates and is not unique, so the page
+              that acts on a server has to say which one — and it is the id that a shell prompt, a
+              journal grep and every other surface's history are keyed on. */}
+          {server.name !== server.id && (
+            <span className="hero__tag hero__tag--glass hero__tag--verbatim hero__id" title="Instance id">
+              {server.id}
+            </span>
+          )}
           {/* Runtime is honest backend metadata (native vs container) — surface it
               as a small glass tag beside the name. Absent → renders nothing. */}
           {server.runtime && (

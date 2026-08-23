@@ -190,6 +190,16 @@ realtime: liveStream.js (fetch-based SSE — one primary stream per host + per-v
   Don't hardcode game/domain data the backend can serve — plumb it through.
 - **`merge.js`** — pure per-host → aggregated roll-up (every row carries its
   owning host id; merge only unions/de-dups, never invents attribution).
+- **A server has TWO names, and they are not interchangeable.** `id` is the engine's — immutable,
+  unique, path-safe — and is the key for every route, keyed store, SSE join, fetch path, widget param
+  and React key. `name` is the mutable display label, free text, **not unique**, and never blank (an
+  unlabelled instance reads as its id, which `adaptServer` guarantees with `be.name ?? be.id`). Render
+  `name` wherever a person reads which server this is; pass `id` wherever something has to find it
+  again. Where two servers could collide or identity is the point — the hero, the Identity card, the
+  palette's rows — show BOTH, the id as secondary monospace. A rename arrives as an ordinary
+  `server.patch` carrying a new `name`, so nothing needs invalidating: the row is patched in place and
+  every surface re-renders. **Searching reads both**, because a person who knows an instance as
+  `factorio-42` from a shell must still find it after somebody has labelled it "Sunday Server".
 - **`assistantClient.js` + `assistantSession.js` — the SECOND seam, onto the assistant
   LEAF.** The assistant is a standalone service, so the chat talks to it **directly**, on
   the public origin the host's assistant capability reports (`info.url`), with a session

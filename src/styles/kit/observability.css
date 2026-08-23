@@ -2982,6 +2982,48 @@
   overflow-wrap: anywhere;
 }
 
+/* Renaming a server — its own strip under the Identity card's id row, for the same reason the move
+   control below has one: a field, two buttons and a refusal do not fit the controls column beside a
+   settings row. */
+.srv-rename {
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.srv-rename__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.srv-rename__row input {
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--fg-1);
+  background: var(--surface-3);
+  border: var(--edge);
+  border-radius: var(--r-sm);
+  padding: 4px 8px;
+  flex: 1 1 220px;
+  max-width: 320px;
+  min-width: 0;
+}
+
+.srv-rename__count {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--danger-fg);
+}
+
+.srv-rename__ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--krystal-teal);
+}
+
 /* Moving one server onto another disk — its own strip on the settings page's Storage card, because
    the controls column beside a settings row is sized for a toggle and this is a picker, a button and
    a sentence about restarting somebody's server. */

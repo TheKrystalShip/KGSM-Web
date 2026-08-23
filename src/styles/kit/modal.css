@@ -282,6 +282,41 @@
 }
 
 /* Input with a trailing affix button (e.g. the password reveal eye). */
+/* The id a name would install under, before anybody takes it over. Sized like the input it stands in
+   for, so switching to the field does not move the rest of the form. */
+.k-idpreview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 8px 0 12px;
+  background: var(--surface-2);
+  border: var(--edge);
+  border-radius: var(--r-sm);
+}
+
+/* Editing it: the field takes the row and the way back sits beside it, so switching between the
+   derived id and a chosen one does not move the form. */
+.k-idpreview--editing {
+  padding: 0 8px 0 0;
+  background: transparent;
+  border: none;
+  gap: 8px;
+}
+
+.k-idpreview--editing>input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.k-idpreview code {
+  font-size: 13px;
+  color: var(--fg-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .k-input-affix {
   position: relative;
   display: flex;

@@ -5,6 +5,7 @@ import { serverCapUsable } from "../lib/capabilities.js";
 import { fetchSettings, patchSettings, deleteServer } from "../lib/stores.js";
 import { StartupSection, ScheduleSection, ResourcesSection } from "./serverSettings/SettingsSections.jsx";
 import { PlacementSection } from "./serverSettings/PlacementSection.jsx";
+import { IdentitySection } from "./serverSettings/IdentitySection.jsx";
 
 // Settings panel — for things that don't belong in raw config files.
 // Autostart, scheduled restarts, crash recovery, update policy, resource caps,
@@ -217,6 +218,10 @@ function ServerSettings({ server, onDeleted }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+      {/* What it is called, and what it is keyed on. Reads and writes on its own — a rename lands the
+          moment it is confirmed, so it belongs to neither the form's dirty state nor its Save button. */}
+      <IdentitySection server={server} />
 
       {/* Startup & recovery — Phase 1 */}
       <StartupSection watchdogDown={watchdogDown} watchdogLed={watchdogLed}

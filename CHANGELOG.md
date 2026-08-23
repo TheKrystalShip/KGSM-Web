@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — a server has a name you can change, and an id that never moves
+
+Every server now carries two names. The **id** is the engine's — `factorio-42`, the thing in a path,
+a journal line and a `kgsm start` — and it never changes. The **display name** is yours: free text,
+spaces, casing and emoji all fine, not unique, and changeable at any time on a running server. The
+panel renders the label wherever a person reads which server this is, and the id wherever something
+has to find it again.
+
+**Renaming** is on the server's settings page, in a new **Identity** card that states the id beside
+the field that changes the label. It writes on its own — the rest of that page is a form with one
+Save button, and this is not part of it — and it reports the outcome inline, beside the field,
+including the engine's own sentence when a write is refused. Clearing the label is offered wherever
+one is set, after which the server reads as its id again. The card is operator-gated; a viewer sees
+the two names and no controls.
+
+**Creating** a server asks for a display name and shows the **instance id it will get**, derived from
+that name by the same rule the backend uses (`Typo Proof ✔ Server` → `typo-proof-server`). The
+preview is advisory — the engine owns the roster and mints its own id when a derived one is unusable
+or taken — and it can be taken over: *Change* opens the field, *Use the name* puts the derived one
+back, and an id outside the engine's charset blocks the submit before it is sent. A refusal from the
+node lands **in the form**, beside the fields that would have to change, rather than in a toast over
+a dialog that is still open.
+
+**A rename lands live, everywhere.** It arrives as an ordinary `server.patch`, so the list, the hero,
+the breadcrumb, the sidebar and the command palette re-label with no reload — proven in two browsers
+at once. The hero and the palette show the id as secondary monospace text, because a label decorates
+and does not identify and two servers are allowed to share one. **Searching reads both names**, on
+the servers page and in the palette, so an instance somebody knows as `terraria-idtest` is still
+found after it has been labelled "Sunday Terraria". The audit feed draws `server.rename` with its own
+icon and states both labels it moved between.
+
 ### Added — moving a server onto another disk, and emptying one before it goes
 
 A server's settings page has a **Storage** card: which library its files are on, and — for an admin

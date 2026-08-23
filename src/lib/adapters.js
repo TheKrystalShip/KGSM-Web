@@ -689,10 +689,13 @@ export function adaptJob(be) {
 // partway through, and from that point the phantom is a real row that keeps rendering as a phantom
 // because its job says so (stores/servers.js owns that rule). It is handed over to an ordinary card
 // by the verify frame that follows the install settling.
-export function adaptPhantom({ id, blueprint, cover, hero, displayName, hostId }) {
+export function adaptPhantom({ id, blueprint, cover, hero, displayName, hostId, label }) {
   return {
     id,
-    name: id,
+    // The label the install was asked to carry, when this client is the one that asked. A phantom the
+    // jobs stream raised knows only the id the engine assigned, and that is what it reads as — the
+    // real label arrives with the server.patch that hands the row over.
+    name: label || id,
     hostId: hostId ?? null,
     blueprint: blueprint ?? null,
     runtime: null,

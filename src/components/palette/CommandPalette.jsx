@@ -303,7 +303,7 @@ function Palette({ onClose, onInstall }) {
         <div className="kp__q">
           {scopeServer ? (
             <span className="kp__scope">
-              <Icon name="server" size={12} strokeWidth={2.2} />{scopeServer.id}
+              <Icon name="server" size={12} strokeWidth={2.2} />{scopeServer.name || scopeServer.id}
             </span>
           ) : (
             <Icon name="search" size={16} strokeWidth={2} className="kp__qico" />
@@ -315,7 +315,7 @@ function Palette({ onClose, onInstall }) {
             autoFocus
             spellCheck="false"
             autoComplete="off"
-            aria-label={scopeServer ? "Search " + scopeServer.id : "Search the panel"}
+            aria-label={scopeServer ? "Search " + (scopeServer.name || scopeServer.id) : "Search the panel"}
             placeholder={scopeServer ? "Tabs and actions…" : "Search servers, actions, settings…"}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}

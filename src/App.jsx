@@ -8,7 +8,6 @@ import { NavProvider } from "./components/NavContext.jsx";
 import { KrystalFooter } from "./components/Footer.jsx";
 import { InstallModal } from "./components/InstallModal.jsx";
 import { Toasts } from "./components/Toasts.jsx";
-import { toast } from "./lib/toasts.js";
 import { alertBuckets, useAlerts } from "./components/NeedsAttention.jsx";
 import { Sidebar } from "./components/Sidebar.jsx";
 import { api, connectionStore } from "./lib/apiClient.js";
@@ -140,6 +139,9 @@ function AppInner({ user, setUser, route, setRoute }) {
 
   const [tab] = React.useState(null);
   const [installing, setInstalling] = React.useState(null);
+  // The refusal the last install came back with. Held here because the shell owns the POST, and
+  // rendered by the modal, which is the surface that has the fields it is about.
+  const [installError, setInstallError] = React.useState(null);
   const [chatFullscreen, setChatFullscreen] = React.useState(false);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [collapsed, setCollapsed] = React.useState(() => {
@@ -247,9 +249,10 @@ function AppInner({ user, setUser, route, setRoute }) {
   };
 
   const openGame = (game) => setRoute({ kind: "game", id: game.id });
-  const handleInstall = (game) => { setInstalling(game); };
+  const handleInstall = (game) => { setInstallError(null); setInstalling(game); };
 
   const confirmInstall = (cfg) => {
+    setInstallError(null);
     installServer(cfg).then((data) => {
       const job = data && data.job;
       if (job && job.serverId) {
@@ -259,15 +262,21 @@ function AppInner({ user, setUser, route, setRoute }) {
           hero:        cfg.game.hero   ?? null,
           displayName: cfg.game.name   ?? cfg.game.id,
           hostId:      cfg.hostId      ?? null,
+          // The label typed into the form. The engine assigned the id in `job.serverId`; the label is
+          // what the person will read the row by, and it is theirs, so the tile carries it from the
+          // moment the install is accepted rather than waiting out the download.
+          label:       cfg.name        || null,
         });
       }
       setInstalling(null);
       setRoute({ kind: "servers" });
     }, err => {
       if (err && err.code === 401) noteAuthFailure(cfg.hostId);
-      // The modal is left open on purpose — the config is still on screen and
-      // the failure is usually something to change and retry.
-      else toast.fromError(err, "Couldn't install " + ((cfg.game && cfg.game.name) || "the server"));
+      // The modal is left open on purpose — the config is still on screen and the failure is usually
+      // something to change and retry, so the sentence goes back into it beside the fields rather than
+      // into a toast over the form that would have to be re-read anyway.
+      setInstallError((err && (err.userMessage || err.message))
+        || ("Couldn't install " + ((cfg.game && cfg.game.name) || "the server")));
     });
   };
 
@@ -465,7 +474,8 @@ function AppInner({ user, setUser, route, setRoute }) {
             return h.online && canOn("server.create", h.id) && (!s || !s.denied);
           })}
           onInstall={confirmInstall}
-          onClose={() => setInstalling(null)}
+          error={installError}
+          onClose={() => { setInstalling(null); setInstallError(null); }}
         />
       )}
     </div>

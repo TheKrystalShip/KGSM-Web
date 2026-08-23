@@ -237,7 +237,12 @@ function ServersPage({ onOpenServer, onAction, onLibrary, initialStatus, initial
     } else if (status !== "all" && s.status !== status) return false;
     if (node !== "all" && s.hostId !== node) return false;
     if (game !== "all" && s.game !== game) return false;
-    if (q && !(s.name.toLowerCase().includes(q) || (s.game || "").toLowerCase().includes(q))) return false;
+    // The id is searchable beside the label: a server labelled "Sunday Server" is still the instance
+    // somebody knows as `factorio-42` from a shell, a log line or another surface's history, and a
+    // search that only reads the label would answer nothing for the name they hold.
+    if (q && !(s.name.toLowerCase().includes(q)
+      || s.id.toLowerCase().includes(q)
+      || (s.game || "").toLowerCase().includes(q))) return false;
     return true;
   });
   // Order the filtered set with the shared comparator (same rules as CardTable).
@@ -340,7 +345,7 @@ function ServersPage({ onOpenServer, onAction, onLibrary, initialStatus, initial
           value={query}
           onChange={setQuery}
           pending={searchPending}
-          placeholder="Search by name or game…" />
+          placeholder="Search by name, id or game…" />
 
         <ToolbarFilters
           fields={[

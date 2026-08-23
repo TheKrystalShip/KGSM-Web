@@ -29,6 +29,11 @@ import { allWidgets } from "../../lib/widgets/registry.js";
 // (persona.js) applies as everywhere: navigation asks `can`, anything touching one node asks
 // `canOn`.
 
+// What a server is CALLED, for anything a person reads. The id stays the value every entry runs
+// against — `run` navigates and acts on `s.id`, always — because a label decorates and does not
+// identify, and two servers are allowed to share one.
+const serverLabel = (s) => (s && (s.name || s.id)) || "";
+
 // ---- the descriptor -------------------------------------------------------
 //
 //   id       stable, unique — React's key and the selection anchor across re-ranks
@@ -145,7 +150,7 @@ function buildEntries({ servers, hosts, library, services, players, themePref, s
           weight: 120,
           disabled: guard.disabled, reason: guard.reason,
           arm: true,
-          chin: v.label + " " + server.id + (consequence ? " — " + consequence : ""),
+          chin: v.label + " " + serverLabel(server) + (consequence ? " — " + consequence : ""),
           warn: !!consequence,
           run: () => runServerAction(v.verb, server),
         });
@@ -163,7 +168,7 @@ function buildEntries({ servers, hosts, library, services, players, themePref, s
         icon: "database",
         weight: 110,
         arm: true,
-        chin: "Back up " + server.id,
+        chin: "Back up " + serverLabel(server),
         run: () => backupServer(server),
       });
     }
@@ -182,7 +187,7 @@ function buildEntries({ servers, hosts, library, services, players, themePref, s
         sub: null,
         icon: tab.icon,
         weight: 60,
-        chin: "Open " + server.id + " · " + tab.label,
+        chin: "Open " + serverLabel(server) + " · " + tab.label,
         run: () => nav.openServer(server.id, tab.id === "overview" ? undefined : tab.id),
       });
     }
@@ -213,7 +218,7 @@ function buildEntries({ servers, hosts, library, services, players, themePref, s
             // Unbanning restores access and is not destructive, so it needs no misclick guard —
             // the same call the roster's own menu makes without one.
             arm: verb !== "unban",
-            chin: verb.charAt(0).toUpperCase() + verb.slice(1) + " " + name + " on " + server.id,
+            chin: verb.charAt(0).toUpperCase() + verb.slice(1) + " " + name + " on " + serverLabel(server),
             warn: verb !== "unban",
             run: () => moderatePlayer(server, p.playerIdentity, verb),
           });
@@ -233,7 +238,7 @@ function buildEntries({ servers, hosts, library, services, players, themePref, s
         id: "scope.pin." + w.type,
         kind: "pin", group: "Dashboard",
         title: (pinned ? "Unpin " : "Pin ") + w.label.toLowerCase(),
-        sub: pinned ? "On your dashboard" : "Adds a widget bound to " + server.id,
+        sub: pinned ? "On your dashboard" : "Adds a widget bound to " + serverLabel(server),
         icon: pinned ? "pin-off" : "pin",
         weight: 30,
         chin: (pinned ? "Remove " : "Pin ") + w.label.toLowerCase() + " " + (pinned ? "from" : "to") + " the dashboard",
@@ -346,14 +351,18 @@ function buildEntries({ servers, hosts, library, services, players, themePref, s
     const running = s.status === "online";
     push({
       id: "server." + s.id, kind: "server", group: "Servers",
-      title: s.id,
-      sub: [s.blueprint, s.hostId].filter(Boolean).join(" · ") || null,
+      title: serverLabel(s),
+      // The id sits in the subtitle whenever it is not already the title. Two servers may share a
+      // label — it decorates and does not identify — so the row that opens one has to say WHICH, and
+      // this is also what keeps the id typeable: the matcher scores a subtitle too, so somebody who
+      // knows the instance as `factorio-42` still finds a server labelled "Sunday Server".
+      sub: [s.name !== s.id ? s.id : null, s.blueprint, s.hostId].filter(Boolean).join(" · ") || null,
       icon: "server",
       weight: 100,
       boost: running ? 30 : 0,
       state: { tone: TONE_FOR(s.status), label: s.status },
       scope: s.id,
-      chin: "Open " + s.id,
+      chin: "Open " + serverLabel(s),
       run: () => nav.openServer(s.id),
     });
   }
@@ -368,13 +377,16 @@ function buildEntries({ servers, hosts, library, services, players, themePref, s
       push({
         id: "verb." + v.verb + "." + s.id,
         kind: "action", group: "Actions",
-        title: v.label + " " + s.id,
-        sub: guard.disabled ? null : "Lifecycle",
+        title: v.label + " " + serverLabel(s),
+        // The id beside the verb whenever the label is not it: "Stop Sunday Server" reads well and
+        // says nothing about which instance stops, and the subtitle is matched too, so the row is
+        // still reachable by typing the id.
+        sub: guard.disabled ? null : [s.name !== s.id ? s.id : null, "Lifecycle"].filter(Boolean).join(" · "),
         icon: v.icon,
         weight: 70,
         disabled: guard.disabled, reason: guard.reason,
         arm: true,
-        chin: v.label + " " + s.id + (consequence ? " — " + consequence : ""),
+        chin: v.label + " " + serverLabel(s) + (consequence ? " — " + consequence : ""),
         warn: !!consequence,
         run: () => runServerAction(v.verb, s),
       });
@@ -387,7 +399,7 @@ function buildEntries({ servers, hosts, library, services, players, themePref, s
   for (const s2 of servers || []) {
     push(copyAddressEntry(s2, {
       id: "copy." + s2.id,
-      title: "Copy " + s2.id + " address",
+      title: "Copy " + serverLabel(s2) + " address",
       weight: 65,
     }));
   }

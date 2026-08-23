@@ -173,4 +173,46 @@ function serverStatusLabel(server) {
   return STATUS_LABEL[server.status] || server.status;
 }
 
-export { blueprintFit, fleetHeadroom, fleetSummary, hostAvailabilityLabel, serverRunDuration, instancesOfBlueprint, offeringHosts, playerTally, PHASE_LABEL, serverStatusLabel, STATUS_LABEL };
+// ---------- Identity: the label and the id ----------
+
+// The longest label kgsm-api stores. Mirrored here so a form can say so while typing; the backend
+// measures what it will actually store (after stripping control characters) and REJECTS rather than
+// truncating, so this is a courtesy and never the authority.
+const DISPLAY_NAME_MAX = 200;
+
+// The engine's id length limit.
+const INSTANCE_ID_MAX = 64;
+
+// The candidate id a label would install under — a mirror of kgsm-api's `InstanceIdSlug`, so a create
+// form can show what it is about to ask for instead of leaving the id a surprise. Lower-cased ASCII
+// alphanumerics, every other run collapsing to a single "-", never leading or trailing one, capped at
+// the engine's 64.
+//
+// It is ADVISORY. The backend re-derives it and the engine decides — it validates the charset and it
+// owns the roster, so a slug that collides falls through to the engine's own `blueprint`/`blueprint-NN`
+// rather than being disambiguated here. Null for a label that yields nothing usable (empty, or written
+// entirely in characters the id charset has no place for), which is the same "let the engine mint one".
+function instanceIdSlug(displayName) {
+  if (!displayName) return null;
+  let out = "";
+  let pendingSeparator = false;
+  const append = (ch) => {
+    if (out.length >= INSTANCE_ID_MAX) return;
+    if (pendingSeparator && out.length < INSTANCE_ID_MAX - 1) { out += "-"; pendingSeparator = false; }
+    out += ch;
+  };
+  for (const c of displayName) {
+    if ((c >= "a" && c <= "z") || (c >= "0" && c <= "9")) append(c);
+    else if (c >= "A" && c <= "Z") append(c.toLowerCase());
+    else pendingSeparator = out.length > 0;
+  }
+  return out.length === 0 ? null : out;
+}
+
+// Whether a string is an id the engine will accept: `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`. The same
+// courtesy as the slug — the engine checks this itself, and it alone knows whether the id is taken.
+function isValidInstanceId(id) {
+  return /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(id || "");
+}
+
+export { blueprintFit, DISPLAY_NAME_MAX, fleetHeadroom, fleetSummary, hostAvailabilityLabel, INSTANCE_ID_MAX, instanceIdSlug, isValidInstanceId, serverRunDuration, instancesOfBlueprint, offeringHosts, playerTally, PHASE_LABEL, serverStatusLabel, STATUS_LABEL };

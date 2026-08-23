@@ -215,6 +215,12 @@
   color: var(--fg-3);
 }
 
+/* The instance id beside the label it qualifies — quieter than the tags stating what the server IS,
+   because it is the same fact the name already gave, said the way the shell says it. */
+.hero__id {
+  color: var(--fg-3);
+}
+
 .action-row {
   display: flex;
   gap: 10px;
