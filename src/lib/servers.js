@@ -141,6 +141,9 @@ const STATUS_LABEL = {
   "backing-up": "Backing up…",
   restoring:   "Restoring…",
   uninstalling: "Uninstalling…",
+  // Its disk is not mounted. Deliberately not a run-state word: the server is neither running nor
+  // stopped, it is unreachable, and the engine refuses every verb on it until the library returns.
+  "library-offline": "Disk offline",
 };
 
 // The step a long run is on, when the engine reports one. An install and an update

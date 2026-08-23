@@ -116,8 +116,12 @@ function ApiOverview({ hostId, leafId }) {
               "The API assembly version with the git commit it was built from."],
             ["Runtime", host.runtime || unknown],
             ["OS", host.os && host.os !== "—" ? host.os + (host.kernel && host.kernel !== "—" ? " · " + host.kernel : "") : unknown],
-            ["Engine install dir", host.installDirectory || unknown,
-              "Where kgsm installs game servers on this box."],
+            ["Libraries", host.libraries
+              ? (host.libraries.length === 0
+                  ? "none registered"
+                  : host.libraries.map(l => l.name).join(", "))
+              : unknown,
+              "The named roots kgsm places game servers in on this box."],
           ]} />
         </BriefCard>
 

@@ -771,6 +771,17 @@
   animation: kr-pulse 1.2s ease-in-out infinite;
 }
 
+/* Its disk is not mounted — the tile counterpart of .hero__status--library-offline. Steady, not
+   pulsing: this is a persistent state, not a transition. */
+.server-tile__pill--library-offline {
+  background: var(--warning-bg);
+  color: var(--warning-fg);
+}
+
+.server-tile__pill--library-offline .dot {
+  background: var(--warning);
+}
+
 .server-tile__pill--offline {
   background: var(--veil-1);
   color: var(--fg-3);

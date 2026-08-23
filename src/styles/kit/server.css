@@ -115,6 +115,17 @@
   animation: kr-pulse 1.2s ease-in-out infinite;
 }
 
+/* Its disk is not mounted. The warning family rather than the offline grey, and NOT pulsing: nothing
+   is in transition — the state persists until somebody plugs the drive back in. */
+.hero__status--library-offline {
+  background: var(--warning-bg);
+  color: var(--warning-fg);
+}
+
+.hero__status--library-offline .dot {
+  background: var(--warning);
+}
+
 /* Down and coming back: in transition like stopping, and for longer — a drain plus a whole boot. */
 .hero__status--restarting {
   background: var(--warning-bg);
@@ -191,6 +202,13 @@
   border-radius: var(--r-pill);
   border: var(--edge);
   text-transform: capitalize;
+}
+
+/* A library's NAME, not a word. It is lowercase by the engine's rule ([a-z0-9-]+) and it is what
+   somebody types into the install form, so capitalizing it would show a name that does not exist. */
+.hero__tag--verbatim {
+  text-transform: none;
+  font-family: var(--font-mono);
 }
 
 .hero__tag>svg {

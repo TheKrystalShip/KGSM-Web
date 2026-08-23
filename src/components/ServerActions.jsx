@@ -55,6 +55,18 @@ function verbGuard(server, verb) {
   const isStopping = status === "stopping";
   const isRestarting = status === "restarting";
 
+  // Checked before the watchdog: the engine refuses every verb on an instance whose library is not
+  // mounted, whatever the supervisor is doing, and naming the disk is what turns "nothing works" into
+  // one thing to go and fix.
+  if (server.libraryState === "offline") {
+    return {
+      disabled: true,
+      reason: server.library
+        ? "Library “" + server.library + "” isn’t mounted" + (server.libraryPath ? " at " + server.libraryPath : "")
+        : "This server's library isn't mounted",
+    };
+  }
+
   if (!serverCapUsable(server, "watchdog")) {
     return { disabled: true, reason: "Watchdog unavailable on this host — lifecycle actions are paused" };
   }

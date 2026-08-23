@@ -1,20 +1,26 @@
 // DiagResources — the Resources sub-tab: CPU core grid, RAM bar, disk list,
-// network interface table, open-ports table. Pure render from props — no hooks,
-// no stores.
+// libraries, network interface table, open-ports table. Pure render from props —
+// no hooks, no stores; the libraries card owns its own state and is its own file.
 
 import { Icon } from "../../components/Icon.jsx";
+import { DiagLibraries } from "./DiagLibraries.jsx";
 import { StatusLed } from "./diagComponents.jsx";
 
 function DiagResources({ host, fresh, servers = [], onOpenServerSettings }) {
   const frozen = !!(fresh && fresh.frozen);
   const noTelemetry = !host.cpu || !Array.isArray(host.cpu.per_core) || host.cpu.per_core.length === 0 || !host.ram || !host.ram.total_gb;
   if (noTelemetry) {
+    // The libraries card still renders. Where a node can put a server is the engine's answer, not the
+    // monitor's — a host with no metrics agent has exactly the same disks declared to it.
     return (
-      <div className="diag-empty">
-        <Icon name="activity" size={18} strokeWidth={1.8} />
-        <p>Live metrics are unavailable on this host{fresh && fresh.message ? " — " + fresh.message : "."}</p>
-        <p className="diag-empty__sub">CPU, memory, disk and network telemetry need the host's metrics agent to be running.</p>
-      </div>
+      <>
+        <div className="diag-empty">
+          <Icon name="activity" size={18} strokeWidth={1.8} />
+          <p>Live metrics are unavailable on this host{fresh && fresh.message ? " — " + fresh.message : "."}</p>
+          <p className="diag-empty__sub">CPU, memory, disk and network telemetry need the host's metrics agent to be running.</p>
+        </div>
+        <DiagLibraries host={host} />
+      </>
     );
   }
   const ageShort = fresh && fresh.label ? fresh.label.replace(/\s*ago$/, "") : null;
@@ -81,6 +87,11 @@ function DiagResources({ host, fresh, servers = [], onOpenServerSettings }) {
           </div>
         </div>
       </div>
+
+      {/* Ahead of the disks list: where a server CAN go is the actionable half, and a card of
+         right-aligned controls at the very bottom of the page sits under the assistant dock's
+         floating button. */}
+      <DiagLibraries host={host} />
 
       {/* Disks */}
       {host.disks && host.disks.length > 0 && (

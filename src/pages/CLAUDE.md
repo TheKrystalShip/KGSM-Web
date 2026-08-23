@@ -91,7 +91,7 @@ Four screens were too big and were broken into folders (root-`CLAUDE.md` refacto
 | Entry | Folder | Holds |
 |---|---|---|
 | `ChatPage.jsx` (512) | `chat/` | thread/message/parts, evidence cards, context meter, host picker, `chatUtils`/`chatConstants` |
-| `DiagnosticsPage.jsx` (290) | `diagnostics/` | `DiagOverview/Resources/Services/Logs`, `DiagJobs` (the node's `JobQueue`), host cards, `LeafConfigModal`, `diagHelpers` (the leaf card itself is `components/LeafCard.jsx`) |
+| `DiagnosticsPage.jsx` (290) | `diagnostics/` | `DiagOverview/Resources/Services/Logs`, `DiagLibraries` (the placement roots + the admin's register/rename/deregister controls — its own file because `DiagResources` is otherwise a pure render), `DiagJobs` (the node's `JobQueue`), host cards, `LeafConfigModal`, `diagHelpers` (the leaf card itself is `components/LeafCard.jsx`) |
 | `PerformanceTab.jsx` | `performance/` | `PerfCards`, `perfHelpers` |
 | `ServerSettings.jsx` | `serverSettings/` | `SettingsSections` |
 | `DashboardPage.jsx` | `dashboard/` | `catalog.js` (the widget registrations), `widgets/` (the pinnable bodies), `fleetKpis.js` (the twelve figures), `DashFleetStrip`, `AddWidgetSheet`, `DashboardEmpty` |

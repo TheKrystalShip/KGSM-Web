@@ -46,6 +46,10 @@ function StatusPill({ server, status, uptime, watchdogDown }) {
     // any run-state one.
     "backing-up": "hero__status hero__status--updating",
     restoring: "hero__status hero__status--updating",
+    // The library its files live in is not mounted. Its own tone rather than the offline one: a
+    // stopped server can be started and this one cannot, and reading them as the same state is what
+    // sends somebody hunting for a fault in a server whose disk is simply unplugged.
+    "library-offline": "hero__status hero__status--library-offline",
   }[status] || "hero__status";
   return (
     <span className={cls + " hero__status--glass"}>
@@ -98,6 +102,14 @@ function ServerHero({ server, onAction }) {
           {server.runtime && (
             <span className="hero__tag hero__tag--glass" title="Supervision type">
               <Icon name={server.runtime === "container" ? "box" : "cpu"} size={12} strokeWidth={2} /> {server.runtime}
+            </span>
+          )}
+          {/* Which named root the files live in. "unregistered" is the engine's own word for a
+              server on a disk nothing declares — carried through as-is, since it is a real state
+              somebody needs to see and not a missing value. */}
+          {server.library && (
+            <span className="hero__tag hero__tag--glass hero__tag--verbatim" title={server.libraryPath || "Library"}>
+              <Icon name="hard-drive" size={12} strokeWidth={2} /> {server.library}
             </span>
           )}
           {/* Pins the server's CARD, not the hero: a banner this size belongs at the top of a page,

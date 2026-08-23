@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — which disk a server lives on
+
+A node's storage read as one number and one path. Now it reads as its **libraries** — the named roots
+kgsm places servers in — with each one's state, free space, backing device and how many servers sit
+in it, on the Resources tab beside the disks. They are two different questions and the card says so:
+a disk is a filesystem the monitor found, a library is a root somebody declared, and one node can
+hold several libraries on one disk while a mounted disk kgsm knows nothing about is not a place a
+server can go.
+
+An admin registers, renames and deregisters one from that card. **Deregistering has no override.**
+The node refuses while servers still resolve to a library, naming every one of them, and that
+sentence renders in the row that was refused, verbatim — the panel adds no force flag, because it
+would produce in one click the state the engine exists to prevent.
+
+The install form gained a **Library** field, between the node and the name, showing each one's free
+space. It appears only where the node reports libraries at all, so a host running an older engine
+offers no placement choice rather than a fabricated one, and an offline library is listed **disabled**
+rather than hidden — "the drive isn't mounted" is why it is unusable, and a silently shorter list
+makes that unanswerable. Where there is exactly one online library it is preselected; beyond that the
+person picks, because the engine's own default is not visible from here.
+
+Each server's hero names its library beside its runtime, verbatim and in mono — it is an identifier
+somebody types into that form, not a word, so it is never capitalised.
+
+### Added — a server whose disk is not mounted
+
+Unplugging a drive used to make its servers vanish. The engine now keeps them and says why, and the
+panel renders that as its **own state**: an amber `Disk offline` pill, distinct from the offline grey,
+on the card, the hero and the sidebar dot. It outranks both run-state and any job — nothing about a
+server can be read through a dangling symlink, so "Offline" would invite a Start that cannot work and
+a job's verb would claim work is happening on files nothing can reach.
+
+Every lifecycle button refuses with the library named and where it is expected to be, ahead of the
+watchdog check, because the engine refuses these whatever the supervisor is doing and one thing to go
+and fix beats four dead buttons.
+
+
 ### Added — one verb, a set of servers
 
 The panel could reach any server and arrange any card, and act on exactly one at a time. Bringing a

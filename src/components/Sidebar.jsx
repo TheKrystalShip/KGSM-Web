@@ -80,6 +80,8 @@ function ServerListItem({ server, active, onClick }) {
     restoring: "var(--warning)",
     offline: "var(--fg-4)",
     crashed: "var(--danger)",
+    // Unreachable rather than down — the same distinction the hero pill draws.
+    "library-offline": "var(--warning)",
   }[server.status] || "var(--fg-4)";
   return (
     <div className={"server-row" + (active ? " server-row--active" : "")} onClick={onClick}>

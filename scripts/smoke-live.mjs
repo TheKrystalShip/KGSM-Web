@@ -216,6 +216,20 @@ try {
   assert(servers.every((s) => (s.metrics == null ? s.cpu === null && s.ram === null : true)), "servers: cpu/ram → null when no metrics (not 0)");
   assert(servers.every((s) => Array.isArray(s.log)), "servers: log → [] (console is a separate endpoint, not on the server DTO)");
 
+  // Which library a server lives in, and whether that root is mounted — two fields, kept apart from
+  // status. `unregistered` is the engine's own word for a server on a disk nothing declares, so it has
+  // to survive the adapter as itself rather than being folded into "unknown".
+  assert(
+    servers.every((s, i) => s.library === (rawServers[i].library || null)),
+    "servers: library name carried through verbatim");
+  assert(
+    servers.every((s) => s.libraryState === null
+      || ["online", "offline", "unregistered"].includes(s.libraryState)),
+    "servers: libraryState is online|offline|unregistered, or null when the registry is unreadable");
+  assert(
+    servers.every((s) => s.libraryState !== "offline" || s.library),
+    "servers: a server reported on an offline library still names which one");
+
   // ---- the probe instances, DERIVED from the live roster ------------------
   // Every check below that needs a real server picks it from what the backend
   // actually reports. KGSM instances are disposable — they get installed and
@@ -237,6 +251,33 @@ try {
   assert(hosts.length === rawHosts.length && hosts.length > 0, `adaptHosts maps ${hosts.length} host(s)`);
   assert(hosts.every((h) => typeof h.online === "boolean" && h.name != null), "hosts: status→online bool, label→name");
   assert(hosts.every((h) => h.capabilities && h.capabilities.metrics), "hosts: capabilities passthrough intact");
+
+  // ---- libraries: the named roots a node places servers in ----------------
+  // Read-only, off the same live host aggregate the panel renders. The two facts worth locking are
+  // the ones a fabrication would quietly break: null (the engine could not answer) must never become
+  // an empty list, and an offline library must report NO capacity rather than a zero — a 0 free-byte
+  // figure renders as a full disk, which is the opposite of what an unplugged one means.
+  assert(
+    hosts.every((h, i) => (rawHosts[i].libraries == null) === (h.libraries === null)),
+    "hosts: a node that could not report its libraries stays null (never an empty list)");
+  {
+    const libs = hosts.flatMap((h) => h.libraries || []);
+    assert(libs.length > 0, `hosts: ${libs.length} librar(y|ies) rendered from live data`);
+    assert(
+      libs.every((l) => typeof l.name === "string" && l.name.length > 0
+        && typeof l.path === "string" && l.path.startsWith("/")
+        && typeof l.online === "boolean" && Number.isInteger(l.instance_count)),
+      "hosts: every library carries a name, an absolute path, a state and a count");
+    assert(
+      libs.every((l) => l.online || (l.free_bytes === null && l.total_bytes === null)),
+      "hosts: an offline library reports no capacity (null, never 0)");
+    assert(
+      libs.every((l, i) => {
+        const raw = hosts.flatMap((h) => (h.libraries ? rawHosts[hosts.indexOf(h)].libraries : []))[i];
+        return raw && l.free_bytes === (raw.freeBytes ?? null) && l.total_bytes === (raw.totalBytes ?? null);
+      }),
+      "hosts: capacity is the backend's bytes, carried through untouched");
+  }
   // Diagnostics B-enrichment: when the metrics capability is operational (a live monitor), the adapter
   // maps the full snapshot — per-core, load, swap, fs, disk-IO, interfaces, hostname, uptime — AND keeps
   // every unsourced field honestly null/"—", never a fabricated 0°C / SMART "ok" / iface address.

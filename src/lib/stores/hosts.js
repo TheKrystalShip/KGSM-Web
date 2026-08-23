@@ -158,8 +158,38 @@ async function fetchHostDetail(hostId) {
   return api.host(hostId).get("/hosts/" + hostId);
 }
 
+// ---- Libraries: the named roots a node places servers in ----------------
+//
+// There is no libraries store. The list rides `hostsStore` already — it is part of the host aggregate
+// the API serves and the SPA refreshes — so a second cache would be a second answer to "where can this
+// node put a server", and the two would disagree the first time a disk was unplugged. These three
+// mutate and then re-read the host, which is what makes the storage card, the install modal and the
+// node overview all move together off one measurement.
+function addLibrary(hostId, path, name) {
+  const body = { path, origin: "ui" };
+  if (name) body.name = name;
+  return api.host(hostId).post("/hosts/" + hostId + "/libraries", body)
+    .then(r => hostsStore.refresh().then(() => r));
+}
+
+function renameLibrary(hostId, from, to) {
+  return api.host(hostId)
+    .patch("/hosts/" + hostId + "/libraries/" + encodeURIComponent(from), { name: to, origin: "ui" })
+    .then(r => hostsStore.refresh().then(() => r));
+}
+
+// No force. The node refuses while servers still resolve to the library and names them; that refusal
+// is the answer, and a flag that overrode it would produce in one click the state the engine exists to
+// prevent.
+function removeLibrary(hostId, name) {
+  return api.host(hostId)
+    .del("/hosts/" + hostId + "/libraries/" + encodeURIComponent(name) + "?origin=ui")
+    .then(r => hostsStore.refresh().then(() => r));
+}
+
 export {
   hostsStore, syncCapabilitySubscriptions,
   subscribeHostMetrics, subscribeServerMetrics,
   fetchServerMetricsHistory, fetchServerEvents, fetchHostDetail,
+  addLibrary, renameLibrary, removeLibrary,
 };

@@ -142,6 +142,16 @@ export function adaptServer(be) {
     // (or reloaded) mid-update show the state: the jobs channel only ever delivers the transition,
     // which a client that wasn't connected at the time never saw.
     job: be.activeJob ? adaptJob(be.activeJob) : null,
+    // Which named root this server's files live in, and the root itself. `"unregistered"` is the
+    // engine's own word for a server on a disk nothing declares — a real, recoverable state, not a
+    // missing value — and null is a host whose engine predates libraries.
+    library: be.library || null,
+    libraryPath: be.libraryPath || null,
+    // Whether that root is reachable: online | offline | unregistered, or null when the node could not
+    // read its registry. A SEPARATE axis from status — status is what the process is doing, this is
+    // whether the files exist to run at all — joined for display in stores/servers.js, the one place
+    // that derivation lives.
+    libraryState: be.libraryState || null,
   };
 }
 export const adaptServers = (arr) => (Array.isArray(arr) ? arr.map(adaptServer) : []);
@@ -353,10 +363,24 @@ export function adaptHost(be) {
     sensors: tel.sensors || [],   // hwmon temps now sourced (M-diag depth); [] when none / no snapshot
     processes: [],                // no host process-list source → honest-empty (not fabricated rows)
     events: [], logs: [],
-    // This host's KGSM default install directory (per host — each box runs its own engine). The install
-    // modal shows this real base instead of a hardcoded path. null when the engine/config didn't supply it
-    // (honest unknown, never a fabricated path).
-    installDirectory: be.installDirectory || null,
+    // The named roots this host places servers in, each with its live state and capacity. null when the
+    // engine could not answer — which is NOT an empty array: a surface hides the placement controls on
+    // null and offers "register one" on []. free/total stay in BYTES here (unlike disks, which the API
+    // serves in GB) because that is what the API measured; formatBytes renders them.
+    libraries: Array.isArray(be.libraries)
+      ? be.libraries.map((l) => ({
+          name: l.name,
+          path: l.path,
+          online: !!l.online,
+          // null for an offline library — nothing measured an unplugged disk, and a 0 would render as
+          // a full one.
+          free_bytes: l.freeBytes ?? null,
+          total_bytes: l.totalBytes ?? null,
+          instance_count: l.instanceCount ?? 0,
+          mount: l.mount || null,
+          device: l.device || null,
+        }))
+      : null,
     // This host's node-capacity policy, as the engine will apply it — the floor a start must leave free.
     // Null when the engine did not answer or the keys are unset; the gate still runs there on its own
     // coded defaults, which this client does not know, so it warns about nothing rather than guessing.

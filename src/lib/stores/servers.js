@@ -67,6 +67,12 @@ function applyPatch(row, partial) {
   const live = jobIsLive(next.job);
   if (live && next.job.at == null) next.job = { ...next.job, at: Date.now() };
   next.status = (jobOwnsStatus(next.job) && JOB_STATUS[next.job.verb]) || next.runStatus;
+  // A library that is not mounted outranks both. Nothing about the server can be read through a
+  // dangling symlink, so the run-state the backend reports is a fact about an absence, and the engine
+  // refuses every lifecycle verb until the disk comes back. Showing "Offline" there would say the
+  // server is stopped, which invites a Start that cannot work; showing a job's verb would claim work is
+  // happening on files nothing can reach.
+  if (next.libraryState === "offline") next.status = "library-offline";
   if (installInFlight(next.job)) next._phantom = true;
   return next;
 }
@@ -447,6 +453,10 @@ function installServer(cfg) {
   const port = Number(cfg.port);
   if (Number.isInteger(port) && port >= 1 && port <= 65535) body.port = port;
   body.autostart = !!cfg.autostart;
+  // Which disk it lands on, when the caller picked one. Omitted otherwise, which leaves the choice to
+  // the engine's own resolution — a host with a single library wants exactly that, and sending a
+  // guessed name would place an install somewhere nobody chose.
+  if (cfg && cfg.library) body.library = cfg.library;
   return api.host(hostId).post("/servers", body);
 }
 

@@ -2861,6 +2861,136 @@
   color: var(--fg-1);
 }
 
+/* Library card — reuses .disk-list/.disk-row for the capacity rows; these are the management
+   controls and the per-row state pill on top of them. */
+.lib-state {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  font-family: var(--font-mono);
+}
+
+.lib-state--online {
+  background: var(--success-bg);
+  color: var(--success-fg);
+}
+
+.lib-state--offline {
+  background: var(--warning-bg);
+  color: var(--warning-fg);
+}
+
+.lib-row__acts {
+  display: flex;
+  gap: 6px;
+}
+
+.lib-btn {
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--fg-2);
+  background: var(--surface-3);
+  border: var(--edge);
+  border-radius: var(--r-sm);
+  padding: 3px 9px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: color var(--d-fast), background var(--d-fast);
+}
+
+.lib-btn:hover:not(:disabled) {
+  color: var(--fg-1);
+  background: var(--surface-2);
+}
+
+.lib-btn:disabled {
+  opacity: .55;
+  cursor: default;
+}
+
+.lib-btn--primary {
+  color: var(--fg-inverse);
+  background: var(--krystal-teal);
+  border-color: var(--krystal-teal);
+}
+
+.lib-btn--primary:hover:not(:disabled) {
+  color: var(--fg-inverse);
+  background: var(--krystal-teal-hover);
+}
+
+.lib-btn--danger:hover:not(:disabled) {
+  color: var(--danger-fg);
+  background: var(--danger-bg);
+}
+
+.lib-add {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.lib-add__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.lib-add__row input,
+.lib-rename input {
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--fg-1);
+  background: var(--surface-3);
+  border: var(--edge);
+  border-radius: var(--r-sm);
+  padding: 4px 8px;
+}
+
+.lib-add__row input:first-child {
+  flex: 1;
+  min-width: 200px;
+}
+
+.lib-rename {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex: 1;
+}
+
+.lib-rename input {
+  flex: 1;
+  max-width: 260px;
+}
+
+/* The refusal, beside the control that was refused. It is the engine's own sentence and can name
+   several servers, so it wraps and keeps its line breaks rather than being clipped to one line. */
+.lib-err {
+  margin-top: 8px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--danger-fg);
+  background: var(--danger-bg);
+  border-radius: var(--r-sm);
+  padding: 7px 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.lib-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 14px;
+  color: var(--fg-3);
+  font-size: 13px;
+}
+
 /* Network interface list — rows sit directly inside .chat-brief */
 .iface-list {
   display: flex;
