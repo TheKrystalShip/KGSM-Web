@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — moving a server onto another disk, and emptying one before it goes
+
+A server's settings page has a **Storage** card: which library its files are on, and — for an admin
+— moving them onto another one. The picker lists every reachable library on the node with its free
+space, because that is the one figure that decides whether the copy can happen at all; an unreachable
+one is not offered, since the node refuses placement into a root it cannot get to. The control states
+why it cannot run rather than sitting there dead: a running server, an unmounted disk, or nowhere
+else on the node to go.
+
+⚠ **A move renders "Moving…" for the whole copy, and it has to.** The node starts the server once on
+its new path to confirm it runs there, so run-state genuinely reads online and then offline partway
+through — a row following run-state alone would flicker. The job the node reports owns the row's
+status until it settles, exactly as an install and the two backup verbs do, and every lifecycle
+button says it is waiting on the move rather than offering a Start that would be refused.
+
+**Emptying a library** is offered on the storage card wherever a library holds servers and there is
+somewhere reachable to put them: pick a target, and every server moves into it before the library is
+deregistered. It appears on its own, and again the moment a plain deregistration is refused — that
+refusal is the node's own sentence, naming every server that blocked it, and the picker opens
+underneath it. There is still **no force**: the alternative offered is the one that leaves nothing
+stranded. Every server has to be stopped first, which the form says, because the node lists the
+running ones and moves nothing rather than shutting somebody's server down for them.
+
 ### Added — which disk a server lives on
 
 A node's storage read as one number and one path. Now it reads as its **libraries** — the named roots

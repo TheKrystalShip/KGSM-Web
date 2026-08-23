@@ -46,6 +46,10 @@ function StatusPill({ server, status, uptime, watchdogDown }) {
     // any run-state one.
     "backing-up": "hero__status hero__status--updating",
     restoring: "hero__status hero__status--updating",
+    // Its files are being copied onto another disk. The updating tone for the same reason those two
+    // borrow it: the instance is occupied, and the run-state underneath is whichever side of the
+    // engine's verification start the copy happens to be on.
+    moving: "hero__status hero__status--updating",
     // The library its files live in is not mounted. Its own tone rather than the offline one: a
     // stopped server can be started and this one cannot, and reading them as the same state is what
     // sends somebody hunting for a fault in a server whose disk is simply unplugged.

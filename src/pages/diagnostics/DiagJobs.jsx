@@ -53,6 +53,7 @@ const JOB_VERB = {
   uninstall:      { label: "Uninstall",      active: "Uninstalling", icon: "trash-2" },
   backup_create:  { label: "Back up",        active: "Backing up",   icon: "database" },
   backup_restore: { label: "Restore backup", active: "Restoring",    icon: "rotate-ccw" },
+  move:           { label: "Move",           active: "Moving",       icon: "hard-drive" },
 };
 const verbMeta = (verb) => JOB_VERB[verb] || { label: verb || "—", active: verb || "—", icon: "circle-dot" };
 

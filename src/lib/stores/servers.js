@@ -30,6 +30,11 @@ const JOB_STATUS = {
   // other — and a row that reads plain "Online" through it invites somebody to restart the server
   // out from under an archive being written.
   backup_create: "backing-up", backup_restore: "restoring",
+  // Moving an instance onto another disk. The sharpest case after install, and the reason this map
+  // exists at all: the engine STARTS the server once on its new path to confirm it runs there, so
+  // run-state genuinely reads "online" and then "offline" partway through a copy nobody has finished.
+  // A row following run-state alone flickers; the job's span is the whole operation.
+  move: "moving",
 };
 
 // How long a job we know about locally survives a server frame that carries none. The backend carries the
@@ -487,6 +492,17 @@ function saveServerNote(hostId, serverId, body) {
   });
 }
 
+// Move an instance's files onto another registered disk. The node answers 202 + a job, and that job —
+// which arrives on the servers stream like any other — is what the row renders "Moving…" from for the
+// whole copy. ⚠ It has to be: the engine starts the server once on its new path to confirm it runs
+// there, so run-state alone would flicker online and back mid-move.
+//
+// There is no skip-space-check. The node measures what the instance actually occupies before it
+// copies, and a control here that overrode that measurement is how a drive gets filled.
+function moveServer(hostId, serverId, library) {
+  return api.host(hostId).post("/servers/" + serverId + "/move", { library, origin: "ui" });
+}
+
 function deleteServer(hostId, serverId, origin) {
   const qs = origin ? "?origin=" + encodeURIComponent(origin) : "";
   return api.host(hostId).del("/servers/" + serverId + qs);
@@ -495,5 +511,5 @@ function deleteServer(hostId, serverId, origin) {
 export {
   __setJobTiming, serversStore, jobsStore, resolveGameNames,
   commandServer, sendConsoleInput, moderatePlayer, awaitJob, installServer,
-  fetchSettings, patchSettings, deleteServer, saveServerNote,
+  fetchSettings, patchSettings, deleteServer, moveServer, saveServerNote,
 };

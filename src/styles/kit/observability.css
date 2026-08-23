@@ -2982,6 +2982,92 @@
   overflow-wrap: anywhere;
 }
 
+/* Moving one server onto another disk — its own strip on the settings page's Storage card, because
+   the controls column beside a settings row is sized for a toggle and this is a picker, a button and
+   a sentence about restarting somebody's server. */
+.srv-move {
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.srv-move__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.srv-move__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-1);
+}
+
+/* The field variant is full-width by default, which is right in a modal form and wrong here — it
+   would push the button onto its own line and clip it against the card edge. */
+.srv-move__row .k-select--field {
+  width: auto;
+  flex: 0 1 300px;
+  min-width: 180px;
+}
+
+/* The confirmation. It takes the row's width rather than sitting beside the picker, so the sentence
+   somebody reads before restarting a server is never the thing that gets clipped. */
+.srv-move__ask {
+  font-size: 12.5px;
+  color: var(--fg-2);
+  flex: 1 1 320px;
+}
+
+.srv-move__ask code {
+  font-size: 12px;
+}
+
+.srv-move__note {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--fg-3);
+}
+
+/* Emptying a library before it goes. Sits under the row it belongs to and is deliberately wordy: it
+   is the one control here that moves data, and every server it names is stopped for minutes. */
+.lib-drain {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding: 9px 10px;
+  background: var(--surface-3);
+  border-radius: var(--r-sm);
+}
+
+.lib-drain__label {
+  font-size: 12.5px;
+  color: var(--fg-2);
+}
+
+/* Bounded, for the same reason the move picker is: the field variant is full-width and would push
+   the two buttons onto a line of their own. */
+.lib-drain__pick.k-select--field {
+  width: auto;
+  flex: 0 1 280px;
+  min-width: 180px;
+}
+
+.lib-drain__note {
+  flex-basis: 100%;
+  font-size: 11.5px;
+  color: var(--fg-3);
+}
+
+/* A root this node holds no entry for. Neutral rather than a warning: the files are there and
+   readable, and nothing is wrong — this host simply does not know the root they are under. */
+.lib-state--unregistered {
+  background: var(--surface-3);
+  color: var(--fg-3);
+}
+
 .lib-empty {
   display: flex;
   align-items: center;

@@ -67,6 +67,14 @@ function verbGuard(server, verb) {
     };
   }
 
+  // A move owns the instance's files for the whole of a copy, and the engine refuses every lifecycle
+  // verb while one is under way. Checked here rather than per-verb because it blocks all four alike —
+  // and because the engine starts the server itself partway through, so the run-state each verb reads
+  // below is briefly about a server nobody asked to run.
+  if (status === "moving") {
+    return { disabled: true, reason: "Waiting for the move to another disk to finish" };
+  }
+
   if (!serverCapUsable(server, "watchdog")) {
     return { disabled: true, reason: "Watchdog unavailable on this host — lifecycle actions are paused" };
   }

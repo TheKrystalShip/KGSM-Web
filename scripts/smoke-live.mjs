@@ -229,6 +229,15 @@ try {
   assert(
     servers.every((s) => s.libraryState !== "offline" || s.library),
     "servers: a server reported on an offline library still names which one");
+  // The supervision type, and the one case there is no honest answer for it. The engine omits
+  // `runtime` for a server whose library is not mounted, so null has to survive as null — a
+  // "native" there sends a console offer to what might be a container.
+  assert(
+    servers.every((s) => s.runtime === null || ["native", "container"].includes(s.runtime)),
+    "servers: runtime is native|container, or null when the node reported none");
+  assert(
+    servers.every((s, i) => s.runtime === (rawServers[i].runtime ?? null)),
+    "servers: runtime carried through verbatim, never defaulted");
 
   // ---- the probe instances, DERIVED from the live roster ------------------
   // Every check below that needs a real server picks it from what the backend
@@ -1360,6 +1369,47 @@ try {
   const shownReason = UPD_REASONS.find((r) => detailHtml.includes(r)) || null;
   assert(updEnabled ? shownReason === null : shownReason !== null,
     `server detail: Update chip gated on live state (${updEnabled ? "enabled — stopped with a newer build" : "disabled: " + shownReason})`);
+
+  // ---- placement: which disk the server is on, and moving it --------------
+  // Read-only. The settings tab's Storage card names the library the LIVE row reports — nothing is
+  // hardcoded, so a probe on any library is a valid subject — and the move control is gated on the
+  // same fields the API gates on, so a card cannot offer what the node would refuse.
+  {
+    const settingsHtml = await nav("#/servers/" + PROBE.id + "/settings");
+    const row = st.serversStore.find(PROBE.id) || {};
+    if (row.library) {
+      assert(settingsHtml.includes("Storage") && settingsHtml.includes(row.library),
+        `server settings: Storage names the library the node reports (${row.library})`);
+      // The reason renders in place of the blurb whenever the move cannot run — a running server,
+      // an unmounted disk, or nowhere else to go. Its presence proves the gate ran rather than the
+      // control being drawn blind.
+      const BLOCKED = ["Stop the server before moving it.", "This server is being moved.",
+        "Its library isn’t mounted", "nowhere else to put it", "No other library on this node is reachable"];
+      const hostRow = st.hostsStore.find(row.hostId) || {};
+      const elsewhere = (hostRow.libraries || []).filter((l) => l.online && l.name !== row.library);
+      const movable = elsewhere.length > 0 && row.status !== "online" && row.status !== "starting"
+        && row.status !== "moving" && row.libraryState !== "offline";
+      const blockedReason = BLOCKED.find((r) => settingsHtml.includes(r)) || null;
+      assert(movable ? blockedReason === null : blockedReason !== null,
+        `server settings: the move control is gated on live state (${movable ? "offered" : "blocked: " + blockedReason})`);
+    }
+  }
+
+  // The job verb a node reports for a move becomes the row's own busy word, which is what masks the
+  // start/stop the engine performs partway through to confirm the server runs on its new disk. A pure
+  // derivation over a synthetic frame — nothing is asked of the backend and no server is touched.
+  {
+    const probe = st.serversStore.find(PROBE.id) || {};
+    const before = probe.status;
+    st.serversStore.patch(PROBE.id, { job: { id: "job_smoke", verb: "move", state: "running" } });
+    const during = (st.serversStore.find(PROBE.id) || {}).status;
+    st.serversStore.patch(PROBE.id, { job: null });
+    const after = (st.serversStore.find(PROBE.id) || {}).status;
+    assert(during === "moving" || probe.libraryState === "offline",
+      `servers store: a running move owns the row's status ("${before}" → "${during}")`);
+    assert(after === before,
+      `servers store: the settled move gives the run-state back ("${after}")`);
+  }
 
   // ---- Phase 6: assistant turn SSE ----------------------------------------
   // The turn goes STRAIGHT to the assistant leaf on its own public origin, with a session the

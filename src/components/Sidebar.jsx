@@ -63,7 +63,7 @@ function ClusterChip({ hosts, onOpen, collapsed }) {
 // The dot pulses while something is happening to (or on) the server — live, or mid-transition.
 const BUSY_STATUS = {
   online: true, updating: true, stopping: true, starting: true, restarting: true,
-  "backing-up": true, restoring: true,
+  "backing-up": true, restoring: true, moving: true,
 };
 
 function ServerListItem({ server, active, onClick }) {
@@ -78,6 +78,7 @@ function ServerListItem({ server, active, onClick }) {
     // underneath may be either.
     "backing-up": "var(--warning)",
     restoring: "var(--warning)",
+    moving: "var(--warning)",
     offline: "var(--fg-4)",
     crashed: "var(--danger)",
     // Unreachable rather than down — the same distinction the hero pill draws.

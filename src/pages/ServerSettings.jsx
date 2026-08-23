@@ -4,6 +4,7 @@ import { SettingsRow, SettingsSection, Toggle } from "../components/settings-pri
 import { serverCapUsable } from "../lib/capabilities.js";
 import { fetchSettings, patchSettings, deleteServer } from "../lib/stores.js";
 import { StartupSection, ScheduleSection, ResourcesSection } from "./serverSettings/SettingsSections.jsx";
+import { PlacementSection } from "./serverSettings/PlacementSection.jsx";
 
 // Settings panel — for things that don't belong in raw config files.
 // Autostart, scheduled restarts, crash recovery, update policy, resource caps,
@@ -248,6 +249,10 @@ function ServerSettings({ server, onDeleted }) {
       <ResourcesSection watchdogDown={watchdogDown} watchdogLed={watchdogLed}
         cpuPriority={cpuPriority} setCpuPriority={setCpuPriority}
         memoryCapMb={memoryCapMb} setMemoryCapMb={setMemoryCapMb} />
+
+      {/* Which disk it is on. Reads and writes on its own — a move starts the moment it is confirmed,
+          so it belongs to neither the form's dirty state nor its Save button. */}
+      <PlacementSection server={server} />
 
       {/* Button row */}
       <div style={{ display: "flex", gap: 10, padding: "8px 0", alignItems: "center", flexWrap: "wrap" }}>

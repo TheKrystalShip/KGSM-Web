@@ -7,6 +7,7 @@
 
 import React from "react";
 import { Icon } from "../../components/Icon.jsx";
+import { Select } from "../../components/Select.jsx";
 import { addLibrary, removeLibrary, renameLibrary } from "../../lib/stores.js";
 import { fmtBytes } from "../../lib/formatting.js";
 import { canOn } from "../../lib/persona.js";
@@ -29,6 +30,11 @@ function DiagLibraries({ host }) {
   const [renameTo, setRenameTo] = React.useState("");
   const [rowError, setRowError] = React.useState({});
   const [rowBusy, setRowBusy] = React.useState(null);
+
+  // Which row is offering to drain, and where to. Keyed by name for the same reason the errors are:
+  // one row's picker must never appear under another's.
+  const [draining, setDraining] = React.useState(null);
+  const [drainTo, setDrainTo] = React.useState("");
 
   // A node whose engine predates libraries reports null and this card does not exist — there is no
   // placement surface to draw and inventing one would offer a control the backend cannot act on.
@@ -60,14 +66,41 @@ function DiagLibraries({ host }) {
     );
   };
 
+  // A bare deregistration. The node refuses one that still holds servers and names every one of them;
+  // that refusal renders in this row, and offering to drain is the way past it.
   const submitRemove = (lib) => {
     setRowBusy(lib.name);
     setErr(lib.name, null);
     removeLibrary(host.id, lib.name).then(
       () => setRowBusy(null),
-      (err) => { setRowBusy(null); setErr(lib.name, errText(err, "Couldn’t deregister it.")); },
+      (err) => {
+        setRowBusy(null);
+        setErr(lib.name, errText(err, "Couldn’t deregister it."));
+        // Only where there is somewhere to drain INTO. Offering the alternative on a node with one
+        // other unreachable library would be a control that cannot work.
+        if (lib.instance_count > 0 && drainTargets(lib).length > 0) {
+          setDrainTo("");
+          setDraining(lib.name);
+        }
+      },
     );
   };
+
+  // Emptying it first, then deregistering. ⚠ This runs for as long as the copy takes — minutes per
+  // server — and nothing brackets it, so there is no progress to show and the row simply waits.
+  const submitDrain = (lib) => {
+    if (!drainTo) return;
+    setRowBusy(lib.name);
+    setErr(lib.name, null);
+    removeLibrary(host.id, lib.name, drainTo).then(
+      () => { setRowBusy(null); setDraining(null); setDrainTo(""); },
+      (err) => { setRowBusy(null); setErr(lib.name, errText(err, "Couldn’t empty it.")); },
+    );
+  };
+
+  // Where a library's servers could go: online, and not itself. An offline one is not offered —
+  // the node refuses placement into a root it cannot reach.
+  const drainTargets = (lib) => libraries.filter(l => l.online && l.name !== lib.name);
 
   return (
     <div className="chat-brief" style={{ marginTop: 16 }}>
@@ -155,6 +188,15 @@ function DiagLibraries({ host }) {
                             onClick={() => { setRenameTo(lib.name); setRenaming(lib.name); setErr(lib.name, null); }}>
                             Rename
                           </button>
+                          {lib.instance_count > 0 && drainTargets(lib).length > 0 && draining !== lib.name && (
+                            <button
+                              type="button"
+                              className="lib-btn"
+                              disabled={busy}
+                              onClick={() => { setDrainTo(""); setErr(lib.name, null); setDraining(lib.name); }}>
+                              Empty &amp; remove
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="lib-btn lib-btn--danger"
@@ -189,6 +231,39 @@ function DiagLibraries({ host }) {
                 </div>
 
                 {rowError[lib.name] && <div className="lib-err">{rowError[lib.name]}</div>}
+
+                {canManage && draining === lib.name && (
+                  <form className="lib-drain" onSubmit={e => { e.preventDefault(); submitDrain(lib); }}>
+                    <label className="lib-drain__label">
+                      Move {lib.instance_count} server{lib.instance_count === 1 ? "" : "s"} to
+                    </label>
+                    <Select
+                      className="lib-drain__pick"
+                      value={drainTo}
+                      autoFocus
+                      onChange={e => setDrainTo(e.target.value)}
+                      options={[{ value: "", label: "Choose a library…" }].concat(
+                        drainTargets(lib).map(t => ({
+                          value: t.name,
+                          // Free space beside the name: it is what decides whether the whole
+                          // library will fit, and it is the figure somebody is choosing on.
+                          label: t.free_bytes != null
+                            ? t.name + " · " + fmtBytes(t.free_bytes) + " free"
+                            : t.name,
+                        })),
+                      )} />
+                    <button type="submit" className="lib-btn lib-btn--primary" disabled={!drainTo || busy}>
+                      {busy ? "Moving…" : "Empty & remove"}
+                    </button>
+                    <button type="button" className="lib-btn" onClick={() => setDraining(null)}>Cancel</button>
+                    {/* Every server has to be stopped first — the node lists the running ones and
+                        moves nothing rather than shutting somebody's server down for them. */}
+                    <span className="lib-drain__note">
+                      Every server here has to be stopped first. Each is copied, started once on its
+                      new disk to confirm it runs there, and only then removed from this one.
+                    </span>
+                  </form>
+                )}
               </div>
             );
           })}

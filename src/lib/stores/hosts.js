@@ -181,9 +181,17 @@ function renameLibrary(hostId, from, to) {
 // No force. The node refuses while servers still resolve to the library and names them; that refusal
 // is the answer, and a flag that overrode it would produce in one click the state the engine exists to
 // prevent.
-function removeLibrary(hostId, name) {
+//
+// `drainTo` is the sanctioned way past it: every server in this library moves into that one, and the
+// library is deregistered once the last has landed. Every one of them has to be stopped first — the
+// node lists the running ones and moves nothing rather than stopping servers on somebody's behalf.
+//
+// ⚠ This request blocks for the whole copy, which is minutes per server. Nothing in the engine
+// brackets a drain, so there is no per-server progress to follow and the caller waits it out.
+function removeLibrary(hostId, name, drainTo) {
+  const qs = "?origin=ui" + (drainTo ? "&drain=" + encodeURIComponent(drainTo) : "");
   return api.host(hostId)
-    .del("/hosts/" + hostId + "/libraries/" + encodeURIComponent(name) + "?origin=ui")
+    .del("/hosts/" + hostId + "/libraries/" + encodeURIComponent(name) + qs)
     .then(r => hostsStore.refresh().then(() => r));
 }
 
