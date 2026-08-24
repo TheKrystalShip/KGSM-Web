@@ -1815,22 +1815,23 @@ try {
   assert(turnErr && turnErr.code === 503,
     `assistant turn: pre-stream degrade (503) throws an apiError the SPA renders (code=${turnErr && turnErr.code})`);
 
-  // The frame→message translation IS slice 9a's deliverable (sendLive just wraps this pure
-  // reducer in setConvos). Tool calls ride ON the assistant bubble (tools[]) — grouped under
-  // its turn, NOT spliced as a separate row before it. Exercise a TWO-turn sequence: tool-call
-  // ids reset per turn (tc_0_0), so turn-2's tool.result must resolve ITS tool — naturally
-  // isolated now, since each bubble owns only its own tools.
+  // The frame→message translation is a pure reducer (sendLive wraps it in setConvos). Tool calls
+  // ride ON the assistant bubble (tools[]) — grouped under its turn, NOT spliced as a separate row
+  // before it. Exercise a TWO-turn sequence: tool-call ids reset per turn (tc_0_0), so turn-2's
+  // tool.result must resolve ITS tool, which each bubble owning only its own tools gives for free.
+  // The running label rides ON the frame — the assistant owns its tools, so it owns what they are
+  // called; the SPA keeps no list of tool names to go stale.
   const { reduceTurnFrame: R } = await vite.ssrLoadModule("/src/pages/ChatPage.jsx");
   let m = [{ role: "user", content: "q1" }, { role: "assistant", content: "" }];
   m = R(m, { type: "text.delta", text: "Checking " });
   m = R(m, { type: "text.delta", text: "factorio-test…" });
-  m = R(m, { type: "tool.start", id: "tc_0_0", tool: "run_health_check" });
+  m = R(m, { type: "tool.start", id: "tc_0_0", tool: "run_health_check", label: "Running health check" });
   m = R(m, { type: "tool.result", id: "tc_0_0", summary: "5/5 passed" });
   m = R(m, { type: "done", text: "All healthy." });
   const bubble1 = m.find((x) => x.role === "assistant");
   const tool1 = bubble1.tools && bubble1.tools.find((t) => t.id === "tc_0_0");
   assert(tool1 && tool1.state === "done" && tool1.label === "Running health check" && tool1.summary === "5/5 passed",
-    "reduceTurnFrame: tool.start→tool on the bubble; tool.result resolves it by id (friendly label + summary, turn 1)");
+    "reduceTurnFrame: tool.start→tool on the bubble; tool.result resolves it by id (the leaf's label + summary, turn 1)");
   assert(m[m.length - 1].role === "assistant" && m[m.length - 1].content === "All healthy.",
     "reduceTurnFrame: text.delta streams into the bubble; done reconciles it to the full reply");
   // Turn 2 — same turn-local tool id reused on a fresh bubble.
@@ -1842,6 +1843,8 @@ try {
   const t2 = bubbles[1].tools.find((t) => t.id === "tc_0_0");
   assert(bubbles.length === 2 && t1.summary === "5/5 passed" && t2.summary === "online" && t1.state === "done" && t2.state === "done",
     "reduceTurnFrame: turn-2 tool.result (reused id) resolves turn-2's tool, NOT turn-1's resolved one");
+  assert(t2.label === "Get status",
+    `reduceTurnFrame: a label-less tool.start falls back to the prettified tool name, never a blank pill (${t2.label})`);
 
   // ---- Phase 5c: structured tool.result → rich Evidence card --------------
   // A `tool.result` carrying the §5·a `result` envelope (run_health_check →
@@ -2768,22 +2771,29 @@ try {
   assert(adapt.adaptLogPage(null).rows.length === 0 && adapt.adaptLogLine({}).level === "info" && adapt.adaptLogLine({}).text === "",
     "adaptLogPage/adaptLogLine: null → empty page; a level-less line defaults info + text '' (honest, never fabricated)");
 
-  // The real OPERATOR-gated endpoint, merged + per-source. Use the unscoped api.get (the sole/selected
-  // connection — the same resolution the audit-seed checks use), not api.host (which fans across the
-  // N≥2 synthetic connections this smoke registers). adaptResponse maps /hosts/{id}/logs → adaptLogPage.
-  // The real OPERATOR-gated endpoint on the backend under test (KGSM_API), run through the REAL adapter
-  // — proving the backend shape + adaptLogPage together. NB the SPA's api.get routes through the
-  // localStorage host registry, which may still point at a not-yet-redeployed host (the logs endpoint
-  // is new), so we fetch the backend-under-test directly here; end-to-end api.get routing lights up once
-  // that host is redeployed with this build.
-  const KNOWN_SOURCES = new Set(["watchdog", "monitor", "assistant", "firewall", "api", "bot"]);
-  const mergedLogs = adapt.adaptLogPage(await fetch(API + "/api/v1/hosts/" + hmId + "/logs?limit=5").then(r => r.json()));
-  assert(mergedLogs.rows.length > 0 && mergedLogs.rows.every(r => r.id && r.at && r.text != null && r.level && KNOWN_SOURCES.has(r.source)),
-    `host logs (live): GET /hosts/${hmId}/logs → ${mergedLogs.rows.length} merged line(s), each id/at/level/text + a known leaf source (adaptLogPage applied)`);
+  // The real OPERATOR-gated endpoint on the backend under test (KGSM_API), run through the REAL
+  // adapter — proving the backend shape + adaptLogPage together. We fetch it directly rather than
+  // through the SPA's api.get, because that routes through the localStorage host registry (the
+  // N≥2 synthetic connections this smoke registers) rather than the backend under test.
+  //
+  // The valid source set is READ FROM THE HOST (`/logs/sources`, which is what populates the SPA's
+  // own dropdown), never named here: the leaves a host serves journals for grow, and a list written
+  // down in this file fails the day one joins, in a way that reads like an SPA regression.
+  const srcInfo = await fetch(API + "/api/v1/hosts/" + hmId + "/logs/sources").then(r => r.json());
+  assert(Array.isArray(srcInfo) && srcInfo.length > 0 && srcInfo.every(s => s.id && s.label && s.unit),
+    `host logs (live): GET /hosts/${hmId}/logs/sources → ${(srcInfo || []).length} selectable source(s), each id/label/unit`);
+  const KNOWN_SOURCES = new Set((srcInfo || []).map(s => s.id));
 
-  const oneSrc = adapt.adaptLogPage(await fetch(API + "/api/v1/hosts/" + hmId + "/logs?source=watchdog&limit=3").then(r => r.json()));
-  assert(oneSrc.rows.every(r => r.source === "watchdog"),
-    `host logs (live): ?source=watchdog filters to that one leaf (${oneSrc.rows.length} line(s))`);
+  const mergedLogs = adapt.adaptLogPage(await fetch(API + "/api/v1/hosts/" + hmId + "/logs?limit=5").then(r => r.json()));
+  const strayLogSrc = mergedLogs.rows.map(r => r.source).find(s => !KNOWN_SOURCES.has(s));
+  assert(mergedLogs.rows.length > 0 && mergedLogs.rows.every(r => r.id && r.at && r.text != null && r.level) && !strayLogSrc,
+    `host logs (live): GET /hosts/${hmId}/logs → ${mergedLogs.rows.length} merged line(s), each id/at/level/text + a source the host declares (adaptLogPage applied)${strayLogSrc ? ` — '${strayLogSrc}' is not one of them` : ""}`);
+
+  // Filter on a source the merged page actually carried, so an empty answer can't pass vacuously.
+  const probeSrc = (mergedLogs.rows[0] && mergedLogs.rows[0].source) || (srcInfo[0] && srcInfo[0].id);
+  const oneSrc = adapt.adaptLogPage(await fetch(API + "/api/v1/hosts/" + hmId + "/logs?source=" + probeSrc + "&limit=3").then(r => r.json()));
+  assert(oneSrc.rows.length > 0 && oneSrc.rows.every(r => r.source === probeSrc),
+    `host logs (live): ?source=${probeSrc} filters to that one leaf (${oneSrc.rows.length} line(s))`);
 
   const badStatus = (await fetch(API + "/api/v1/hosts/" + hmId + "/logs?source=bogus")).status;
   assert(badStatus === 400, `host logs (live): an unknown ?source= is a 400, never a silent merge (got ${badStatus})`);
