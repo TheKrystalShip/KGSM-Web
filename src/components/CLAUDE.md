@@ -1,23 +1,22 @@
-# src/components/ — shared UI & the pieces extracted from the shell
+# src/components/ — shared UI & the shell pieces
 
 Reusable, mostly-presentational components. Two kinds live here: **UI primitives**
-shared across pages, and **shell pieces** the refactor pulled out of `App.jsx`.
+shared across pages, and **shell pieces** the app frame composes.
 A component here should be view logic — it may read a store via `useStore`, but
 it doesn't own routing or fetch from the API directly.
 
 ## The `<Modal>` primitive — use it, don't hand-roll
 
-`Modal.jsx` is the shared dialog primitive (commit `aa5d1f5` — 8 ad-hoc modals
-were migrated onto it). It owns the portal-to-body, scrim, Esc-to-close, and
-focus/scroll handling. **New dialogs compose `<Modal>`; don't re-implement a
-backdrop + portal by hand** (that's exactly the duplication the refactor removed).
+`Modal.jsx` is the shared dialog primitive. It owns the portal-to-body, scrim,
+Esc-to-close, and focus/scroll handling. **New dialogs compose `<Modal>`; don't
+re-implement a backdrop + portal by hand.**
 `Select.jsx` is the shared portal-popover dropdown — reach for it over a raw
 `<select>` when you need the styled menu.
 
-## Shell pieces extracted from App.jsx (refactor §3) — leave them out here
+## Shell pieces — each its own module
 
-These were `App.jsx` sections; keeping them as their own modules is what keeps
-the shell thin. Don't re-inline them.
+Each is its own module, which is what keeps the shell thin. Don't inline them
+into `App.jsx`.
 
 - `AssistantDockContext.jsx` — the assistant dock's state, derived layout, and
   interaction fns. `AssistantDockProvider` wraps the app; consumers read via
@@ -44,7 +43,7 @@ the shell thin. Don't re-inline them.
 ## The `pin` slot — how a card gets onto the dashboard
 
 `BriefCard`, `CardTable`, `KPI`, `ConsoleView` and `Rail` each take an optional **`pin`** in their
-header. Those five shells are about a hundred card surfaces between them, which is why the affordance
+header. Those five shells cover the bulk of the app's card surfaces, which is why the affordance
 lives there rather than at each call site.
 
 **It is a NODE, not a descriptor** — `pin={<PinButton type="leaf.logs" params={{ hostId, leafId }} />}`.

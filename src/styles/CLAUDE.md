@@ -2,7 +2,7 @@
 
 Plain CSS — **no Tailwind, no CSS-modules.** Three files load in order (from
 `../main.jsx`): `tokens.css` → `kit.css` → `consumer.css`. Everything is driven
-by ~40 CSS custom properties. The root `../CLAUDE.md` ("Styling & themes") has
+by the CSS custom properties `tokens.css` defines. The root `../CLAUDE.md` ("Styling & themes") has
 the full theming narrative; this is the local map + the one rule that matters.
 
 ## The one rule
@@ -11,7 +11,7 @@ the full theming narrative; this is the local map + the one rule that matters.
 in theme scopes in `tokens.css`; a rule references them via `var(--…)`. This is
 what makes theme switching (and adding a theme) a data change, not a code hunt.
 
-The same now applies to **radius** and to a surface's **border**: write
+The same applies to **radius** and to a surface's **border**: write
 `border-radius: var(--r-sm)` and `border: var(--edge)`, never a literal, because
 those two tokens are how a theme re-shapes the whole app at once.
 
@@ -32,8 +32,8 @@ some themes and wrong on others — `--fg-inverse` is dark in most themes and li
 in the tribute light ones, `--btn-accent-fg` tracks the teal specifically — and
 CSS has no `contrast()` to pick an ink from a background it was handed, so the
 pairing has to be stated per theme. `--on-accent` and `--on-success` *default
-through* those two tokens, so a theme that tuned them keeps its tuning; 29 themes
-re-value at least one of the six.
+through* those two tokens, so a theme that tuned them keeps its tuning; most
+themes re-value at least one of the six.
 
 ⚠ A per-theme `--on-*` is **not** a palette retouch, and does not conflict with
 "an upstream scheme ships unretouched" below. Choosing black rather than white
@@ -61,8 +61,7 @@ placeholder for the cinematic hero.
 **`npm run check:tokens` is the guard.** It fails on any `var(--…)` naming a
 property nothing defines — the failure mode CSS gives you for free otherwise, in
 which `border-color: var(--typo)` silently becomes `currentColor` and
-`border-radius: var(--typo)` silently becomes `0`. Two whole families of that had
-shipped here before the check existed. It cannot catch a raw literal, though: a
+`border-radius: var(--typo)` silently becomes `0`. It cannot catch a raw literal, though: a
 `border-radius: 4px` is valid CSS that simply will not follow a theme.
 
 ## `tokens.css` — the design-token source of truth
@@ -81,7 +80,7 @@ shipped here before the check existed. It cannot catch a raw literal, though: a
 
 ## The colour-vision pack (`cvd-*`) is checked, not eyeballed
 
-Twelve of the themes here are built for viewers who cannot rely on hue, and they
+The `cvd-*` themes are built for viewers who cannot rely on hue, and they
 carry a **measured guarantee**: every pair of status colours stays a stated
 ΔE2000 apart, and every contrast floor holds, *under a simulation of the
 deficiency the theme names*. The pack's banner comment in `tokens.css` states
@@ -106,7 +105,7 @@ all of them. Several are deliberately low-contrast (Solarized most of all: its
 accents are tuned to sit at equal weight against *both* of its backgrounds, and
 Nord's `#bf616a` red is 2.5:1 on its own card). Raising them would be raising them
 off the thing that makes them recognisable, so **don't "fix" one**: measured
-against WCAG floors the eighteen upstream palettes here carry well over a hundred
+against WCAG floors the upstream palettes here carry well over a hundred
 misses between them, and that is the house position, not an oversight.
 
 **A palette this repo invents is measured.** The colour-vision pack and the
@@ -122,7 +121,7 @@ above.
 
 ## The tribute pack is quoted, not designed
 
-Eight themes — matrix, win95, winamp, lcars, cyberpunk, dos-blue, c64, pico8 —
+The tribute themes — matrix, win95, winamp, lcars, cyberpunk, dos-blue, c64, pico8 —
 take their colours from a screen somebody already knows, and the pack's banner
 comment says what that costs. A source palette rarely carries five status
 families: CGA has no orange, LCARS has no green, the VGA sixteen were drawn for a
@@ -162,20 +161,16 @@ and no extra selector weight needed.
 Two limits worth knowing before you extend this. A true Win95 **bevel** needs four
 different edge colours and the `border` shorthand cannot carry them, so that theme
 ships the honest half — a 2px flat edge — rather than a fake of the whole; doing it
-properly means a shared button/card primitive, which does not exist yet (buttons
-are per-domain classes across ~20 partials). And **Monaco cannot read CSS custom
+properly means a shared button/card primitive, which does not exist (buttons
+are per-domain classes spread across the kit partials). And **Monaco cannot read CSS custom
 properties**: `CodeEditor.jsx` samples resolved colours at runtime, so the editor
 follows a theme's palette but keeps the house geometry and font.
 
 ## `kit.css` is a BARREL — do not edit it, edit the partial
 
-The old ~6,300-line monolith was split into focused partials under `kit/`.
-`kit.css` **only `@import`s them** — adding rules to `kit.css` itself defeats the
-split. Add a rule to the partial that owns the domain:
-
-`base` · `shell` · `page` · `server` · `catalog` · `modal` · `onboarding` · `dashboard`
-· `observability` · `controls` · `responsive` · `chat` · `rail` · `toast` · `settings`
-· `dock` · `hosts` · `states` · `extras` · `palette` · `batch` · `jobs`
+`kit.css` **only `@import`s** the focused per-domain partials under `kit/` —
+read the barrel for the set and the order. Adding rules to `kit.css` itself
+defeats the split; add a rule to the partial that owns the domain.
 
 `page` is the odd one and is deliberate: the page **heading** (`.dash-head`) and the
 in-page **tab strip** (`.subtabs`) are furniture every screen is built from rather
@@ -185,7 +180,7 @@ without also importing the partials that style servers and dashboards.
 
 - **Import order is load-bearing** (later wins on equal specificity) — keep the
   `@import` sequence. A new domain gets a **new partial appended to the barrel**,
-  never a re-grown monolith.
+  never a monolith.
 - `@import` must precede other rules; the imports-only barrel satisfies that.
 
 `consumer.css` — a few consumer surfaces (connect / MOTD / login persona).
@@ -205,8 +200,9 @@ complains.
 
 ## Theme landmines (see root `../CLAUDE.md` for detail)
 
-- **No-flash:** an inline boot script in `index.html` sets `data-theme` before the
-  stylesheet applies — it mirrors `../lib/theme.js`; keep the two in sync.
+- **No-flash:** an inline boot script in `index.html` **and `assistant.html`** sets
+  `data-theme` before the stylesheet applies — both mirror `../lib/theme.js`;
+  keep the three in sync.
 - **Always-dark media surfaces** (cinematic hero over key-art) pin dark tokens
   **locally** (see `.hero--cinematic` in `kit/server.css`) rather than
   per-theme special-casing.

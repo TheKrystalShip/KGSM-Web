@@ -1,9 +1,7 @@
 # Krystal Control Panel (`kgsm-web`)
 
 The web Control Panel SPA for the KGSM ecosystem — a **standard Vite + React 18**
-single-page app (JSX). It was ported from the no-build `krystal-design`
-prototype (React + Babel from a CDN, every symbol on `window`) into a real,
-tree-shaken ES-module build.
+single-page app (JSX), built as real, tree-shaken ES modules.
 
 > **Runtime multi-host client.** There is ONE data path: the app always talks to
 > real `kgsm-api`(s). With no host connected it opens the **"connect a host"**
@@ -68,8 +66,8 @@ kgsm-web/
   src/
     main.jsx              mounts <App/> in the root ErrorBoundary; imports global CSS
     App.jsx               the shell: auth gate, hash routing, sidebar, assistant dock
-    components/           25 shared components (Sidebar, ServerCard, ConsolePanel, …)
-    pages/                18 routed pages (Dashboard, Servers, Library, Alerts, …)
+    components/           shared components (Sidebar, ServerCard, ConsolePanel, …)
+    pages/                routed pages (Dashboard, Servers, Library, Alerts, …)
     lib/                  client data layer (see below) · theme.js (client-only theme pref)
     styles/
       tokens.css          design tokens + @font-face — :root structural + [data-theme] color scopes
@@ -82,7 +80,7 @@ kgsm-web/
 
 ### The data layer (`src/lib/`)
 
-The prototype's reactive store layer, ported verbatim to ESM:
+The reactive store layer:
 
 - `store.js` — `createStore` / `useStore` (React 18 `useSyncExternalStore`).
 - `apiClient.js` — the backend seam (`api`): `fetch` against `kgsm-api` (REST,
@@ -124,25 +122,22 @@ cp .env.example .env.local
 only see `api`. **`WIRING.md` is the authoritative front↔back contract**
 (endpoint/realtime/schema diff + the sequenced wiring plan).
 
-## What's done vs. what's left
+## Scope
 
-**Done:** the full UI on a real toolchain — all components + pages, the
-store/router/data layer, self-hosted fonts, lucide-react icons, the complete CSS,
-a green production build, and the live backend wiring (servers/hosts/audit/library/
-alerts via `fetch` + adapters + the realtime SSE stream, with honest-unknown
-rendering and the per-host Discord auth gate).
+The SPA is a complete, live multi-host client on a real toolchain: every page
+and component runs against real `kgsm-api`(s) through the store/router/data
+layer — servers/hosts/audit/library/alerts over `fetch` + adapters plus the
+realtime SSE stream, with honest-unknown rendering throughout. Auth is per-host:
+a KGSM username/password door and Discord OAuth, with password re-auth for
+sensitive writes and refresh-token rotation. The Files, Settings, Performance
+and Players server sub-tabs are each backed by a real endpoint. Both surfaces —
+the Control Panel and the standalone assistant — install as PWAs, each as its
+own app (see "PWA / installability" below).
 
-**Done (PWA):** the app is **installable** on Android/desktop Chrome and iOS
-Safari — a web app manifest (`public/manifest.webmanifest`) + a minimal
-same-origin service worker (`public/sw.js`, registered production-only via
-`src/lib/registerSW.js`) that serves an offline app shell while leaving all
-live `kgsm-api` traffic untouched. See "PWA / installability" below.
-
-**Left** (see `WIRING.md §8`): backends for the Files / Settings / Performance /
-Players sub-tabs (their UI renders a "work in progress" state today), optional
-TypeScript, a unit-test runner (Vitest + RTL), and a full Workbox **precache**
-(`vite-plugin-pwa`) — the current SW caches the shell on demand, not the whole
-build manifest up front.
+Deferred: TypeScript, a unit-test runner (Vitest + RTL), a full Workbox
+**precache** (`vite-plugin-pwa` — the service workers cache on demand, not the
+whole build manifest up front), and parts of multi-host fan-out (see
+`WIRING.md §8` and `src/lib/merge.js`).
 
 ## PWA / installability
 

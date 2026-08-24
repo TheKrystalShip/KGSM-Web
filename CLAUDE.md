@@ -8,15 +8,14 @@ sharing `src/chat/` — the conversation is the same code in both, because a div
 dock and the standalone page would be a bug, not a variant. Everything that differs is a prop.
 ⚠ The standalone surface must not reach the panel's data layer; `npm run check:assistant` enforces
 it (see `src/CLAUDE.md`). The Control Panel is a standard
-Vite + React 18 (JSX) single-page app, ported from the no-build `krystal-design`
-prototype. It is a **runtime multi-host client**: it reads a localStorage
+Vite + React 18 (JSX) single-page app. It is a **runtime multi-host client**: it reads a localStorage
 registry of `kgsm-api` hosts and talks to them over `fetch` + SSE. The
 `README.md` covers quick-start and the file layout; this file covers the
 architecture and the landmines.
 
 **Per-directory docs (read the one for wherever you're working):** the source
-tree carries focused nested `CLAUDE.md` files that lock in the 2026-07
-architecture-cleanup refactor's structure — `src/CLAUDE.md` (the source map +
+tree carries focused nested `CLAUDE.md` files with each area's structure and
+local conventions — `src/CLAUDE.md` (the source map +
 module boundaries), `src/pages/CLAUDE.md` (pages & routing), `src/lib/CLAUDE.md`
 (data layer), `src/lib/stores/CLAUDE.md` (the domain-split stores),
 `src/components/CLAUDE.md` (shared UI + `<Modal>`), `src/styles/CLAUDE.md` (CSS
@@ -60,8 +59,8 @@ three files in `deploy/` are self-contained, so a standalone clone deploys.
 **There is an ESLint gate (`npm run lint`) but no typecheck or unit-test runner** —
 don't hunt for `npm run test`. The lint config (`eslint.config.js`, ESLint 9 flat)
 is deliberately NARROW: `no-undef` and `react-hooks/rules-of-hooks` are **errors**
-(these are the static bug classes the build silently passed — see CHANGELOG v1.4.3:
-a component used-but-not-imported, and a hook called after an early return);
+(these are static bug classes the build itself cannot catch — a component
+used-but-not-imported, a hook called after an early return);
 `react-hooks/exhaustive-deps` and `no-unused-vars` are **warnings** (a real backlog
 to work down, not a wall). Keep errors at zero. The other automated check is
 `scripts/smoke-live.mjs` (`npm run smoke`): it boots the real Vite module graph in jsdom
@@ -214,8 +213,7 @@ realtime: liveStream.js (fetch-based SSE — one primary stream per host + per-v
 
 A few base-layer modules `import("...")`-lazily import upper ones (e.g.
 `apiClient.js` defers `stores.js`/`sessionStore.js`/`alertsApi.js`). This keeps
-the ESM graph **acyclic** — a carryover from the prototype's fixed global script
-order. Converting one of these to a static `import` can reintroduce a cycle and
+the ESM graph **acyclic**. Converting one of these to a static `import` can reintroduce a cycle and
 break boot. Read the comments before "tidying" an import.
 
 ## Auth, RBAC, capabilities
@@ -333,8 +331,9 @@ layout when the pin self-suppresses inside a widget.
 ## Styling & themes (`src/styles/`)
 
 Plain CSS, no Tailwind/CSS-modules. Three files load in order (`main.jsx`):
-`tokens.css` → `kit.css` → `consumer.css`. Everything is driven by ~40 CSS custom
-properties — **a component must never hardcode a color; add or extend a token.**
+`tokens.css` → `kit.css` → `consumer.css`. Everything is driven by the CSS custom
+properties `tokens.css` defines — **a component must never hardcode a color; add
+or extend a token.**
 
 - **`tokens.css` — the design-token source of truth, split by concern:**
   - A plain `:root` holds **structural** tokens (type, spacing, radius, edge,
@@ -342,29 +341,27 @@ properties — **a component must never hardcode a color; add or extend a token.
     `var()` is late-bound, so they pick up the active theme automatically.
     Most of these are invariant, but a closed subset — **the shape surface** —
     may be re-valued by a theme; the block's banner names it exactly.
-  - **Borders are the elevation model here** (~180 hairlines against two dozen
-    shadows), so the whole shorthand is a token: `--edge` / `--edge-strong` /
+  - **Borders are the elevation model here** (hairlines far outnumber shadows),
+    so the whole shorthand is a token: `--edge` / `--edge-strong` /
     `--edge-accent`. Those are the OUTLINE OF A SURFACE; a one-sided
     `border-top`/`border-bottom` is a **divider**, keeps the longhand, and stays a
     hairline in every theme.
-  - **Radii must go through `var(--r-*)`.** `--r-sm` carries ~260 of the kit's
-    radius declarations and `--r-pill` another ~150, which is what makes corner
-    geometry a one-line theme change. A literal `border-radius: 4px` is legal CSS
-    and simply will not follow a theme.
+  - **Radii must go through `var(--r-*)`.** `--r-sm` and `--r-pill` carry the
+    bulk of the kit's radius declarations, which is what makes corner geometry a
+    one-line theme change. A literal `border-radius: 4px` is legal CSS and simply
+    will not follow a theme.
   - **Color** tokens live in theme scopes: `:root, [data-theme="dark"]` (the
     default — applies with no attribute too) and `[data-theme="light"]`. Plus the
-    overlay tokens that used to be hardcoded everywhere: `--veil-1/2/3` (white-alpha
+    overlay tokens: `--veil-1/2/3` (white-alpha
     surface fills that flip to black-alpha on light), `--scrim-base` (modal/drawer
     backdrop, consumed via `color-mix` so each site keeps its own alpha), and
     `--scrollbar-*`. **The contract: a theme = the FULL color set re-valued.**
     Canvas-fade gradients use `color-mix(in srgb, var(--canvas) X%, transparent)`
     so they track the theme with no extra token.
-- **`kit.css` is a BARREL, not a file to edit.** The old ~6,300-line monolith is
-  split into **focused partials under `src/styles/kit/`** (`base`, `shell`, `page`,
-  `server`, `catalog`, `modal`, `onboarding`, `dashboard`, `observability`,
-  `controls`, `responsive`, `chat`, `rail`, `toast`, `settings`, `dock`, `hosts`,
-  `states`, `extras`). `kit.css` only `@import`s them. **Add a rule to the partial that owns
-  the domain — do NOT grow a monolith again.** Import **order is load-bearing**
+- **`kit.css` is a BARREL, not a file to edit.** It only `@import`s the focused
+  per-domain partials under `src/styles/kit/` — read the barrel for the set and
+  order. **Add a rule to the partial that owns
+  the domain — do NOT grow a monolith.** Import **order is load-bearing**
   (later wins on equal specificity): keep the `@import` sequence; a new domain gets
   a new partial appended to the barrel. `@import` must precede other rules, which
   the imports-only barrel satisfies.
@@ -429,25 +426,16 @@ Landmines:
   NOT lay out CSS, so it can't catch a theme regression). It seeds `krystal:theme`
   with whatever id you give it, so any palette in `THEME_OPTS` can be shot.
 
-## Where truth lives, and stale-doc warnings
+## Where truth lives
 
 - **`WIRING.md` is the authoritative front↔back contract** — endpoint/realtime/
   schema diffs + the sequenced wiring plan. `§8` is the slice ledger; consult it
-  for what's wired vs. pending rather than trusting prose elsewhere.
-- **The README's "What's done vs. left" section is STALE.** Auth (Discord OAuth +
-  per-host re-auth + refresh-token rotation) and the realtime SSE stream
-  (fetch-based `text/event-stream`; protocol authority:
-  `kgsm-api/src/Api/Realtime/CLAUDE.md`) are
-  **built and committed** (see `authRedirect.js`, `sessionStore.js`,
-  `liveStream.js`, and the git log) — they are NOT "left". **PWA installability is
-  also built, for BOTH surfaces** — each installs as its own app, with its own manifest,
-  production-only service worker and icons under `public-<surface>/` (see the
-  "PWA / installability" section in `README.md`, `scripts/public-overlay.js`, and
-  `src/lib/registerSW.js`). The Files/Settings/Performance/Players tabs are wired
-  to real endpoints too. Genuinely still deferred: TypeScript, a unit-test runner,
-  a full Workbox **precache** (`vite-plugin-pwa`; the current SW caches on demand,
-  not the whole build manifest), and parts of multi-host fan-out. Describe current
-  state from code + git, not from that list.
+  for what's wired vs. pending rather than trusting prose elsewhere. The realtime
+  SSE protocol's authority is `kgsm-api/src/Api/Realtime/CLAUDE.md`.
+- **Deferred, repo-wide:** TypeScript, a unit-test runner, a full Workbox
+  **precache** (`vite-plugin-pwa`; the service workers cache on demand, not the
+  whole build manifest), and parts of multi-host fan-out (see `merge.js`,
+  `WIRING.md`).
 
 ## Version tracking
 
@@ -476,6 +464,12 @@ history; never duplicate it into docs or code.
   survive it: *"temporary shim for the rework"*, *"added to satisfy the new requirement"*,
   milestone/phase labels (*"per M2"*, *"the Phase 1 step"*). If a line's justification is the work
   that produced it rather than the system as it now stands, it goes.
+- **No volatile numbers.** Counts and versions that drift — how many projects/files/tests/
+  partials exist, a dependency's pinned version, a file's line count — never go in prose: they are
+  stale the moment anything changes, and nothing fails to remind anyone. Name the authoritative
+  source instead (the csproj, the directory, the barrel file). A number belongs in prose only when
+  it *is* the contract (a port, a timeout, a cap) or a measured fact that is itself the reason a
+  design exists.
 - **Edits are replacements, not appends.** When changing an existing feature, rewrite the affected
   doc/comment fresh as if writing it for the first time — never append a correction under the
   stale version, and never leave the stale version standing beside the new. The current revision

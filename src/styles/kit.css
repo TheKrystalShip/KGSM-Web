@@ -1,7 +1,7 @@
 /* Local glue for the Krystal control-panel UI kit.
    ----------------------------------------------------------------------------
-   This file was a 6,300-line monolith; it is now a BARREL that imports focused
-   per-domain partials from ./kit/ in CASCADE ORDER. Order is load-bearing —
+   A BARREL that imports focused per-domain partials from ./kit/ in CASCADE
+   ORDER. Order is load-bearing —
    later rules win on equal specificity, so keep these @imports in this exact
    sequence and add new rules to the partial that owns the domain (or a new
    partial appended here). `@import` must precede other rules, which this

@@ -1,10 +1,9 @@
-# src/ — source map & the module boundaries the refactor established
+# src/ — source map & module boundaries
 
 This directory is the whole SPA. The **root `../CLAUDE.md`** owns the
 architecture narrative (connection model, data layer, auth/RBAC, styling,
 where-truth-lives) — read it first. **This file owns the *structure*:** what
-lives where, and the boundaries the 2026-07 architecture-cleanup refactor put in
-place so future work doesn't collapse them back.
+lives where, and the module boundaries to keep.
 
 ## Two surfaces, one source tree
 
@@ -56,36 +55,34 @@ Dependencies point **downward only**. A page imports from `lib/` and
 `components/`; `lib/` never imports a page; `components/` are leaf UI. Don't add
 an upward edge (a store importing a page, a component reaching into a page).
 
-## The three boundaries the refactor drew — keep them
+## Three boundaries — keep them
 
 1. **`App.jsx` is the chooser and the shell, not a page host.** It picks between
    `AuthGate` (no identity, or one holding nothing) and `AppInner`, and owns the layout frame
    (sidebar / `<main>` / assistant dock / FAB), the global modals (install,
    first-run), and cross-cutting handlers (`handleAction`,
-   `confirmInstall`, logout). It does **not** contain page bodies — those were
-   extracted. Resist re-inlining a page into `App.jsx`.
+   `confirmInstall`, logout). It holds **no page bodies** — don't inline one
+   into `App.jsx`.
 
 2. **`AppRouter.jsx` is routing only.** It maps `route.kind` → the right lazy
    page and threads callbacks. It reads assistant/dock state from
    `useAssistantDock()` (context) and lets pages read domain data from the
    singleton stores themselves — it does **not** fetch data or hold page state.
    Every page is `React.lazy(...)` behind one `<Suspense>` (route-level code
-   splitting — see commit `e2379bd`). A new page = add a `React.lazy` line + one
-   `{route.kind === "x" && <Page .../>}` branch. Don't turn it back into a
-   data-threading hub.
+   splitting). A new page = add a `React.lazy` line + one
+   `{route.kind === "x" && <Page .../>}` branch. It is not a data-threading hub.
 
-3. **Big files were split into focused folders — don't re-monolith.** The
-   refactor broke the four grab-bag files apart:
-   - `App.jsx` sections → `components/AssistantDockContext.jsx`,
-     `components/Breadcrumb.jsx`, `components/BootLanding.jsx`,
-     `components/MobileNavToggle.jsx`, `hooks/useRouteSync.js`,
-     `hooks/useMobileSwipe.js`, `lib/authStorage.js`.
-   - the chat → `chat/` (shared by both surfaces; see below)
-   - `pages/DiagnosticsPage.jsx` (1475→290) → `pages/diagnostics/`
-   - `pages/PerformanceTab.jsx` → `pages/performance/`
-   - `lib/stores.js` (monolith) → `lib/stores/` (see `lib/stores/CLAUDE.md`)
+3. **Big screens live in focused folders and modules — don't monolith.** The
+   shell's satellite pieces are their own modules
+   (`components/AssistantDockContext.jsx`, `components/Breadcrumb.jsx`,
+   `components/BootLanding.jsx`, `components/MobileNavToggle.jsx`,
+   `hooks/useRouteSync.js`, `hooks/useMobileSwipe.js`, `lib/authStorage.js`);
+   the chat lives in `chat/` (shared by both surfaces; see above);
+   `pages/DiagnosticsPage.jsx` and `pages/PerformanceTab.jsx` are thin entries
+   over `pages/diagnostics/` and `pages/performance/`; the stores are domain
+   modules under `lib/stores/` (see `lib/stores/CLAUDE.md`).
 
-   The rule going forward: **a page over ~400 lines gets its own `pages/<name>/`
+   The rule: **a page over ~400 lines gets its own `pages/<name>/`
    folder** with the entry file thin and the pieces beside it — not another
    append to a growing file. Each directory has its own `CLAUDE.md` with the
    local conventions.
@@ -96,7 +93,7 @@ an upward edge (a store importing a page, a component reaching into a page).
 |---|---|---|
 | `pages/` | Route + tab components; `pages/<name>/` folders for the split ones | `pages/CLAUDE.md` |
 | `lib/` | Data layer + policy: apiClient, adapters, stores, persona, router, config | `lib/CLAUDE.md` |
-| `lib/stores/` | Domain-split reactive stores (was the `stores.js` monolith) | `lib/stores/CLAUDE.md` |
+| `lib/stores/` | Domain-split reactive stores; `lib/stores.js` re-exports them | `lib/stores/CLAUDE.md` |
 | `components/` | Shared/presentational UI + the `<Modal>` primitive | `components/CLAUDE.md` |
 | `hooks/` | `useRouteSync` (URL↔route sync), `useMobileSwipe` (drawer/dock gestures), `usePortalPopover` (portalled popovers — shared by chat and the panel) | — |
 | `styles/` | Plain CSS: `tokens.css` → `kit.css` (barrel over `kit/`) → `consumer.css` | `styles/CLAUDE.md` |

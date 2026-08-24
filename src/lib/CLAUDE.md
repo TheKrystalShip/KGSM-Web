@@ -24,7 +24,7 @@ realtime: liveStream.js (fetch-SSE) ──adaptStreamMessage──▶ same store
   state). **Every call site only ever sees `api`.** Every stream frame it
   dispatches carries `hostId` — the node whose socket delivered it — so a
   listener never has to guess which node produced an event.
-- `liveStream.js` — fetch-based SSE (migrated off WebSocket 2026-07-02). One
+- `liveStream.js` — fetch-based SSE. One
   primary stream per host + per-view dynamic streams; drives `realtimeStore` via
   `onMode`.
 - `sse.js` — the low-level fetch-SSE reader used by `liveStream`.
@@ -88,8 +88,8 @@ publishes a default over the stored value. `dashboardStore.hydrate` encodes the 
 backend id, since the home node is addressed by that id.
 
 **Stores** — see `stores/CLAUDE.md`. `store.js` is the tiny reactive primitive
-(`createStore` + `useStore`, React 18 `useSyncExternalStore`). `stores.js` is a
-**back-compat re-export barrel** over `stores/` — new code can import from either.
+(`createStore` + `useStore`, React 18 `useSyncExternalStore`). `stores.js`
+re-exports `stores/` — import from either.
 
 **Connection / config / multi-host**
 - `config.js` — the connection model: `CONNECTIONS` (seeded from the localStorage
@@ -229,6 +229,6 @@ backend id, since the home node is addressed by that id.
 
 A few base modules **lazily** `import("...")` upper ones (e.g. `apiClient.js`
 defers `stores.js`/`sessionStore.js`/`alertsApi.js`) to keep the ESM graph
-**acyclic** — a carryover from the prototype's fixed script order. Converting one
+**acyclic**. Converting one
 of these to a static `import` can reintroduce a cycle and break boot. Read the
 comment before changing an import.

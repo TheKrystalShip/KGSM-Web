@@ -36,7 +36,7 @@
 // you reach it from: the URL keeps descending instead of jumping to a sibling
 // top-level word, so the path reads as the trail you walked.
 //
-// The pre-cluster URL words #/diagnostics and #/hosts still resolve to #/cluster,
+// The URL words #/diagnostics and #/hosts are aliases that resolve to #/cluster,
 // and #/leaf/<hostId>/<leaf> resolves to the nested leaf path, so old links and
 // bookmarks keep working.
 //
@@ -177,7 +177,7 @@
       }
       case "alerts":    return q.get("serverId") ? { kind: "attention", serverId: q.get("serverId") } : { kind: "attention" };
       case "settings":  return segs[1] ? { kind: "settings", tab: dec(segs[1]) } : { kind: "settings" };
-      // Pre-cluster URL words still resolve so old links/bookmarks keep working.
+      // Alias words resolve to the cluster route so links and bookmarks keep working.
       case "diagnostics":
         return { kind: "cluster" };
       case "hosts":     return segs[1] === "add" ? { kind: "addHost" } : { kind: "cluster" };

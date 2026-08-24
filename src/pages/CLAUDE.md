@@ -17,8 +17,8 @@ AppRouter: route.kind ──▶ the matching lazy <Page/>
 
 - **`route.kind` is the internal vocabulary; the URL word can differ on purpose**
   — `kind:"attention"` ↔ `#/alerts`, `kind:"chat"` ↔ `#/assistant`
-  (`kind:"cluster"` ↔ `#/cluster`, with the pre-cluster `#/diagnostics`/`#/hosts`
-  words still resolving). Keep both sides in sync in `router.js` when you add a route.
+  (`kind:"cluster"` ↔ `#/cluster`; `#/diagnostics` and `#/hosts` are aliases that
+  also resolve to it). Keep both sides in sync in `router.js` when you add a route.
 - **`persona.resolveRoute()` is the routing chokepoint** (`../lib/persona.js`): a
   forbidden route is remapped to the persona's home *before* it enters state or
   mounts. `App.setRoute` runs every route through it. Don't bypass it.
@@ -84,21 +84,21 @@ typing, and the node decides.
 
 ## The split-page folders — keep the entry thin
 
-Four screens were too big and were broken into folders (root-`CLAUDE.md` refactor
-§3). The entry file stays thin (state + layout); the pieces live beside it.
-**Don't fold these back into their entry file — grow the folder instead.**
+Big screens live as folders: the entry file stays thin (state + layout) and the
+pieces live beside it.
+**Don't fold these into their entry file — grow the folder instead.**
 
 | Entry | Folder | Holds |
 |---|---|---|
-| `ChatPage.jsx` (512) | `chat/` | thread/message/parts, evidence cards, context meter, host picker, `chatUtils`/`chatConstants` |
-| `DiagnosticsPage.jsx` (290) | `diagnostics/` | `DiagOverview/Resources/Services/Logs`, `DiagLibraries` (the placement roots + the admin's register/rename/deregister controls — its own file because `DiagResources` is otherwise a pure render), `DiagJobs` (the node's `JobQueue`), host cards, `LeafConfigModal`, `diagHelpers` (the leaf card itself is `components/LeafCard.jsx`) |
+| `ChatPage.jsx` | `../chat/` (shared by both surfaces) | thread/message/parts, evidence cards, context meter, host picker, `chatUtils`/`chatConstants` |
+| `DiagnosticsPage.jsx` | `diagnostics/` | `DiagOverview/Resources/Services/Logs`, `DiagLibraries` (the placement roots + the admin's register/rename/deregister controls — its own file because `DiagResources` is otherwise a pure render), `DiagJobs` (the node's `JobQueue`), host cards, `LeafConfigModal`, `diagHelpers` (the leaf card itself is `components/LeafCard.jsx`) |
 | `PerformanceTab.jsx` | `performance/` | `PerfCards`, `perfHelpers` |
 | `ServerSettings.jsx` | `serverSettings/` | `SettingsSections` |
-| `DashboardPage.jsx` | `dashboard/` | `catalog.js` (the widget registrations), `widgets/` (the pinnable bodies), `fleetKpis.js` (the twelve figures), `DashFleetStrip`, `AddWidgetSheet`, `DashboardEmpty` |
+| `DashboardPage.jsx` | `dashboard/` | `catalog.js` (the widget registrations), `widgets/` (the pinnable bodies), `fleetKpis.js` (the fleet KPI figures), `DashFleetStrip`, `AddWidgetSheet`, `DashboardEmpty` |
 | `leafConfig/LeafConfigPage.jsx` | `leafConfig/` | `LeafConfigRow`, `LeafConfigReview`, `leafConfigHelpers` |
 | `GamePage.jsx` | `library/` | `GameOverview`, `GamePlacement`, `GameBlueprintTab`, `GameServersTab`, `BlueprintFileCard`, `BlueprintHostPicker`, `LibraryCreatePage` |
 
-New rule of thumb: **a page pushing ~400 lines gets its own `pages/<name>/`
+Rule of thumb: **a page pushing ~400 lines gets its own `pages/<name>/`
 folder** rather than another append.
 
 ## Server, host & game detail = tabbed pages

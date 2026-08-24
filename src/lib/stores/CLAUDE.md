@@ -1,15 +1,13 @@
 # src/lib/stores/ — the domain-split reactive stores
 
-This folder **was one file** (`../stores.js`, a monolith). The refactor
-(`1af2146`, phase-7) split it by domain. `../stores.js` now only re-exports from
-here for back-compat. **Don't grow a new monolith — a new domain gets a new
-module in this folder, wired into the barrel.**
+One module per domain; `../stores.js` re-exports from here. **Don't grow a
+monolith — a new domain gets a new module in this folder, wired into the
+barrel.**
 
 ## The barrel
 
-`index.js` re-exports every public symbol so the old `import { … } from
-"../stores.js"` API is unchanged; `../stores.js` is a one-line pass-through to
-it. Import from either — both resolve here.
+`index.js` re-exports every public symbol; `../stores.js` is a one-line
+pass-through to it. Import from either — both resolve here.
 
 `index.js` re-exports `startDataLayer` / `stopDataLayer` from `boot.js`. **Importing
 this barrel hydrates nothing and opens no socket** — the shell calls `startDataLayer()`
@@ -29,7 +27,7 @@ cycle `sessionStore` → `stores.js` → `stores/index.js` → `boot.js` and bre
 | `audit.js` | the cluster-wide audit log, plus the node-attribution helpers every surface labels or filters rows with (`auditEventHost`, `auditInScope`, `serverHostId`). **There is no app-wide node scope** — a node is an attribute of a row, and narrowing is local to the list that offers it |
 | `diagnostics.js` | host logs, log sources, services, leaf provisioning/config (`logsStore`, `servicesStore`, `applyLeafConfig`). **`leafLogsStore` is KEYED by (host, leaf)** — `byKey[leafLogsKey(h,l)]`, not one slot — because two journals can be on screen at once (two pinned to the dashboard, or one pinned while its own page is open) and a single slot had each refresh blank the other with nothing to show for it. Acquire it through `useKeyedResource` so N mounts share one hydrate and one subscription, and the last release `drop()`s the window |
 | `players.js` | one server's player roster, **KEYED by (host, server)** — `byKey[playersKey(h,s)]`. Keyed for the same reason `leafLogsStore` is: the Players tab and a command palette scoped to that server are routinely mounted at once (the palette opens over the page it is scoped to), and one slot had each reader blank the other. Acquire through `useKeyedResource`; the last release `drop()`s it, because a kept roster carries live statuses and would render stale. ⚠ **Tail-then-follow is a race here**: `acquire` calls hydrate and follow back to back and neither waits, so live frames arrive mid-read and are BUFFERED until the roster lands, then replayed in order behind it — without that, a join applied first is silently undone by the hydrate |
-| `files.js` | per-server working-dir file tree + editor cache (self-contained; only `api.host()`, no WS channel) |
+| `files.js` | per-server working-dir file tree + editor cache (self-contained; only `api.host()`, no live stream) |
 | `library.js` | the installable game catalog (mostly static; hydrate from `/library`) |
 | `ui.js` | favourites + the per-node link-latency probe the capacity strip, cluster constellation and diagnostics read. A favourite is the ACCOUNT's, not the browser's — it rides `prefs.js` under `servers.favorites`, because it decides what the sidebar keeps a permanent shortcut to and per-device shortcuts could not be reconciled by anybody. Entries are `{id, hostId}` like `selection.js`: a favourite the roster cannot find is either an unreachable node or a deleted server, and only the node tells those apart. ⚠ Insertion order, never re-sorted — the sidebar list is a dock, and a shortcut that moves when a server changes state has stopped being one |
 | `selection.js` | the set of servers one gesture is about to act on — ids plus the node each belongs to, since a selection is cluster-wide and the dispatcher groups by node. Shaped after `favoritesStore` and deliberately **not** persisted: it is a gesture, not a preference. Three rules live here — cleared when a filter moves (a selected row hidden behind a filter is invisible consent), never written to storage, and narrowed by a settled run to what still needs doing |
