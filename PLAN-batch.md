@@ -120,7 +120,7 @@ wearing one button.
   `toggle`/`set`/`has`; the shape a selection store copies.
 - **`serverOperable(server)` / `canOn("server.operate", hostId)`** — `lib/persona.js`. Per-host, so a
   selection spanning nodes the user operates unevenly is answerable per row.
-- **`registerWidget`** — `lib/widgets/registry.js:38`. The ops tray is a dashboard widget on day one.
+- **`registerWidget`** — `lib/widgets/registry.js:38`. The runs board is a dashboard widget.
 - **The filtered + ordered list** — `pages/ServersPage.jsx:233`/`:243`. Selection is a set over this.
 
 ## 3. What has to be new
@@ -245,7 +245,7 @@ per-connection `{ conn, ok, data | err }` result shape `fanOut` already uses
 (`lib/apiClient.js:824`) is the right one to copy, so an unreachable node is a recorded outcome
 rather than a rejected promise — but `fanOut` itself is GET-only and is not the thing to reuse.
 
-**The ops tray is required, not optional.** It is how a person checks on a run after closing the
+**The runs board is required, not optional.** It is how a person checks on a run after closing the
 tab, so it hydrates from `GET /batches?active=true` across every connected node on mount, groups by
 `runId`, and follows the stream after — not a view assembled from frames that only a client present
 at dispatch could have seen. It shows runs; a run's per-node breakdown is available inside one.
@@ -601,9 +601,11 @@ injected data — the lane degrades to the bare position without one, which is w
 shot rendering. A settled row's own layout is likewise unverified in a browser: a settled job can
 only arrive on the stream, and arranging one means running a real command on a real server.
 
-**S4 — the ops tray. BUILT** (`kgsm-web` 1.150.0). `components/batch/OpsTray.jsx` — the sidebar
-tray beside Notifications and the pinnable `fleet.runs` widget over the same `RunsBoard`, the
-hydrate + grouping in `stores/batches.js`, and `cancelRun` in `lib/batchRun.js`.
+**S4 — the runs board. BUILT** (`kgsm-web` 1.150.0). `components/batch/RunsBoard.jsx` — the
+`fleet.runs` dashboard widget, the hydrate + grouping in `stores/batches.js`, and `cancelRun` in
+`lib/batchRun.js`. The board is the dashboard's alone: a sidebar tray for it sat empty in every
+session that fired no bulk action, and where a run should be surfaced ambiently is an open question
+to answer when a multi-node deployment makes it a real one.
 
 A run states its verb once, its servers and its node count, its progress in the nodes' own counts, and
 who started it; opening one shows each node's share and every member's standing, with a queued

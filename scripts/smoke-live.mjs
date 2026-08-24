@@ -1224,7 +1224,7 @@ try {
     "running work is its own lane, with a spinner because something IS spinning — and queued is empty again");
   st.serversStore.patch(PROBE.id, { job: null });
 
-  // ---- S4: the ops tray — one run, however many nodes ----------------------
+  // ---- S4: the runs board — one run, however many nodes --------------------
   // A run is what a person started; a batch is one node's share of it. No node knows about any
   // other, so the run id every node was handed verbatim is the only thing that puts the shares back
   // together — including a run this browser never dispatched.
@@ -1329,21 +1329,28 @@ try {
   assert(trayRuns().find((r) => r.runId === TRAY_RUN).batches.length === 3,
     "a node going quiet does not shrink the runs already known: its silence is about ITS share");
 
-  // The tray itself, drawn with that node still silent so the board has to say so.
-  const trayHtml = await nav("#/servers");
-  assert(trayHtml.length > 200, "the shell still renders with the ops tray mounted in the sidebar");
-  const trayNav = w.document.querySelector(".opstray .nav-item");
-  const notifNav = w.document.querySelector(".notif .nav-item");
-  assert(!!trayNav && !!notifNav,
-    "the ops tray sits beside the notifications tray in the sidebar's foot, and is a separate control");
-  const trayBadge = w.document.querySelector(".opstray .nav-item__badge");
-  assert(trayBadge && Number(trayBadge.textContent) >= 1,
-    "the badge counts RUNS in flight across the cluster, not batches and not toasts");
-  trayNav.click();
+  // The board itself, drawn with that node still silent so it has to say so. It reaches the
+  // dashboard as the `fleet.runs` widget and lives nowhere else, so it is mounted the way the widget
+  // host mounts it rather than opened out of a sidebar.
+  const shellHtml = await nav("#/servers");
+  assert(shellHtml.length > 200, "the shell still renders");
+  assert(!w.document.querySelector(".opstray"),
+    "the sidebar's foot holds no runs tray: the board is a widget somebody pins, and two trays a foot apart would read as one list");
+  assert(!!w.document.querySelector(".notif .nav-item"),
+    "the notifications tray keeps its place — it is this browser's own history and is what the foot is for");
+  {
+    const { getWidget } = await vite.ssrLoadModule("/src/lib/widgets/registry.js");
+    await vite.ssrLoadModule("/src/pages/dashboard/catalog.js");
+    const entry = getWidget("fleet.runs");
+    assert(!!entry && (entry.params || []).length === 0,
+      "the board is registered as `fleet.runs` and is bound to no node — which is what lets the Add-widget catalog offer it at all");
+  }
+  const { RunsBoard } = await vite.ssrLoadModule("/src/components/batch/RunsBoard.jsx");
+  const boardNode = w.document.createElement("div");
+  const boardRoot = createRoot(boardNode);
+  boardRoot.render(React.createElement(RunsBoard));
   await sleep(300);
-  const pop = w.document.querySelector(".opstray__pop");
-  assert(!!pop, "the tray opens onto the runs board");
-  const popText = pop.textContent || "";
+  const popText = boardNode.textContent || "";
   assert(popText.includes("Update") && popText.includes("on 3 nodes"),
     "a run names its verb once for the whole run and states the node count whenever it crosses more than one");
   assert(/couldn.t be read/.test(popText),
@@ -1352,10 +1359,7 @@ try {
     "the run's progress is the nodes' own counts, in their own words — 'unknown' keeps its hedge");
   assert(!/audit log|lives in|this browser|closing this doesn/i.test(popText),
     "the runs board carries no explanatory prose — a component shows its data, it does not teach the system");
-  assert((pop.querySelector(".pin-btn")),
-    "the board can still be pinned to a dashboard: the pin survives on its own row, not in a note");
-  trayNav.click();
-  await sleep(120);
+  boardRoot.unmount();
   globalThis.fetch = realFetch;
   st.batchesStore.drop("b_tray1"); st.batchesStore.drop("b_tray2");
   st.batchesStore.drop("b_tray3"); st.batchesStore.drop("b_lonely");

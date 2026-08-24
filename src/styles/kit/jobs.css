@@ -86,19 +86,6 @@
   min-height: 0;
 }
 
-.opsq__head {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.opsq__head:empty {
-  display: none;
-}
-
-.opsq__head .pin-btn {
-  opacity: 1;
-}
-
 /* ---- one run ------------------------------------------------------------- */
 
 .opsrun {
@@ -312,55 +299,3 @@
   color: var(--fg-3);
   padding: 4px 0;
 }
-
-/* ---- the sidebar tray ---------------------------------------------------- */
-
-/* The collapsed rail hides `.nav-item__label` and re-places `.nav-item__badge`
-   itself (kit/extras.css), so the entry needs no rail-specific markup — the same
-   arrangement the notifications entry beside it uses. */
-.opstray__pop {
-  position: fixed;
-  z-index: 95;
-  width: min(420px, calc(100vw - 24px));
-  max-height: min(520px, 74vh);
-  display: flex;
-  flex-direction: column;
-  background: var(--surface-1);
-  border: var(--edge);
-  border-radius: var(--r-sm);
-  box-shadow: var(--shadow-pop);
-  overflow: hidden;
-}
-
-.opstray__head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--border-subtle);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  color: var(--fg-3);
-}
-
-/* Says whose truth this is, in the one place somebody could mistake it for the
-   notification history sitting directly below it. */
-.opstray__head-sub {
-  margin-left: auto;
-  font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
-  font-size: 10.5px;
-}
-
-.opstray__body {
-  padding: 10px 12px 12px;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-/* In the popover the board is already inside a scrolling shell, so the inner list
-   takes its height from the content instead of scrolling within a scroller. */
-.opstray__body .opsq__runs { max-height: none; overflow: visible; }

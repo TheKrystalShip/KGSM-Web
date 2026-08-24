@@ -287,14 +287,19 @@ predicted, what is armed, and what the nodes actually said.
   the gesture does not, because stop is reversible and uninstall is excluded from batching entirely.
   Pressing it hands off to `lib/batchRun.js` and the sheet switches to the run's result.
 
-- **`OpsTray.jsx`** — what the whole cluster is doing, and how it is going. `RunsBoard` is the board;
-  `OpsTray` is the sidebar entry and its popover. The board hydrates `stores/batches.js` and renders
+- **`RunsBoard.jsx`** — what the whole cluster is doing, and how it is going. It is the `fleet.runs`
+  dashboard widget and nothing else: fleet-scoped, so it takes no `hostId`, which is what makes it
+  offerable from the Add-widget catalog at all. The board hydrates `stores/batches.js` and renders
   one card per **run**, reassembled by grouping the nodes' batches on the client-minted `runId` — so a
   run this browser never dispatched reads exactly like one it did. Opening a card shows each node's
   share and every member's standing. **Cancel is here**: one `DELETE` per node holding a share,
   addressed only to the nodes this person may operate, stopping **pending** members and naming what
-  was already running and could not be stopped. Mounted twice, as ever — the tray and the `fleet.runs`
-  widget are the same component, and it is fleet-scoped, so it takes no `hostId`.
+  was already running and could not be stopped.
+
+  It is a widget somebody pins rather than a permanent sidebar tray because a run is born on the
+  Servers page and settles in seconds, and the badge for it sat empty in every session that never
+  fired a bulk action. `host.jobs.queued`/`host.jobs.running` answer the per-node question and are
+  bound for that reason.
 
 ⚠ **The two screens are different on purpose.** Everything before the press is a prediction this
 client made so it could explain itself; everything after it is read from the nodes' answers, which may
@@ -333,10 +338,11 @@ conditions about the fleet, server-side and the same for everyone; Notifications
 are yours and this browser's. The foot placement and the `bell` vs `triangle-alert`
 icons are what hold them apart.
 
-⚠ And distinct from the **Runs** tray sitting directly above it (`batch/OpsTray.jsx`). That one is
-server-side truth about the fleet — work the nodes are executing, hydrated from every one of them,
-the same for everybody and outliving this tab. This one is per-browser and is what *you* did in it.
-They are two trays a foot apart, which is exactly why each says whose truth it holds.
+⚠ And distinct from the **Runs** board (`batch/RunsBoard.jsx`), which is server-side truth about the
+fleet — work the nodes are executing, hydrated from every one of them, the same for everybody and
+outliving this tab. This one is per-browser and is what *you* did in it. Runs lives on the dashboard
+as a pinned widget, not in the foot beside this: two trays a foot apart would read as one list, and a
+run somebody else started would pass for something you did yourself.
 
 ## The rest, by rough category
 

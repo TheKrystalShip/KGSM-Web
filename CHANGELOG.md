@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the runs board is the dashboard's, not the sidebar's
+
+`fleet.runs` is a widget somebody adds to a dashboard, and that is the only place it appears. The
+sidebar's foot holds one tray again: **Notifications**, this browser's own history of what you did in
+it.
+
+The board is unchanged — it still hydrates `GET /batches?active=true` across every connected node,
+groups the nodes' batches on the client-minted `runId`, and cancels one `DELETE` per node holding a
+share. What is gone is the permanent nav slot in front of it. A run is born on the Servers page from
+a multi-select and settles in seconds, so the entry sat empty in every session that fired no bulk
+action, and an always-present control that is always empty teaches a person to stop looking at it.
+
+Where a run in flight should be surfaced ambiently is left open, to answer against a multi-node
+deployment busy enough to make it a real question.
+
+`components/batch/OpsTray.jsx` is `components/batch/RunsBoard.jsx`, exporting the board alone.
+
 ### Added — the package points the API at the bundle it installs
 
 `packaging/PKGBUILD` ships `/usr/lib/systemd/system/kgsm-api.service.d/50-kgsm-web.conf`, setting

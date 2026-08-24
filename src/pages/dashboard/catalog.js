@@ -111,7 +111,7 @@ registerWidget({
   // 3 nodes") starts being clipped, which is the one thing on the card that cannot be guessed from
   // the rest of it.
   size: { w: 6, h: 4, minPx: 300, minH: 3 },
-  load: () => import("../../components/batch/OpsTray.jsx").then(m => m.RunsBoard),
+  load: () => import("../../components/batch/RunsBoard.jsx").then(m => m.RunsBoard),
 });
 
 registerWidget({

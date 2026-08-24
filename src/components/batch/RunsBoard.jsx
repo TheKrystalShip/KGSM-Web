@@ -1,18 +1,15 @@
 import React from "react";
-import { createPortal } from "react-dom";
 
 import { Icon } from "../Icon.jsx";
 import { useNav } from "../NavContext.jsx";
 import { SERVER_ACTION } from "../ServerActions.jsx";
-import { PinButton } from "../widgets/PinButton.jsx";
-import { usePortalPopover } from "../../hooks/usePortalPopover.js";
 import { cancelRun } from "../../lib/batchRun.js";
 import { fmtRelative, ordinal } from "../../lib/formatting.js";
 import { canOn } from "../../lib/persona.js";
 import { useStore } from "../../lib/store.js";
 import { batchesStore, hostsStore, runsFrom, serversStore } from "../../lib/stores.js";
 
-// OpsTray — what the whole cluster is doing right now, and how it is going.
+// RunsBoard — what the whole cluster is doing right now, and how it is going.
 //
 // A RUN is what a person started: one verb, one cluster-wide selection, one outcome. A BATCH is one
 // node's share of it. Each node records its own share, knows nothing of the others, and stores the
@@ -29,8 +26,9 @@ import { batchesStore, hostsStore, runsFrom, serversStore } from "../../lib/stor
 // ── Not the Notifications tray ────────────────────────────────────────────
 //
 // That one is per-browser `localStorage` and is explicitly what YOU did in THIS browser. This is
-// server-side truth about the fleet: it survives the tab, it holds work nobody here started, and it
-// is not a second toast history. They sit apart in the sidebar's foot for that reason.
+// server-side truth about the fleet: it survives the tab, and it holds work nobody here started.
+// The distinction is why this is a dashboard widget somebody chooses to pin rather than a second
+// tray in the sidebar's foot, where the two would read as one list.
 //
 // ── What a node's silence means ───────────────────────────────────────────
 //
@@ -259,8 +257,8 @@ function RunCard({ run, hosts, nameOf, openOf }) {
   );
 }
 
-/// The board. Mounted in the sidebar's tray and pinnable as a widget — one component, so the two can
-/// never drift.
+/// The board — the `fleet.runs` dashboard widget, added from the widget catalog. It needs no binding
+/// (a run is cluster-wide and names no node), which is what makes it offerable there at all.
 function RunsBoard() {
   const nav = useNav();
   const byId = useStore(batchesStore, (s) => s.byId);
@@ -285,10 +283,6 @@ function RunsBoard() {
 
   return (
     <div className="opsq">
-      <div className="opsq__head">
-        <PinButton type="fleet.runs" label="the runs board" />
-      </div>
-
       {unreachable.length > 0 && (
         // Never subtracted, never folded in. What is unknown is whether these nodes hold a share of
         // anything below — so the sentence says that, rather than implying they hold none. One
@@ -321,46 +315,4 @@ function RunsBoard() {
   );
 }
 
-/// The sidebar entry: a badge for what is running now, and the board in a popover.
-///
-/// It sits apart from Notifications on purpose. That tray is this browser's own history; this one is
-/// the fleet's, and a person who reads them as one list would take a run somebody else started for
-/// something they did themselves.
-function OpsTray() {
-  const [open, setOpen] = React.useState(false);
-  const ref = React.useRef(null);
-  const { pos, menuRef } = usePortalPopover(open, setOpen, ref);
-  const byId = useStore(batchesStore, (s) => s.byId);
-  const active = React.useMemo(() => runsFrom(byId).filter((r) => r.state === "active").length, [byId]);
-
-  return (
-    <div className="opstray" ref={ref}>
-      <div
-        className={"nav-item" + (open ? " nav-item--active" : "")}
-        onClick={() => setOpen((o) => !o)}
-        role="button" tabIndex={0}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen((o) => !o); } }}
-        data-tip={"Runs" + (active > 0 ? " · " + active : "")}
-        aria-label={"Runs" + (active > 0 ? ", " + active + " running" : "")}
-      >
-        <Icon name="layers" size={16} />
-        <span className="nav-item__label">Runs</span>
-        {active > 0 && <span className="nav-item__badge nav-item__badge--info">{active}</span>}
-      </div>
-
-      {open && pos && createPortal(
-        <div className="opstray__pop" ref={menuRef} style={pos}>
-          <div className="opstray__head">
-            <Icon name="layers" size={13} strokeWidth={2.2} />
-            Runs
-            <span className="opstray__head-sub">across every node this panel can reach</span>
-          </div>
-          <div className="opstray__body"><RunsBoard /></div>
-        </div>,
-        document.body,
-      )}
-    </div>
-  );
-}
-
-export { OpsTray, RunsBoard };
+export { RunsBoard };
