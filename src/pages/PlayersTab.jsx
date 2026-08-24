@@ -7,8 +7,7 @@ import { PinButton } from "../components/widgets/PinButton.jsx";
 import { usePlayerRoster } from "../lib/hooks/usePlayerRoster.js";
 import { moderatePlayer } from "../lib/stores.js";
 
-// PlayersTab — the permanent player roster for one server, wired to
-// player-presence-contract.md §5:
+// PlayersTab — the permanent player roster for one server. The presence contract:
 //
 //   REST  GET /servers/{id}/players → { detection, players[], moderation }
 //   WS    topic "players" → { type:"players.join"|"players.leave"|"players.ban", data:{ serverId, player } }

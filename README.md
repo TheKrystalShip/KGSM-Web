@@ -78,7 +78,6 @@ kgsm-web/
       consumer.css        app-level overrides
   scripts/                smoke-live.mjs (live-wiring smoke)
   deploy/                 setup.sh · deploy.sh (frontend-only deploy) · deploy-common.sh
-  MIGRATION.md            prototype → production playbook (partly historical)
 ```
 
 ### The data layer (`src/lib/`)
@@ -87,7 +86,7 @@ The prototype's reactive store layer, ported verbatim to ESM:
 
 - `store.js` — `createStore` / `useStore` (React 18 `useSyncExternalStore`).
 - `apiClient.js` — the backend seam (`api`): `fetch` against `kgsm-api` (REST,
-  translated by `adapters.js`) + one WebSocket per host (`liveStream.js`). The
+  translated by `adapters.js`) + fetch-based SSE per host (`liveStream.js`). The
   ONE place that talks to the backend; call sites only see `api`.
 - `adapters.js` — the honesty boundary (kgsm-api DTOs → component shapes;
   unsourced values → `null`/`"unknown"`/`[]`, never a fabricated default).
@@ -120,7 +119,7 @@ cp .env.example .env.local
 
 ⚠ each connected host's `kgsm-api` must allow the SPA origin via
 `KGSM_API_CORS_ORIGINS`. The seams are `src/lib/apiClient.js`
-(`get/post/patch` + `fanOut` + the WebSocket, with adapters in
+(`get/post/patch` + `fanOut` + the SSE streams, with adapters in
 `src/lib/adapters.js`) and `src/lib/connect.js` (the connect probe); call sites
 only see `api`. **`WIRING.md` is the authoritative front↔back contract**
 (endpoint/realtime/schema diff + the sequenced wiring plan).
@@ -130,7 +129,7 @@ only see `api`. **`WIRING.md` is the authoritative front↔back contract**
 **Done:** the full UI on a real toolchain — all components + pages, the
 store/router/data layer, self-hosted fonts, lucide-react icons, the complete CSS,
 a green production build, and the live backend wiring (servers/hosts/audit/library/
-alerts via `fetch` + adapters + the realtime WebSocket, with honest-unknown
+alerts via `fetch` + adapters + the realtime SSE stream, with honest-unknown
 rendering and the per-host Discord auth gate).
 
 **Done (PWA):** the app is **installable** on Android/desktop Chrome and iOS

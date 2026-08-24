@@ -819,7 +819,7 @@ try {
     assert(!capHtml.includes(SENT),
       "console: lines older than the window are gone, scrollback dropped first");
 
-    // (h2) Players is wired to player-presence-contract.md §5. Whatever the backend
+    // (h2) Players is wired to the live presence roster. Whatever the backend
     // answers, the tab must render a state that came FROM it — the live roster, the
     // honest "detection unknown" state, or a load error — and never the old fixture
     // roster or a fabricated "0 players online" standing in for an unanswered call.
@@ -3133,7 +3133,7 @@ try {
   assert(capHost.capabilities.metrics.last_sample_at === "2030-01-01T00:00:00Z",
     "capabilities.patch: PER-KEY merge preserves the metrics freshness stamp (a capability patch never wipes the live-tick stamp)");
 
-  // ---- Blueprint files: read, edit, create (blueprint-editor-plan.md) ------
+  // ---- Blueprint files: read, edit, create -------------------------------
   // The library's blueprint editor and the create page both go through
   // blueprintFileStore → kgsm-api → kgsm-lib → the engine. READS run against the live
   // backend (they mutate nothing); every WRITE is intercepted, because a real one would
@@ -3267,7 +3267,7 @@ try {
   await st.blueprintFileStore.load(hmId, bpName);
   await nav("#/cluster");
 
-  // ---- Player presence roster (player-presence-contract.md §5) ------------
+  // ---- Player presence roster ---------------------------------------------
   // GET /servers/{id}/players + the "players" WS topic (players.join / players.leave /
   // players.ban / players.reset, each frame carrying the owning serverId). The roster is
   // a PERMANENT per-identity record, not a live headcount: a row is keyed by

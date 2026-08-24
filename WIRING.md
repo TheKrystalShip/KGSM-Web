@@ -4,12 +4,12 @@ Audit of the contract between the Control Panel SPA (`kgsm-web`) and the per-hos
 aggregator API (`kgsm-api`), and the plan to connect them. Neither side is
 authoritative today — this is the reconciliation record. Generated 2026-06-20.
 
-> **⚠ Realtime transport migrated WebSocket→SSE (2026-07-02, `sse-migration-plan.md`).**
-> `GET /api/v1/stream` is now fetch-based `text/event-stream` (topics via `?topics=` at
-> connect, bearer in the `Authorization` header, one primary stream per host + per-view
-> dynamic streams, reactive rotate-on-401). The dated slice logs below describe the
-> transport **as it was built over WebSocket at the time** — read them as history; the
-> current contract rows (Realtime URL, "Realtime (SSE)") are updated.
+> **⚠ Realtime is fetch-based SSE.** `GET /api/v1/stream` serves `text/event-stream`
+> (topics via `?topics=` at connect, bearer in the `Authorization` header, one primary
+> stream per host + per-view dynamic streams, reactive rotate-on-401); protocol
+> authority: `kgsm-api/src/Api/Realtime/CLAUDE.md`. The dated slice logs below describe
+> a WebSocket transport — read them as history; the current contract rows (Realtime URL,
+> "Realtime (SSE)") are authoritative.
 
 > Source of truth for the backend shapes: the live `kgsm-api` controllers + DTOs
 > (camelCase JSON, ISO-8601 `Z` timestamps, error envelope `{error:{code,message,details?}}`).
@@ -605,7 +605,7 @@ Prove the pipe on a read-only slice first (backend `KGSM_API_AUTH_DISABLED=1`), 
 6. **Commands + ports + install/uninstall** — `commands {verb,origin}`, `open_ports`,
    `POST/DELETE /servers`; reconcile job/`network.patch` streams.
 7. **Assistant** — ✅ **9a + 9b done** (streaming turn through the seam + the command-confirm half: `command.proposed`→fork (a)→SPA-composed `command.verified`).
-8. **Multi-host fan-out** — host registry (D1), per-host sessions/sockets, cluster rollup. **Cluster federation** (the "add one, see all" + one-login-across-the-cluster build that completes this slice) lives in **`docs/cluster-plan.md`** (SPA-C0…C5, aligned to `kgsm-api/PLAN-peers.md`). **SPA-C0 built** (the Cluster page: `api.peers`/`clusterStore`/`ClusterPanel` over the real `/peers` roster, and the Fleet→Cluster canon rename). Both SPA-facing API deps are built: G1 (viewer node list `GET /peers/roster`, client seam wired) and G2 (vouch initiator `POST /auth/cluster-session/request`). Still to wire: SPA-C1 SSO (lazy vouch-on-401 — per-host auth is single-host today) and the C0.5 roster→registry mirror.
+8. **Multi-host fan-out** — host registry (D1), per-host sessions/sockets, cluster rollup. Remaining **cluster federation** work (the "add one, see all" + one-login-across-the-cluster build that completes this slice) is tracked in **`kgsm-api/PLAN-peers.md`**. The Cluster page is built: `api.peers`/`clusterStore`/`ClusterPanel` render the real `/peers` roster, and "Cluster" is the canon name for the fleet view. Both SPA-facing API deps are built: the viewer node list (`GET /peers/roster`, client seam wired) and the vouch initiator (`POST /auth/cluster-session/request`). Still to wire: cluster SSO (lazy vouch-on-401 — per-host auth is single-host today) and the roster→registry mirror.
 9. **Integrations + settings** — ✅ **Discord DONE** (DiscordPage → `/integrations/discord` GET/PATCH/test, admin-gated, live round-trip-validated). Remaining: **Slack** provider UI + the rest of Settings (`/settings` not built upstream).
 10. **Degrade** — console unavailable; capability-driven panel hiding; honest-unknown everywhere.
 

@@ -155,7 +155,7 @@ function ChatCommand({ msg, onRun }) {
 // file browser uses, so the yaml highlighting + theming come for free.
 const CodeEditor = React.lazy(() => import("../components/CodeEditor.jsx"));
 
-// The in-chat blueprint-review checkpoint (assistant-blueprint-review-plan.md P2). One card,
+// The in-chat blueprint-review checkpoint. One card,
 // double duty: the mandatory pre-test review of the assistant's drafted config, AND the
 // recovery surface when the autonomous repair loop exhausts (it comes back editable with the
 // boot log attached for a second pass). It renders raw YAML in Monaco, re-validated server-side

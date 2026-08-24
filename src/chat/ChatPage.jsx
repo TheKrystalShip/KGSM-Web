@@ -981,7 +981,7 @@ function ChatPage({
       });
   };
 
-  // ---- blueprint-review checkpoint (assistant-blueprint-review-plan.md P2) ----
+  // ---- blueprint-review checkpoint ----
   // Patch bpState (+ any outcome fields) onto the one blueprint command message being reviewed.
   const patchBlueprintMsg = (cmdId, patch) =>
     setMessages(msgs => msgs.map(m =>

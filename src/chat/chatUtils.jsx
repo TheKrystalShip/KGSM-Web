@@ -129,7 +129,7 @@ const CHECK_STATE_TONE = { pass: "success", warn: "warn", fail: "danger", skip: 
 // get_change_timeline). Deliberately separate from formatting.js's ACTION_META: that map is
 // keyed by kgsm-api's dotted, shaped audit vocabulary (server.start, …) applied at ITS read
 // time; the assistant reads the monitor's engine-event store directly and never runs that
-// shaping (event-history-plan.md §"raw enriched events, neutral"), so the wire `type` here is
+// shaping (it surfaces raw enriched events, neutral), so the wire `type` here is
 // always the unshaped kgsm name (instance_started, …). An unrecognized type (a future kgsm
 // event) falls back to a plain formatting of the raw string — never a guessed meaning.
 const EVENT_TYPE_META = {
@@ -381,7 +381,7 @@ function adaptResultCard(card) {
       };
     }
     case "trace_root_cause": {
-      // The capstone aggregator (event-history-plan.md Phase E): a RANKED list of findings, each
+      // The root-cause capstone aggregator: a RANKED list of findings, each
       // a deterministic pattern match (or, when nothing matched, an honest correlation) with its
       // own evidence chain. The card shows the TOP (best-confidence) finding's evidence in full —
       // its matched events, metric-window facts, and health checks, each carrying its own

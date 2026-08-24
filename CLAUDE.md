@@ -436,7 +436,8 @@ Landmines:
   for what's wired vs. pending rather than trusting prose elsewhere.
 - **The README's "What's done vs. left" section is STALE.** Auth (Discord OAuth +
   per-host re-auth + refresh-token rotation) and the realtime SSE stream
-  (fetch-based; migrated off WebSocket 2026-07-02, `sse-migration-plan.md`) are
+  (fetch-based `text/event-stream`; protocol authority:
+  `kgsm-api/src/Api/Realtime/CLAUDE.md`) are
   **built and committed** (see `authRedirect.js`, `sessionStore.js`,
   `liveStream.js`, and the git log) — they are NOT "left". **PWA installability is
   also built, for BOTH surfaces** — each installs as its own app, with its own manifest,
@@ -447,9 +448,6 @@ Landmines:
   a full Workbox **precache** (`vite-plugin-pwa`; the current SW caches on demand,
   not the whole build manifest), and parts of multi-host fan-out. Describe current
   state from code + git, not from that list.
-- **`MIGRATION.md` is a historical playbook and partly stale** — it references
-  `src/lib/api.js` / `api-contract.js`, which no longer exist (the seam is
-  `apiClient.js` + `adapters.js` + `config.js`).
 
 ## Version tracking
 

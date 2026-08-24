@@ -3,8 +3,8 @@
    Split out of the monolithic kit.css; imported by it in cascade order.
    ============================================================================ */
 /* ============= Players tab =============
-   v1 is a read-only roster (name/addr/id/since — player-presence-contract.md §5,
-   no moderation actions), rendered through the shared CardTable — so only the
+   v1 is a read-only roster (name/addr/id/since — no moderation actions),
+   rendered through the shared CardTable — so only the
    cell-content classes below are needed. (Ping/status-pill/kick-ban-actions were
    the prototype's imagined richer domain; dropped when the tab was wired to the
    real, thinner contract — the backend has no ping/playtime/ban/allowlist source.) */
@@ -2629,8 +2629,8 @@
 }
 
 /* Player cell content inside the shared CardTable (avatar + name/secondary
-   identifier sit in one cell — player-presence-contract.md §5 has no
-   moderation actions, so there's no action column to align here). */
+   identifier sit in one cell — the roster contract has no moderation
+   actions, so there's no action column to align here). */
 .players-cell-player {
   display: flex;
   align-items: center;

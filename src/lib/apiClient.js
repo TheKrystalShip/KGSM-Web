@@ -700,7 +700,7 @@ import("./stores.js").then((m) => {
   }
 
   // api.sessions(id) — the root-routed session-management surface (list/revoke
-  // active sessions; see kgsm-api/docs/session-management-plan.md). Root-routed
+  // active sessions against kgsm-api's session endpoints). Root-routed
   // because these auth endpoints live at the bare origin, not under /api/v1
   // (rootGet/rootPost above); funneled (not the refreshSession/meWith bypass)
   // because every other call site here wants the live per-host bearer plus the
