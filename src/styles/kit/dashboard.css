@@ -245,7 +245,7 @@
   text-overflow: ellipsis;
 }
 
-/* Optional KPI progress meter (server-overview stats: players / CPU / RAM). */
+/* Optional KPI progress meter, for a figure that is a share of a whole. */
 .kpi__bar {
   height: 4px;
   margin-top: 11px;
@@ -325,11 +325,6 @@
   margin-top: 4px;
   font-size: 10.5px;
   line-height: 1.35;
-}
-
-.kpi--compact .kpi__bar {
-  margin-top: 8px;
-  height: 3px;
 }
 
 /* The header affordance is the arrow alone at this size (KPI.jsx drops the word),

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — a KPI draws a bar only for a figure that is a share of a whole
+
+The dashboard's twelve glance tiles are the same height as each other. A KPI's optional progress
+meter belongs to a figure that is a fraction — the leaf overviews' "N of M reachable" stats — and a
+count is not one: the Running tile's number and unit already say `3 of 5`, so a bar under them drew
+the same fact a second time and made that tile 12px taller than its eleven siblings. A CSS grid row
+stretches to its tallest item, so those 12px became empty space in every other card on its row.
+
 ### Changed — Cluster capacity is a row per node, and states its own height
 
 The dashboard's capacity card renders one `dash-fleet-row` per node — the idiom the Cluster page's
@@ -26,9 +34,9 @@ memory bar, every disk with its device and SMART state, the interface table, the
 two additions that were only on the kgsm-api leaf page: the node's OS now reads under its uptime,
 and its round trip sits beside the connection pill in the page header.
 
-A node's machine name renders only where it differs from the node's label. Both fall back to the
-host id, so an unlabelled node stated the same word twice. The card's header count renders from two
-nodes up, where it is no longer a restatement of the rows below it.
+A node's row names it once — the status dot, its label, its region where it has one, and the round
+trip. The card's header count renders from two nodes up, where it is not a restatement of the rows
+below it.
 
 `.dash-fleet-row` folds at a container width of 960px, where three meters stop holding their label,
 value and reading beside the identity and counts columns; under 430px the readings drop and the

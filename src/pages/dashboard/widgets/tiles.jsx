@@ -65,8 +65,6 @@ function TileRunning() {
         ? (run.transitional ? `${run.transitional} in transition` : `${run.total - run.count} stopped`)
         : "no servers yet"}
       tone={!servers.length ? "muted" : run.count ? "ok" : "muted"}
-      barPct={servers.length ? run.pct : null}
-      barColor="var(--success-fg)"
       onView={() => nav.servers()} />
   );
 }

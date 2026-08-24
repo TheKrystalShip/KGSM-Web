@@ -1332,18 +1332,6 @@
   white-space: nowrap;
 }
 
-/* The machine's own name, secondary to the node's label and rendered only when it
-   is a different string — it is a second fact, not the label repeated. */
-.dash-fleet-row__machine {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--fg-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-
 .dash-fleet-row__latency {
   font-family: var(--font-mono);
   font-size: 11px;

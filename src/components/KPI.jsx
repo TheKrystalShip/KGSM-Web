@@ -18,8 +18,10 @@ import { Icon } from "./Icon.jsx";
 //   pin                    — optional header NODE (the panel's <PinButton/>), left of
 //                            the "View →" affordance
 //   onView                 — optional "View →" affordance in the header
-//   barPct, barColor       — optional progress meter under the value (used by
-//                            the server-overview stats: players / CPU / RAM)
+//   barPct, barColor       — optional progress meter under the value, for a figure
+//                            that IS a share of a whole (the leaf overviews' "N of M
+//                            reachable" stats). A count is not one, so a count's card
+//                            leaves it out rather than drawing the same fact twice.
 //   className              — extra class(es) on the card root (e.g. tagging a
 //                            tile as a live-metric gauge for the diag panel)
 //   led                    — optional status LED in the header ("live" = solid

@@ -26,11 +26,6 @@ import { useStore } from "../../lib/store.js";
 import { serversStore } from "../../lib/stores.js";
 import { membershipRowTone } from "../diagnostics/clusterBadges.jsx";
 
-// The machine's own name is a second fact only when it is a different string. It
-// falls back to the host id, and so does the label, so an instance nobody has
-// labelled would otherwise render the same word twice.
-const machineName = (h) => (h.hostname && h.hostname !== h.name ? h.hostname : null);
-
 // What a node is carrying. `unseen` counts servers that cannot report a roster —
 // their players are not zero, they are unknown, so the tally says "+" and names
 // how many in its tooltip rather than absorbing them into the number.
@@ -79,7 +74,6 @@ function NodeRow({ n, servers, onOpenHost }) {
   const { denied, metricsDown, meters, tone } = hostHealth(h);
   const fresh = hostMetricsFreshness(h);
   const mine = React.useMemo(() => servers.filter(s => s.hostId === h.id), [servers, h.id]);
-  const machine = machineName(h);
   // Frozen is a statement ABOUT readings, so it is only worth making where there
   // are readings to qualify. A node showing no meters already says why in their
   // place, and saying it twice reads as two different faults.
@@ -92,7 +86,6 @@ function NodeRow({ n, servers, onOpenHost }) {
         <span className={"dash-fleet-row__dot dash-fleet-row__dot--" + tone}></span>
         <span className="dash-fleet-row__name">{h.name}</span>
         {h.region && h.region !== "—" && <span className="dash-fleet-row__region">{h.region}</span>}
-        {machine && <span className="dash-fleet-row__machine">{machine}</span>}
         {/* Readings we HAVE but that stopped updating are worse than none shown: say
             they are frozen, in place of a round trip that is equally stale. */}
         {stale

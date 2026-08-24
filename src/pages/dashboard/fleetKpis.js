@@ -24,16 +24,13 @@ const DAY = 24 * HOUR;
 // ---- Row 1 · the fleet and the people ------------------------------------
 
 // Servers running — the one figure that is purely a count of now, and the anchor the rest hang off.
-// The bar is the whole fleet in one line: running, mid-transition, stopped.
+// `transitional` is counted separately from stopped: a server on its way somewhere is not a server
+// somebody needs to go start.
 const TRANSITIONAL = ["starting", "restarting", "stopping", "updating", "installing"];
 function running(servers) {
   const count = servers.filter(s => s.status === "online").length;
   const transitional = servers.filter(s => TRANSITIONAL.includes(s.status)).length;
-  return {
-    count, transitional,
-    total: servers.length,
-    pct: servers.length ? (count / servers.length) * 100 : 0,
-  };
+  return { count, transitional, total: servers.length };
 }
 
 // Players online now, and the most at once in the last day. Both exclude servers whose presence this
