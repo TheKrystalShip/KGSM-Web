@@ -1005,6 +1005,13 @@
   justify-content: space-between;
 }
 
+/* The node's link, stated once: whether the channel is up, and how far away it is. */
+.diag-head__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .diag-head__title h1 {
   font-size: 28px;
   font-weight: 700;

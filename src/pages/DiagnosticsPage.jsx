@@ -195,13 +195,23 @@ function ClusterPage({ focusHostId, tab: tabProp, onTabChange, onFocusHost, onAs
     );
   }
 
+  const ping = pingByHost[host.id];
   const headerChrome = (
     <div className="diag-head">
       <div className="diag-head__title">
         <h1>{host.name}</h1>
         <div className="dash-head__sub">{host.hostname} · {host.region} — host machine health, distinct from per-game-server metrics.</div>
       </div>
-      {host.online && <HostConnection hostId={host.id} full />}
+      {host.online && (
+        <span className="diag-head__link">
+          <HostConnection hostId={host.id} full />
+          {/* The pill says whether the channel is up; the round trip says how far
+              away it is. Same subject, so they sit together. */}
+          {ping && ping.ms != null && (
+            <span className="dash-fleet-row__latency">{Math.round(ping.ms)}ms</span>
+          )}
+        </span>
+      )}
     </div>
   );
 

@@ -7,7 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed — every full-width card and control sits inside its parent
+### Changed — Cluster capacity is a row per node, and states its own height
+
+The dashboard's capacity card renders one `dash-fleet-row` per node — the idiom the Cluster page's
+node list already uses — carrying the three capacity meters with their absolute readings, what the
+node is running, and its round trip. The row navigates to the node instead of unfolding, and the
+card's height is a function of the node count alone: 112px at one node, 304px at four, measured at
+1440×900.
+
+The widget declares `h: 1`. A row span is a minimum (`grid-auto-rows: minmax(var(--widget-row),
+auto)`), so at `h: 4` the card declared a 384px floor and sat in a cell it could not fill — 319px of
+empty card on a desktop, 253px on a phone, and one node's drawer reaching 888px on an 844px screen.
+The smallest span lets the rows measure the cell instead. A stored layout holding a taller
+`fleet.capacity` is shrunk in place on hydrate, from the local copy and the node's alike.
+
+The drawer's contents are on the node's own page in a fuller form — the per-core grid, the segmented
+memory bar, every disk with its device and SMART state, the interface table, the Services tab — with
+two additions that were only on the kgsm-api leaf page: the node's OS now reads under its uptime,
+and its round trip sits beside the connection pill in the page header.
+
+A node's machine name renders only where it differs from the node's label. Both fall back to the
+host id, so an unlabelled node stated the same word twice. The card's header count renders from two
+nodes up, where it is no longer a restatement of the rows below it.
+
+`.dash-fleet-row` folds at a container width of 960px, where three meters stop holding their label,
+value and reading beside the identity and counts columns; under 430px the readings drop and the
+percentages and bars remain. Both are container queries, since collapsing the sidebar, opening the
+assistant dock and resizing the widget all change a card's width without moving the viewport. The
+Cluster page's node list inherits the fold.
+
+
 
 A sweep of the whole kit for the box model behind the leaf-config fix below. There is no global
 reset here, so a rule stating `width: 100%` next to padding or a border resolves **wider** than the

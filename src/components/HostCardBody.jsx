@@ -45,13 +45,13 @@ function hostHealth(host) {
 
 // HostMeters — the mini-meter bar row (CPU / RAM / disk). Pixel-identical
 // wherever it appears; the parent supplies the wrapper element
-// (.fleet-card__meters vs .dash-node__meters) and its layout.
+// (.fleet-card__meters vs .dash-fleet-row__meters) and its layout.
 //
 // `detail` adds the absolute reading under each bar — "load 2.1 · 16 cores",
 // "18.2 / 62.7 GB", "/ · 392 / 953 GB" — which is the number an operator
 // actually reasons with, plus the meter's flag (swap rising, SMART) when it
-// carries one. Off by default: the fleet card is a glance surface with no room
-// for it, the dashboard's node drawer is opened precisely to read it.
+// carries one. Off by default: a host card is a glance surface with no room for
+// it, while a node row is read across a fleet and states its figures.
 function HostMeters({ meters, detail = false }) {
   return (
     <React.Fragment>

@@ -68,7 +68,10 @@ registerWidget({
   // aggregate check is the right one — a viewer on one node has no business seeing the rest.
   cap: "nav.cluster",
   describe: () => "Node capacity",
-  size: { w: 12, h: 4, minPx: 380, minH: 3 },
+  // A row span is a MINIMUM (`grid-auto-rows: minmax(--widget-row, auto)`), so the
+  // smallest span is what lets the card state its own height: one node or four, the
+  // cell is what the rows measure and never a floor they have to fill.
+  size: { w: 12, h: 1, minPx: 300, minH: 1 },
   load: () => import("./widgets/CapacityStrip.jsx").then(m => m.CapacityStrip),
 });
 

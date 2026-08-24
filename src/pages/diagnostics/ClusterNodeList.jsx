@@ -87,7 +87,7 @@ function GhostNodeRow({ n, hovered, onHover, onSelect, hostId, canManagePeers })
           <Icon name="radar" size={13} /> Discovered · not connected
         </span>
         <span className="dash-fleet-row__end">
-          <span className="cluster-node-row__latency">{latencyLabel}</span>
+          <span className="dash-fleet-row__latency">{latencyLabel}</span>
         </span>
       </div>
       <div className="cluster-node-row__badges">
@@ -148,7 +148,7 @@ function ClusterNodeList({ nodes, hovered, onHover, onSelect, hostId, canManage,
                   <span className="dash-fleet-row__offline"><Icon name={n.host._pending ? "loader" : "moon"} size={13} /> {n.host._pending ? "Awaiting telemetry" : "Disconnected"}</span>
                 )}
                 <span className="dash-fleet-row__end">
-                  <span className="cluster-node-row__latency">{latencyLabel}</span>
+                  <span className="dash-fleet-row__latency">{latencyLabel}</span>
                   {alerts.length > 0
                     ? <span className={"fleet-card__alerts fleet-card__alerts--" + alertsTone(alerts)}><Icon name="triangle-alert" size={11} strokeWidth={2.4} />{alerts.length}</span>
                     : <Icon name="chevron-right" size={16} className="dash-fleet-row__go" />}

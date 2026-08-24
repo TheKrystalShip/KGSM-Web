@@ -1,6 +1,5 @@
 import React from "react";
 
-import { useAssistantDock } from "../../../components/AssistantDockContext.jsx";
 import { useNav } from "../../../components/NavContext.jsx";
 import { useStore } from "../../../lib/store.js";
 import { clusterStore, hostsStore, pingStore } from "../../../lib/stores.js";
@@ -16,7 +15,6 @@ import { DashFleetStrip } from "../DashFleetStrip.jsx";
 
 function CapacityStrip() {
   const nav = useNav();
-  const { askAboutHost } = useAssistantDock();
   const hosts = useStore(hostsStore, s => s.list);
   const pings = useStore(pingStore, s => s.byHost);
   const clusterNodesRaw = useStore(clusterStore, s => s.nodes);
@@ -30,9 +28,6 @@ function CapacityStrip() {
       nodes={nodes}
       onOpenDiagnostics={() => nav.cluster()}
       onOpenHost={(id) => nav.openHost(id)}
-      onOpenServersForNode={(hostId) => nav.serversOnNode(hostId)}
-      onOpenNodeLogs={(hostId) => nav.openHostLogs(hostId)}
-      onAskAboutNode={askAboutHost}
     />
   );
 }

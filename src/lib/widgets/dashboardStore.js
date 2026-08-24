@@ -37,7 +37,7 @@ const SUMMARY_TILES = [
 
 const DEFAULT_LAYOUT = [
   ...SUMMARY_TILES.map(type => ({ type, w: 2, h: 1 })),
-  { type: "fleet.capacity", w: 12, h: 4 },
+  { type: "fleet.capacity", w: 12, h: 1 },
   { type: "alerts.latest", w: 6, h: 4 },
   { type: "activity.recent", w: 6, h: 4 },
   { type: "servers.rail", w: 12, h: 4 },
@@ -141,6 +141,14 @@ function expandSummary(layout) {
   return out;
 }
 
+// A layout holding a tall `fleet.capacity` was sized against a floor the card no longer has: it
+// states its own height from its node rows, so any span above the smallest leaves a cell it cannot
+// fill. Shrink it in place — the card lands in the same position and every widget below it moves up.
+function fitCapacity(layout) {
+  if (!layout.some(w => w.type === "fleet.capacity" && w.h > 1)) return layout;
+  return layout.map(w => (w.type === "fleet.capacity" && w.h > 1 ? { ...w, h: 1 } : w));
+}
+
 /// Load the layout.
 ///
 /// ⚠ THE ORDER HERE IS LOAD-BEARING. Seeding the default is a WRITE, and a write goes to the node —
@@ -155,7 +163,7 @@ function expandSummary(layout) {
 dashboardStore.hydrate = () => {
   const stored = readStored();
   if (stored) {
-    const layout = expandSummary(normalizeLayout(stored, hasWidget));
+    const layout = fitCapacity(expandSummary(normalizeLayout(stored, hasWidget)));
     // No write. Re-persisting on load would take a version for a change nobody made, and — before
     // the node has answered — would race its copy.
     dashboardStore.setState({ layout, hydrated: true });
@@ -188,7 +196,7 @@ prefsStore.subscribe(() => {
   _adopted = true;
   const fromNode = prefsStore.get(PREF_KEYS.DASHBOARD_LAYOUT, null);
   if (Array.isArray(fromNode)) {
-    const layout = expandSummary(normalizeLayout(fromNode, hasWidget));
+    const layout = fitCapacity(expandSummary(normalizeLayout(fromNode, hasWidget)));
     if (JSON.stringify(layout) !== JSON.stringify(dashboardStore.getState().layout)) {
       dashboardStore.setState({ layout, hydrated: true });
     } else {

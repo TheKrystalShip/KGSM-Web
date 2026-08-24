@@ -12,6 +12,13 @@ import { ServicesSummaryCard } from "./diagComponents.jsx";
 
 const DIAG_KPI_TONE = { cpu: "teal", ram: "teal", disk: "teal", net: "muted", temp: "teal", uptime: "ok" };
 
+// What this machine is running, under how long it has been up. Either half can be
+// missing — a host that reports neither says so rather than showing an empty line.
+function osLine(host) {
+  const named = (v) => (v && v !== "—" ? v : null);
+  return [named(host.os), named(host.kernel)].filter(Boolean).join(" · ") || "—";
+}
+
 function DiagOverview({ host, fresh, onAsk, onRun, onViewAlerts, onViewAudit, onViewServices }) {
   const frozen = !!(fresh && fresh.frozen);
   const wasFrozen = React.useRef(frozen);
@@ -81,7 +88,7 @@ function DiagOverview({ host, fresh, onAsk, onRun, onViewAlerts, onViewAudit, on
         )}
         <KPI icon="clock"        label="Uptime"      tone="ok" led="live"
           value={uptimeShort(host.boot_time)}
-          sub={host.kernel} />
+          sub={osLine(host)} />
       </div>
 
       <div className="diag-grid">
