@@ -219,6 +219,7 @@
 .cold-down__card,
 .await-approval__card,
 .app-crash__card {
+  box-sizing: border-box;
   max-width: 460px;
   width: 100%;
   text-align: center;

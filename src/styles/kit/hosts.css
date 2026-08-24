@@ -974,6 +974,7 @@
 }
 
 .modal {
+  box-sizing: border-box;
   background: var(--surface-1);
   border: var(--edge-strong);
   border-radius: var(--r-xl);

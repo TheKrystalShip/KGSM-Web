@@ -316,6 +316,7 @@
   }
 
   .alert-card__actions {
+    box-sizing: border-box;
     width: 100%;
     justify-content: flex-start;
     padding-left: 42px;

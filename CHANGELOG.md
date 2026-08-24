@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — every full-width card and control sits inside its parent
+
+A sweep of the whole kit for the box model behind the leaf-config fix below. There is no global
+reset here, so a rule stating `width: 100%` next to padding or a border resolves **wider** than the
+box it was told to fill. Eight rules did: the sign-in card, the pending-approval card, the shared
+`.modal` and `.k-modal` shells, the cold-start / approval / crash state cards, the server-note
+textarea, a mobile alert card's action row, and the `.chat-brief` card family.
+
+The sharpest was the **sign-in screen on a phone**: the card rendered 396px wide in a 390px
+viewport, running off both edges with its border and rounded corners cut off by the screen. The
+welcome tour's card was 360px inside a 326px scrim, eating the padding meant to hold it clear.
+
+A capped card now renders at its cap: `max-width: 460px; width: 100%; padding: 28px` was 516px wide
+and is 460px. Four of the eight were latent rather than visibly broken — a flex parent was shrinking
+them back — and are fixed on the same terms, since a declared width that only holds while a parent
+happens to shrink it is not a declared width.
+
+Two harness scripts now guard the class, because neither lint nor the build nor the jsdom smoke can
+see it, and neither can a page-level overflow check: `.app__main` scrolls, so an overflowing child
+never widens the document. `scripts/visual-harness/boxsizing-scan.mjs` lists the rules at risk;
+`boxsizing-live.mjs` measures each against its parent's content box in both engines.
+
 ### Fixed — a leaf's text fields sit inside their card
 
 Every `.lcf-input` on a leaf configuration page hung 22px off the right of the card, on desktop and

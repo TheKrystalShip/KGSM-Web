@@ -93,6 +93,7 @@
 }
 
 .login-card {
+  box-sizing: border-box;
   width: 100%;
   background: var(--surface-1);
   border: var(--edge);
@@ -922,6 +923,7 @@
    tier `none` and the SSE stream is viewer-gated — there is nothing to subscribe
    to, and the approval happens on somebody else's screen minutes or days away. */
 .pending {
+  box-sizing: border-box;
   position: relative;
   z-index: 1;
   width: 100%;

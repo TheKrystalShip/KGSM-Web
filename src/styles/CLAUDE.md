@@ -15,6 +15,33 @@ The same applies to **radius** and to a surface's **border**: write
 `border-radius: var(--r-sm)` and `border: var(--edge)`, never a literal, because
 those two tokens are how a theme re-shapes the whole app at once.
 
+## A percentage size next to padding or a border must state `box-sizing`
+
+**There is no global reset here** — `box-sizing` is `content-box` unless a rule says otherwise. So a
+rule that says `width: 100%` *and* carries padding or a border resolves to **more** than the box it
+was told to fill, and the element hangs out of its parent by exactly that padding and border. A
+capped card (`max-width: 460px; width: 100%; padding: 28px`) renders 56px wider than its own cap.
+
+Write `box-sizing: border-box` in any rule that states a percentage size alongside padding or a
+border. Two things make this easy to miss:
+
+- **The tag decides whether you get away with it.** A `<button>` and a `<select>` are `border-box`
+  from the UA stylesheet, so a percentage width on one is safe whatever padding it carries.
+  Everything else is not — **`<input>` and `<textarea>` included**, which is the surprise, along
+  with every `div`, `span` and `a`.
+- **Nothing fails, and the page-level overflow check reads clean.** `.app__main` sets
+  `overflow-y: auto`, which computes `overflow-x` to `auto` as well, so an overflowing child scrolls
+  *that column* and never widens the document. `scrollWidth > innerWidth` stays false while boxes
+  visibly run off the right of a card.
+
+**The guard is a pair of harness scripts**, because neither lint nor the build nor the jsdom smoke
+can see any of this: `scripts/visual-harness/boxsizing-scan.mjs` reads every stylesheet and lists the
+rules at risk (dropping the ones on a `<button>`/`<select>`), and `boxsizing-live.mjs` measures each
+one's right edge against its parent's **content** box in both engines — driving the real surface
+where it can reach it, and instantiating the class on its real tag under its real parent where it
+cannot. Run both after adding a full-width control or card. `--ua` re-measures the per-tag defaults
+the first script's filter rests on.
+
 ## Filling with a semantic colour? Take its `--on-*` ink
 
 A semantic colour is used two ways, and only one of them is a contrast question.
