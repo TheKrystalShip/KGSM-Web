@@ -1381,6 +1381,115 @@ try {
   assert(sel.getState().ids.length === 0 && !w.localStorage.getItem("krystal:selection"),
     "selection: cleared, and NEVER persisted — it is a gesture, not a preference");
 
+  // ---- favourites: an account preference, and the sidebar's shortcuts -------
+  //
+  // The opposite of the selection above: a favourite IS a preference, so it is persisted — and to
+  // the account rather than to this browser, because it decides what the sidebar keeps a permanent
+  // shortcut to and shortcuts that differ per device could not be reconciled by anybody.
+  //
+  // Nothing here reaches the node. The PUT is intercepted: this suite does not write to the host,
+  // and a preference is still the host's state.
+  {
+    const { PREF_KEYS, prefsStore } = await vite.ssrLoadModule("/src/lib/stores/prefs.js");
+    const fav = st.favoritesStore;
+    const puts = [];
+    globalThis.fetch = async (url, opts) => {
+      const u = typeof url === "string" ? url : (url && url.url) || "";
+      if (/\/me\/preferences\//.test(u) && opts && opts.method === "PUT") {
+        puts.push({ url: u, body: JSON.parse(opts.body) });
+        return new Response(JSON.stringify({ version: puts.length }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return realFetch(url, opts);
+    };
+
+    const before = fav.getState().ids.slice();
+    for (const id of before) fav.set(id, false);
+    puts.length = 0;
+
+    // Starred from a server ROW, which is what records the node. The persisted entry carries both,
+    // because a favourite the roster cannot find has two very different explanations and the node is
+    // the only thing that tells them apart.
+    fav.toggle(PROBE);
+    assert(fav.has(PROBE.id) && fav.hostOf(PROBE.id) === PROBE.hostId,
+      "a favourite records the NODE its server is on — an id alone cannot tell an unreachable node from a deleted server");
+    assert(!w.localStorage.getItem("krystal:favorites")
+      && JSON.parse(w.localStorage.getItem("krystal:pref:servers.favorites") || "[]").some((e) => e.id === PROBE.id),
+      "it lands under the PREFERENCE key, not the browser-local one it used to live in");
+    // The mirror is fire-and-forget by design — a write lands locally and returns, and the PUT
+    // follows. So the value is asserted first, and the request after it has had a tick to leave.
+    await sleep(80);
+    assert(puts.length === 1 && puts[0].url.includes(encodeURIComponent(PREF_KEYS.SERVER_FAVORITES)),
+      "favouriting writes the account preference `servers.favorites` — not a browser-local key");
+    assert(Array.isArray(puts[0].body.value) && puts[0].body.value[0]
+      && puts[0].body.value[0].id === PROBE.id && puts[0].body.value[0].hostId === PROBE.hostId,
+      "the stored shape is {id, hostId} per entry — the node rides with the favourite, not beside it");
+    assert(prefsStore.get(PREF_KEYS.SERVER_FAVORITES, null) !== null,
+      "the value is readable synchronously the moment it is written — local-first, so the first render never waits on a round trip");
+
+    // A bare id is still accepted (nothing in the app writes one, but a preference read back from an
+    // older device can be a plain string array), and it records the node as unknown rather than
+    // guessing one.
+    fav.set("ghost-server", true);
+    assert(fav.has("ghost-server") && fav.hostOf("ghost-server") === null,
+      "a favourite made from an id alone holds a null node — never a guessed one");
+
+    // Order is insertion order and NOTHING re-sorts it. A dock whose entries move when a server
+    // changes state has stopped being a dock.
+    if (OTHER) {
+      fav.toggle(OTHER);
+      assert(JSON.stringify(fav.getState().ids) === JSON.stringify([PROBE.id, "ghost-server", OTHER.id]),
+        "favourites keep the order they were starred in — status never reorders a shortcut");
+    }
+
+    // The sidebar. Rendered directly, because what is being asserted is which rows it draws for a
+    // given set of favourites — not how the shell arranges around it.
+    const { Sidebar } = await vite.ssrLoadModule("/src/components/Sidebar.jsx");
+    const hostsNow = st.hostsStore.getState().list;
+    const sbNode = w.document.createElement("div");
+    const sbRoot = createRoot(sbNode);
+    const drawSidebar = async () => {
+      sbRoot.render(React.createElement(Sidebar, {
+        route: { kind: "home" }, onNavigate: () => {}, hosts: hostsNow,
+        user: { name: "smoke", provider: "local" },
+      }));
+      await sleep(120);
+      return sbNode;
+    };
+
+    await drawSidebar();
+    const favRows = sbNode.querySelectorAll(".sidebar__favs .server-row");
+    assert(favRows.length === fav.getState().ids.length,
+      "the sidebar draws one row per favourite");
+    assert(sbNode.querySelector(".sidebar__favs").textContent.includes(PROBE.name || PROBE.id),
+      "a favourite's row names its server");
+
+    // The favourite the roster does not hold. Its node is live and has no such server, so the
+    // shortcut is stale and can be cleared from here.
+    const ghostRow = [...favRows].find((r) => (r.getAttribute("data-tip") || "").startsWith("ghost-server"));
+    assert(!!ghostRow && ghostRow.classList.contains("server-row--unknown"),
+      "a favourite the roster cannot find is still DRAWN — one that vanished while a node rebooted would read as one somebody deleted");
+    assert(!!ghostRow.querySelector(".server-row__dot--unknown") && !ghostRow.querySelector(".server-row__dot[style]"),
+      "it carries the hollow dot: there is no reading, and a grey one would sit in the same vocabulary as 'offline'");
+    assert(/records no node/.test(ghostRow.getAttribute("data-tip") || ""),
+      "and it says WHY it cannot be read, rather than showing an unexplained blank");
+
+    // Nothing starred → nothing rendered. No header, no placeholder, no invitation. This is what
+    // lets the block hold permanent chrome at all.
+    for (const id of fav.getState().ids.slice()) fav.set(id, false);
+    await drawSidebar();
+    assert(!sbNode.querySelector(".sidebar__favs"),
+      "with no favourites the block renders NOTHING — not an empty state, which is how a sidebar entry earns permanence");
+    assert(!!sbNode.querySelector(".nav-item"),
+      "and the rest of the nav is untouched by its absence");
+
+    sbRoot.unmount();
+    // Put back whatever this profile held — while the mirror is STILL intercepted, so restoring the
+    // suite's own state cannot become a write to the host.
+    for (const id of before) fav.set(id, true);
+    await sleep(80);
+    globalThis.fetch = realFetch;
+  }
+
   // kgsm's own words for a start the node has no room for, quoted exactly as the engine emits them
   // so a reworded message on either side fails this rather than passing quietly.
   const ENGINE_REFUSAL =

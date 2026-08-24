@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — favourites are the account's, and the sidebar keeps shortcuts to them
+
+Star a server and it gets a permanent row in the sidebar, under **Servers**: cover art, its name, and
+a live status dot. The list is the fastest way to the handful of servers you actually work on —
+previously two navigations, now none.
+
+**A favourite belongs to the person, not the browser.** It rides `prefsStore` under
+`servers.favorites`: read locally and synchronously so the first render never waits on a round trip,
+mirrored to the node so it follows the account to another device. Favourites already held in this
+browser are taken over on first load. Every entry records the **node** its server is on, because a
+favourite the roster cannot find has two very different explanations and only the node tells them
+apart.
+
+Three rules make the block safe to give permanent chrome to:
+
+- **Nothing starred renders nothing** — no header, no placeholder, no invitation. The space it takes
+  is always space somebody asked for.
+- **Insertion order, never re-sorted.** It is a dock, not a feed: a shortcut that moves because a
+  server crashed has stopped being a shortcut, and the dot is what carries the state.
+- **It caps at five**, overflowing to Servers, which pins the same favourites above its grid.
+
+A favourite whose server the roster does not hold keeps its row rather than vanishing — one that
+disappeared while a node rebooted would read exactly like one somebody deleted. It draws a **hollow**
+dot, because no reading is not the same as "off", and says which of the two it is: a node that has
+not answered, or a live node that has no such server. Only the second offers to clear itself.
+
+Collapsed to the rail the row becomes its cover art with the dot on the corner, and the name arrives
+on the same hover tooltip every other rail entry uses. A server with no cover art shows its initial,
+since in the rail the thumbnail is the only identity a row has.
+
+The **star is now on the server's own page**, in the hero beside the name — which is where a person
+decides a server is one of theirs.
+
+### Fixed — the sidebar's foot can no longer be pushed off the bottom
+
+`.sidebar__nav` scrolls. The account and Settings are pinned to the foot by `margin-top: auto`, and a
+nav taller than the window pushed them past the bottom edge, where nothing could scroll to them — the
+aside is the viewport's height.
+
 ### Changed — the runs board is the dashboard's, not the sidebar's
 
 `fleet.runs` is a widget somebody adds to a dashboard, and that is the only place it appears. The

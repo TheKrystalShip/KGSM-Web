@@ -28,6 +28,19 @@ the shell thin. Don't re-inline them.
   `Footer.jsx`, `ErrorBoundary.jsx` (+ `ColdStartDown`/`ConnectivityBanner`/
   `ContentError`/`AppCrash`) — the layout chrome.
 
+  `Sidebar.jsx` also holds **`SidebarFavorites`**, the shortcut list under Servers. Three rules make
+  it safe to give permanent chrome to: it renders **nothing** with nothing starred — no header, no
+  placeholder — so the space it takes is always space somebody asked for; it keeps **insertion
+  order** and nothing re-sorts it, because a shortcut that moves is not a shortcut and the status dot
+  is what carries state; and it **caps** at `FAVORITES_SHOWN`, overflowing to Servers, because the
+  nav sits above an account and a Settings entry that have to stay reachable. A favourite the roster
+  does not hold is still drawn — vanishing while a node reboots reads exactly like one somebody
+  deleted — with a hollow dot (no reading is not "off") and a tooltip naming which of the two it is;
+  only the stale case, where a live node has no such server, offers to clear it.
+
+  ⚠ `.sidebar__nav` is the one part of the aside allowed to scroll. The foot is pinned by
+  `margin-top: auto` and would otherwise be pushed past the bottom edge, where nothing can reach it.
+
 ## The `pin` slot — how a card gets onto the dashboard
 
 `BriefCard`, `CardTable`, `KPI`, `ConsoleView` and `Rail` each take an optional **`pin`** in their

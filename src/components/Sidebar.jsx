@@ -8,6 +8,7 @@ import { sessionStore } from "../lib/sessionStore.js";
 import { coverArtBg } from "../lib/art.js";
 import { OAuthIcon, signInMethodLabel } from "./host-helpers.jsx";
 import { useStore } from "../lib/store.js";
+import { favoritesStore, serversStore } from "../lib/stores.js";
 
 // Sidebar component — brand, primary nav, quick actions.
 
@@ -65,7 +66,26 @@ const BUSY_STATUS = {
   "backing-up": true, restoring: true, moving: true,
 };
 
-function ServerListItem({ server, active, onClick }) {
+// How many favourites the sidebar draws. A shortcut list earns its place by being scannable without
+// being read; past a handful it is a second servers page, and on a short viewport it would push the
+// account and Settings off the bottom. The rest are one click away on Servers, which pins the same
+// favourites above its grid.
+const FAVORITES_SHOWN = 5;
+
+// A favourite the roster does not hold. Its NODE is the whole question: a node that has not answered
+// leaves the shortcut standing with its state unknown, while a node that answered and has no such
+// server means the favourite is stale. Drawing either as "offline" would be this surface inventing a
+// run-state, so neither gets a coloured dot — the hollow one says there is no reading, which is true
+// in both cases and is why the two differ in their wording rather than in their dot.
+function missingFavorite(hostId, hosts) {
+  if (!hostId) return { stale: false, why: "This favourite records no node, so its state can't be read." };
+  const host = hosts.find((h) => h.id === hostId);
+  if (!host) return { stale: false, why: "The node this was favourited on isn't connected, so its state can't be read." };
+  if (!host.online) return { stale: false, why: host.name + " hasn't answered, so this server's state is unknown." };
+  return { stale: true, why: "No server by this id on " + host.name + " any more." };
+}
+
+function ServerListItem({ server, active, unknown, tip, onClick, onForget }) {
   const dotColor = {
     online: "var(--success)",
     updating: "var(--warning)",
@@ -84,13 +104,84 @@ function ServerListItem({ server, active, onClick }) {
     "library-offline": "var(--warning)",
   }[server.status] || "var(--fg-4)";
   return (
-    <div className={"server-row" + (active ? " server-row--active" : "")} onClick={onClick}>
-      <div className="server-row__icon" style={{ backgroundImage: coverArtBg(server.cover), backgroundSize: "cover", backgroundPosition: "center" }}></div>
+    <div
+      className={"server-row" + (active ? " server-row--active" : "") + (unknown ? " server-row--unknown" : "")}
+      onClick={onClick}
+      data-tip={tip || server.name}
+      title={tip || undefined}>
+      {/* The initial stands in when there is no cover. Collapsed, the thumbnail is the ONLY identity a
+          row has — the name is gone and the gradient placeholder is the same for every server, so two
+          art-less favourites would be one square twice. */}
+      <div className="server-row__icon" style={{ backgroundImage: coverArtBg(server.cover), backgroundSize: "cover", backgroundPosition: "center" }}>
+        {!server.cover && <span className="server-row__initial">{(server.name || server.id || "?").trim().charAt(0).toUpperCase()}</span>}
+      </div>
       <span className="server-row__name">{server.name}</span>
-      <span className="server-row__dot" style={{
-        background: dotColor,
-        animation: BUSY_STATUS[server.status] ? "kr-pulse 1.8s ease-in-out infinite" : "none",
-      }}></span>
+      {onForget && (
+        <button
+          type="button"
+          className="server-row__forget"
+          onClick={(e) => { e.stopPropagation(); onForget(); }}
+          aria-label={"Remove " + server.name + " from favourites"}
+          title="Remove from favourites">
+          <Icon name="x" size={12} strokeWidth={2.4} />
+        </button>
+      )}
+      {/* Hollow when there is no reading. A coloured dot here would be a run-state nobody measured. */}
+      <span
+        className={"server-row__dot" + (unknown ? " server-row__dot--unknown" : "")}
+        style={unknown ? undefined : {
+          background: dotColor,
+          animation: BUSY_STATUS[server.status] ? "kr-pulse 1.8s ease-in-out infinite" : "none",
+        }}></span>
+    </div>
+  );
+}
+
+/// The favourites, under Servers. Renders NOTHING when there are none — no header, no placeholder,
+/// no invitation. That is what lets it hold permanent chrome: the space it takes is always space
+/// somebody asked for, unlike a nav entry that is present whether or not it has anything to say.
+///
+/// The order is the order they were starred in and nothing re-sorts it. This is a dock, not a feed:
+/// a shortcut that moves because a server crashed has stopped being a shortcut, and the dot is what
+/// carries the state.
+function SidebarFavorites({ ids, hostById, servers, hosts, activeId, onOpen, onViewAll }) {
+  if (!ids.length) return null;
+  const shown = ids.slice(0, FAVORITES_SHOWN);
+  const overflow = ids.length - shown.length;
+  return (
+    <div className="sidebar__favs">
+      {shown.map((id) => {
+        const server = servers.find((s) => s.id === id);
+        if (server) {
+          return (
+            <ServerListItem
+              key={id}
+              server={server}
+              active={activeId === id}
+              onClick={() => onOpen(id)} />
+          );
+        }
+        // Never dropped. A favourite that disappears while a node is rebooting looks exactly like one
+        // somebody deleted, and the person cannot tell which happened.
+        const { stale, why } = missingFavorite(hostById[id], hosts);
+        return (
+          <ServerListItem
+            key={id}
+            server={{ id, name: id, cover: null, status: "unknown" }}
+            active={activeId === id}
+            unknown
+            tip={id + " — " + why}
+            onClick={() => onOpen(id)}
+            onForget={stale ? () => favoritesStore.forget(id) : null} />
+        );
+      })}
+      {overflow > 0 && (
+        <button type="button" className="sidebar__favs-more" onClick={onViewAll}
+          data-tip={overflow + " more favourite" + (overflow === 1 ? "" : "s")}>
+          <Icon name="ellipsis" size={14} />
+          <span className="sidebar__favs-more__label">{overflow} more</span>
+        </button>
+      )}
     </div>
   );
 }
@@ -148,6 +239,11 @@ function Sidebar({ route = {}, onNavigate, serversCount = 0, serversTone = "info
   // than a bespoke boolean per entry plumbed down from App.
   const go = (kind) => () => onNavigate && onNavigate({ kind });
   const isActive = (kind) => route.kind === kind;
+  // Read here rather than threaded from App: favourites are the sidebar's own business, and the one
+  // routing contract above stays `route` in, `onNavigate` out.
+  const favIds = useStore(favoritesStore, (s) => s.ids);
+  const favHostById = useStore(favoritesStore, (s) => s.hostById);
+  const servers = useStore(serversStore, (s) => s.list);
 
   // Nav visibility reads the ONE policy (persona.js) — no bespoke booleans
   // plumbed from App. Each entry is shown iff the persona holds its capability
@@ -187,6 +283,14 @@ function Sidebar({ route = {}, onNavigate, serversCount = 0, serversTone = "info
             <span className="nav-item__label">Servers</span>
             {serversCount > 0 && <span className={"nav-item__badge nav-item__badge--" + serversTone}>{serversCount}</span>}
           </div>
+          <SidebarFavorites
+            ids={favIds}
+            hostById={favHostById}
+            servers={servers}
+            hosts={hosts}
+            activeId={route.kind === "server" ? route.id : null}
+            onOpen={(id) => onNavigate && onNavigate({ kind: "server", id })}
+            onViewAll={go("servers")} />
           <div className={"nav-item" + (isActive("library") ? " nav-item--active" : "")} onClick={go("library")} data-tip={CATALOG_LABEL} aria-label={CATALOG_LABEL}>
             <Icon name="library" size={16} />
             <span className="nav-item__label">{CATALOG_LABEL}</span>

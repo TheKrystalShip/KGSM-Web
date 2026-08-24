@@ -47,9 +47,19 @@
   border-top: 1px solid var(--border-subtle);
 }
 
-/* Grouped primary nav: labelled sections separated by vertical rhythm */
+/* Grouped primary nav: labelled sections separated by vertical rhythm.
+   The nav is the ONLY part of the sidebar allowed to grow, so it is also the part that scrolls: the
+   foot below it carries the account and Settings, and those have to stay reachable in a short window
+   whatever the nav holds. Without this the nav pushes them past the bottom edge, where nothing can
+   scroll to them — the whole aside is the viewport's height. `min-height: 0` is what lets a flex
+   child shrink below its content at all. */
 .sidebar__nav {
   gap: 18px;
+  overflow-y: auto;
+  min-height: 0;
+  /* Room for the scrollbar so a favourite's status dot is not sitting under it. */
+  padding-right: 2px;
+  margin-right: -2px;
 }
 
 .sidebar__group {
@@ -417,6 +427,19 @@
   background-color: var(--surface-3);
 }
 
+.server-row__initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--fg-2);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .45);
+}
+
 .server-row__name {
   font-size: 13.5px;
   font-weight: 500;
@@ -433,6 +456,97 @@
   height: 8px;
   border-radius: var(--r-pill);
   flex-shrink: 0;
+}
+
+/* No reading, drawn as no reading: a ring rather than a fill. A grey dot would sit in the same
+   vocabulary as the offline one and read as a measured "off". */
+.server-row__dot--unknown {
+  background: transparent;
+  border: 1.5px solid var(--fg-4);
+}
+
+.server-row--unknown .server-row__name {
+  color: var(--fg-3);
+}
+
+.server-row--unknown .server-row__icon {
+  opacity: .55;
+}
+
+/* Only on a favourite whose node answered and does not have it — offered on hover, because a
+   shortcut that can clear itself on a mis-click is worse than one that needs a moment's aim. */
+.server-row__forget {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  border-radius: var(--r-sm);
+  color: var(--fg-4);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--d-fast) var(--ease-out), color var(--d-fast) var(--ease-out);
+}
+
+.server-row:hover .server-row__forget,
+.server-row__forget:focus-visible {
+  opacity: 1;
+}
+
+.server-row__forget:hover {
+  color: var(--danger);
+  background: var(--surface-3);
+}
+
+/* ---- Favourites under Servers ------------------------------------------- */
+
+/* Indented so they read as belonging to the Servers entry above, which is what earns them no
+   heading of their own. The block is absent entirely when nothing is starred. */
+.sidebar__favs {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 2px 0 2px 12px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border-subtle);
+}
+
+.sidebar__favs .server-row {
+  padding: 5px 8px;
+  gap: 8px;
+}
+
+.sidebar__favs .server-row__icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+}
+
+.sidebar__favs .server-row__name {
+  font-size: 12.5px;
+}
+
+.sidebar__favs-more {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border: none;
+  background: transparent;
+  border-radius: var(--r-sm);
+  color: var(--fg-4);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sidebar__favs-more:hover {
+  background: var(--surface-2);
+  color: var(--fg-2);
 }
 
 /* ============= Top bar ============= */

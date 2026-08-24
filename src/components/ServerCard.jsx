@@ -186,7 +186,7 @@ function ServerTile({ server, onOpen, onAction, showHost, selectable, selected, 
           <button
             type="button"
             className={"server-tile__fav" + (isFav ? " is-on" : "")}
-            onClick={(e) => { e.stopPropagation(); favoritesStore.toggle(server.id); }}
+            onClick={(e) => { e.stopPropagation(); favoritesStore.toggle(server); }}
             aria-pressed={isFav}
             title={isFav ? "Remove from favorites" : "Add to favorites"}>
             <Icon name="star" size={14} strokeWidth={2.2} />

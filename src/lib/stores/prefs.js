@@ -23,6 +23,7 @@ import { createStore } from "../store.js";
 // per-slot cap is spent on things somebody chose.
 const PREF_KEYS = {
   DASHBOARD_LAYOUT: "dashboard.layout",
+  SERVER_FAVORITES: "servers.favorites",
 };
 
 const LOCAL_PREFIX = "krystal:pref:";

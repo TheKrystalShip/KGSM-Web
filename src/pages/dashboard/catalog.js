@@ -106,10 +106,11 @@ registerWidget({
   icon: "layers",
   group: "Activity",
   describe: () => "Runs",
-  // Measured in a browser: a run card holds its head, its meter and its chips down to 300px, where
-  // the chips wrap to a second row and everything still reads. At 260 the scope line ("6 servers on
-  // 3 nodes") starts being clipped, which is the one thing on the card that cannot be guessed from
-  // the rest of it.
+  // Measured in a browser (visual-harness/runs-board.mjs): a run card holds its head, its meter and
+  // its chips on one row down to 300px. At 260 the chips wrap to a second row and everything still
+  // reads; at 220 the scope line ("6 servers on 3 nodes") starts being clipped, which is the one
+  // thing on the card that cannot be guessed from the rest of it. 300 is the floor because it is the
+  // last width that needs no wrapping to stay whole.
   size: { w: 6, h: 4, minPx: 300, minH: 3 },
   load: () => import("../../components/batch/RunsBoard.jsx").then(m => m.RunsBoard),
 });

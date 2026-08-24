@@ -181,6 +181,17 @@
   color: var(--fg-1);
 }
 
+/* The star takes the same warning amber it wears on a server card, so one gesture reads as one
+   thing on both surfaces. Filled means starred. */
+.hero__fav.is-on,
+.hero__fav:hover {
+  color: var(--warning);
+}
+
+.hero__fav.is-on svg {
+  fill: currentColor;
+}
+
 /* Small honest-metadata tags under the name (runtime, …). Mirrors the
    server-tile pill idiom so the chrome reads the same across surfaces. */
 .hero__tags {
@@ -466,6 +477,12 @@
 .hero--cinematic .hero__edit:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
+}
+
+/* Over art the amber has to win against the scrim rather than against a page background. */
+.hero--cinematic .hero__fav.is-on,
+.hero--cinematic .hero__fav:hover {
+  color: var(--warning);
 }
 
 /* Frosted backing for the status pill + meta tag so they stay legible over art.

@@ -154,6 +154,47 @@
 
   /* Collapse toggle stays a 32px icon button in the rail */
 
+  /* Favourites in the rail: the cover art IS the row. A strip of game thumbnails is more
+     identifiable at a glance than four identical server glyphs would be, and the name arrives on
+     the same hover tooltip every other rail entry uses. */
+  .sidebar--rail .sidebar__favs {
+    margin: 2px 0;
+    padding-left: 0;
+    border-left: none;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .sidebar--rail .sidebar__favs .server-row {
+    justify-content: center;
+    padding: 5px 0;
+    position: relative;
+  }
+
+  .sidebar--rail .sidebar__favs .server-row__name,
+  .sidebar--rail .sidebar__favs .server-row__forget,
+  .sidebar--rail .sidebar__favs-more__label {
+    display: none;
+  }
+
+  .sidebar--rail .sidebar__favs .server-row__icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* The dot rides the thumbnail's corner — there is no row left to sit at the end of. */
+  .sidebar--rail .sidebar__favs .server-row__dot {
+    position: absolute;
+    right: 6px;
+    bottom: 3px;
+    box-shadow: 0 0 0 2px var(--surface-1);
+  }
+
+  .sidebar--rail .sidebar__favs-more {
+    justify-content: center;
+    padding: 5px 0;
+  }
+
   /* ---- Tooltip primitive (rail only) ---- */
   .sidebar--rail [data-tip] {
     position: relative;

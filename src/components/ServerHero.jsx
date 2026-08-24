@@ -7,7 +7,7 @@ import { capacityHint, capacityDetail } from "../lib/capacity.js";
 import { serverOperable } from "../lib/persona.js";
 import { heroArtBg } from "../lib/art.js";
 import { serverStatusLabel } from "../lib/servers.js";
-import { hostsStore } from "../lib/stores.js";
+import { favoritesStore, hostsStore, useIsFavorite } from "../lib/stores.js";
 import { useJobPhase } from "../lib/hooks/useJobPhase.js";
 import { useNav } from "./NavContext.jsx";
 
@@ -70,6 +70,7 @@ function ServerHero({ server, onAction }) {
   // Can the signed-in user operate this server's host? Players (viewer / consumer
   // preview) get the Join + connect surface only — no lifecycle controls, no rename.
   const canOps = serverOperable(server);
+  const isFav = useIsFavorite(server.id);
   // Pending work in three states: idle · queued · running. One derivation, shared with the tile and
   // an alert card's suggested action.
   const job = useJobPhase(server);
@@ -101,6 +102,18 @@ function ServerHero({ server, onAction }) {
         <div className="hero__heading">
           <h1 className="hero__name">
             {server.name}
+            {/* The star is here because this is where a person decides a server is one of theirs —
+                the grid's card is the other place, and reaching it means navigating away from what
+                you are looking at. Ungated: a favourite is a shortcut of your own, and a viewer who
+                may see a server may keep one. */}
+            <button
+              className={"hero__edit hero__fav" + (isFav ? " is-on" : "")}
+              aria-pressed={isFav}
+              aria-label={isFav ? "Remove from favourites" : "Add to favourites"}
+              title={isFav ? "Remove from favourites" : "Add to favourites"}
+              onClick={() => favoritesStore.toggle(server)}>
+              <Icon name="star" size={16} />
+            </button>
             {canOps && (
               <button
                 className="hero__edit"
