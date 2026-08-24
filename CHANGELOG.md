@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — a leaf's text fields sit inside their card
+
+Every `.lcf-input` on a leaf configuration page hung 22px off the right of the card, on desktop and
+on a phone alike. This app has no global reset, so a `width: 100%` control adds its padding and
+border on top of the column it was told to fill; `box-sizing: border-box` makes the width the whole
+box, and a text field now lines up with the dropdown above it. The dropdowns were always right,
+which is why the rows read as misaligned rather than broken.
+
+Nothing failed while it was wrong — the row still laid out and the page still scrolled — so the
+check is arithmetic and permanent: `scripts/visual-harness/leafconfig-inputs.mjs` measures every
+control's right edge against its column, over a ladder of widths in both engines, with each secret's
+Replace field opened. Eight leaves × six widths × two engines, all clean.
+
 ### Added — favourites are the account's, and the sidebar keeps shortcuts to them
 
 Star a server and it gets a permanent row in the sidebar, under **Servers**: cover art, its name, and
