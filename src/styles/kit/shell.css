@@ -549,6 +549,88 @@
   color: var(--fg-2);
 }
 
+/* ---- Nodes under Cluster ------------------------------------------------ */
+
+/* Indented into the Cluster entry above exactly as the favourites are into Servers — one idiom for
+   "these belong to the nav item over them", so neither strip needs a heading of its own. */
+.sidebar__nodes {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 2px 0 2px 12px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border-subtle);
+}
+
+.node-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background var(--d-fast) var(--ease-out);
+}
+
+.node-row:hover {
+  background: var(--surface-2);
+}
+
+.node-row--active {
+  background: var(--surface-3);
+}
+
+/* A node has no cover art to be recognised by, so the glyph is the constant and the name does the
+   identifying. */
+.node-row__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 5px;
+  background: var(--surface-3);
+  color: var(--fg-3);
+}
+
+.node-row__name {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--fg-1);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-row__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  flex-shrink: 0;
+  background: var(--fg-4);
+}
+
+.node-row--ok .node-row__dot {
+  background: var(--success);
+}
+
+.node-row--warn .node-row__dot {
+  background: var(--warning);
+}
+
+/* Silent, not merely idle: the name recedes with the dot so an unanswering node reads as one at a
+   glance rather than on inspection. */
+.node-row--offline .node-row__name {
+  color: var(--fg-3);
+}
+
+.node-row--offline .node-row__icon {
+  opacity: .55;
+}
+
 /* ============= Top bar ============= */
 .topbar {
   height: var(--topbar-h);

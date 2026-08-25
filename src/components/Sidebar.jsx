@@ -16,6 +16,14 @@ import { favoritesStore, serversStore } from "../lib/stores.js";
 // dashboard's "Recently added" band or the breadcrumb. See labels.js KRYSTAL_LABELS.
 const CATALOG_LABEL = KRYSTAL_LABELS.catalog || "Catalog";
 
+// A node the panel cannot fully drive: unreachable, refusing this session, or
+// needing a re-auth. `reauthDue`, not `expired`: the routine token renewal writes
+// `expired` for one round-trip, and neither the chip nor the node list must tick a
+// node into "degraded" for it. Both read this, so they can never disagree.
+function isDegraded(host, session) {
+  return !host.online || !!(session && (session.status === "denied" || session.reauthDue));
+}
+
 // ClusterChip — the ambient reachability signal, and the only node-shaped thing
 // in the chrome. It REPORTS: how many nodes the panel drives, how many are
 // online, and how many are degraded (offline, refusing this session, or needing
@@ -28,12 +36,7 @@ const CATALOG_LABEL = KRYSTAL_LABELS.catalog || "Catalog";
 function ClusterChip({ hosts, onOpen, collapsed }) {
   const sessions = useStore(sessionStore, s => s.byHost);
   const online = hosts.filter(h => h.online).length;
-  const degraded = hosts.filter(h => {
-    const rec = sessions[h.id];
-    // `reauthDue`, not `expired`: the routine token renewal writes `expired` for
-    // one round-trip, and the chip must not tick a node into "degraded" for it.
-    return !h.online || (rec && (rec.status === "denied" || rec.reauthDue));
-  }).length;
+  const degraded = hosts.filter(h => isDegraded(h, sessions[h.id])).length;
   const tone = !hosts.length ? "muted" : degraded === hosts.length ? "down" : degraded ? "warn" : "ok";
   const summary = hosts.length === 1
     ? (online ? "1 node · online" : "1 node · offline")
@@ -186,6 +189,47 @@ function SidebarFavorites({ ids, hostById, servers, hosts, activeId, onOpen, onV
   );
 }
 
+/// The nodes, under Cluster — the same shortcut idiom the favourites hold under Servers, and the
+/// one place the cluster's members are individually reachable from the chrome. Every node is drawn:
+/// a node is not something a person opts into the way a server is starred, and a cluster whose
+/// members came and went from this list would be unreadable as a list of what the panel drives.
+///
+/// The set is the connected roster the ClusterChip counts, so the strip and the number above it are
+/// always the same nodes. A peer discovered but not connected stays on the Cluster page, where its
+/// "discovered, not connected" state can be said out loud; a row here would have nothing to say.
+///
+/// The order is the roster's and nothing re-sorts it — a node that moves because it went offline
+/// has stopped being a shortcut, and the dot is what carries the state.
+function SidebarNodes({ hosts, activeHostId, onOpen }) {
+  const sessions = useStore(sessionStore, s => s.byHost);
+  if (!hosts.length) return null;
+  return (
+    <div className="sidebar__nodes">
+      {hosts.map((h) => {
+        const degraded = isDegraded(h, sessions[h.id]);
+        // Three readings, all measured: answering, answering but not fully drivable, silent.
+        const state = !h.online ? "offline" : degraded ? "warn" : "ok";
+        const why = !h.online ? "hasn't answered"
+          : degraded ? "needs a sign-in"
+          : "online";
+        const name = h.name || h.hostname || h.id;
+        return (
+          <div
+            key={h.id}
+            className={"node-row node-row--" + state + (activeHostId === h.id ? " node-row--active" : "")}
+            onClick={() => onOpen(h.id)}
+            data-tip={name + " — " + why}
+            title={name + " — " + why}>
+            <span className="node-row__icon"><Icon name="server" size={13} /></span>
+            <span className="node-row__name">{name}</span>
+            <span className="node-row__dot"></span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // SidebarAccount — the signed-in user, pinned in the sidebar foot above
 // Settings. Replaces the old top-bar account menu now that the top bar is
 // gone; its popover opens UPWARD (it lives at the very bottom of the panel).
@@ -313,6 +357,12 @@ function Sidebar({ route = {}, onNavigate, serversCount = 0, serversTone = "info
             {clusterCount > 0 && <span className={"nav-item__badge nav-item__badge--" + clusterTone}>{clusterCount}</span>}
           </div>
           )}
+          {canCluster && (
+          <SidebarNodes
+            hosts={hosts}
+            activeHostId={route.kind === "cluster" ? route.hostId : null}
+            onOpen={(id) => onNavigate && onNavigate({ kind: "cluster", hostId: id })} />
+          )}
           {canAudit && (
           <div className={"nav-item" + (isActive("audit") ? " nav-item--active" : "")} onClick={go("audit")} data-tip="Audit log" aria-label="Audit log">
             <Icon name="scroll-text" size={16} />
@@ -397,4 +447,4 @@ function TopNav({ tab, onTab, user, onLogout, onMenu, onHome, onAssistant, assis
   );
 }
 
-export { AccountAvatar, ClusterChip, ServerListItem, Sidebar, SidebarAccount, TopNav };
+export { AccountAvatar, ClusterChip, ServerListItem, Sidebar, SidebarAccount, SidebarNodes, TopNav };

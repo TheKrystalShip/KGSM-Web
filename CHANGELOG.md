@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the cluster's nodes are in the sidebar (`1.167.0`)
+
+Every node the panel drives sits under the Cluster entry, in the same shortcut idiom the favourites
+hold under Servers: name, a dot carrying whether the node answers and whether this session can drive
+it, and a click that opens that node's diagnostics. All of them are drawn — a node is not something
+a person opts into the way a server is starred — and the set is the one the chip above counts, so
+the strip and the number can never name different nodes. Collapsed to the rail, a row becomes its
+glyph with the dot on the corner and the name on the hover tooltip.
+
 ### Added — a role change reaches the panel that is already open (`1.166.0`)
 
 An administrator regrading somebody's account is felt in their browser at once. The node states the

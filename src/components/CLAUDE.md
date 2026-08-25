@@ -37,6 +37,13 @@ into `App.jsx`.
   deleted — with a hollow dot (no reading is not "off") and a tooltip naming which of the two it is;
   only the stale case, where a live node has no such server, offers to clear it.
 
+  It also holds **`SidebarNodes`**, the same idiom under Cluster. Every node is drawn — a node is not
+  something a person opts into the way a server is starred — and the set is the connected roster the
+  `ClusterChip` above counts, so the strip and that number can never name different nodes. A peer
+  discovered but not connected stays on the Cluster page, where its state can be said in words. Both
+  the chip and the rows read `isDegraded` for "answering, but this session cannot drive it", which is
+  what keeps the count and the dots agreeing.
+
   ⚠ `.sidebar__nav` is the one part of the aside allowed to scroll. The foot is pinned by
   `margin-top: auto` and would otherwise be pushed past the bottom edge, where nothing can reach it.
 
