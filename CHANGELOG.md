@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the Temperatures card reads in plain words, and shows fan speeds (`1.162.0`)
+
+Readings group under what they measure — Processor, Memory, Storage, Motherboard, Chipset, Network —
+and each row is named ("CPU", "CPU die 1", "Memory module 1") instead of printing the hwmon register
+that produced it. Neither the grouping nor the name is derived in the SPA: both are plumbed from the
+monitor, which is the thing that read the register. A reading the monitor could not classify still
+renders, under "Other", falling back to the raw chip/label pair — an unrecognised chip is unfamiliar
+hardware, not a doubtful measurement. Fans that are turning follow in their own group, in RPM.
+
+The overview's temperature tile reads the CPU's own sensors when there are any, and says so in its
+subtitle. A plain maximum across every channel put a warm SSD or DIMM under a tile the reader takes
+for the processor.
+
 ### Added — the Resources tab reads the whole node: slice split, GPU, temperatures, history (`1.161.0`)
 
 Four cards join the CPU core grid and RAM bar, every figure measured upstream and adapted honestly:

@@ -143,15 +143,41 @@ function GpuCard({ host, frozen, ageShort }) {
   );
 }
 
-// The hwmon temperatures, grouped by chip. Emphasis only — a reading at 75°C+ is tinted and 90°C+
-// is red — while the thresholds that actually act live in the monitor's policy, not here.
+// Temperatures grouped by what they measure, and the fans that are turning. Emphasis only — a reading
+// at 75°C+ is tinted and 90°C+ is red — while the thresholds that actually act live in the monitor's
+// policy, not here.
+//
+// The monitor classifies each channel and sends a role and a human name; neither is derived here,
+// because the daemon that read the register is the one that knows what it is. A reading with no role
+// is unrecognised hardware rather than a doubtful measurement, so it still renders — under "Other",
+// falling back to the raw chip/label pair.
+const SENSOR_GROUPS = [
+  ["cpu", "Processor"],
+  ["gpu", "Graphics"],
+  ["memory", "Memory"],
+  ["drive", "Storage"],
+  ["board", "Motherboard"],
+  ["chipset", "Chipset"],
+  ["network", "Network"],
+];
+
+function sensorLabel(s) {
+  if (s.name) return s.name;
+  return s.label ? s.chip + " · " + s.label : s.chip;
+}
+
 function SensorsCard({ host, frozen, ageShort }) {
-  const sensors = host.sensors;
-  const byChip = new Map();
-  for (const s of sensors) {
-    if (!byChip.has(s.chip)) byChip.set(s.chip, []);
-    byChip.get(s.chip).push(s);
+  const sensors = host.sensors || [];
+  const fans = Array.isArray(host.fans) ? host.fans : [];
+
+  const groups = [];
+  for (const [role, heading] of SENSOR_GROUPS) {
+    const rows = sensors.filter((s) => s.role === role);
+    if (rows.length) groups.push([heading, rows]);
   }
+  const unclassified = sensors.filter((s) => !SENSOR_GROUPS.some(([role]) => s.role === role));
+  if (unclassified.length) groups.push(["Other", unclassified]);
+
   const toneColor = (c) => (c >= 90 ? "var(--danger)" : c >= 75 ? "var(--warning)" : "var(--fg-1)");
   return (
     <div className={"chat-brief" + (frozen ? " is-frozen" : "")} style={{ marginTop: 16 }}>
@@ -163,16 +189,32 @@ function SensorsCard({ host, frozen, ageShort }) {
         <StatusLed live={!frozen} label={frozen ? ageShort : null} />
       </div>
       <div className="chat-brief__pad">
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {[...byChip.entries()].map(([chip, readings]) => (
-            readings.map((s, i) => (
-              <span key={chip + ":" + (s.label || i)} className="svc-fact" title={chip + (s.label ? " · " + s.label : "")}>
-                {chip}{s.label ? " · " + s.label : readings.length > 1 ? " · " + (i + 1) : ""}
-                <b style={{ color: toneColor(s.value_c), marginLeft: 4 }}>{s.value_c.toFixed(1)}°C</b>
-              </span>
-            ))
-          ))}
-        </div>
+        {groups.map(([heading, rows]) => (
+          <div key={heading}>
+            <div className="diag-subhead">{heading}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {rows.map((s) => (
+                <span key={s.id} className="svc-fact" title={s.chip + (s.label ? " · " + s.label : "")}>
+                  {sensorLabel(s)}
+                  <b style={{ color: toneColor(s.value_c), marginLeft: 4 }}>{s.value_c.toFixed(1)}°C</b>
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+        {fans.length > 0 && (
+          <div>
+            <div className="diag-subhead">Fans</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {fans.map((f) => (
+                <span key={f.id} className="svc-fact" title={f.chip + (f.label ? " · " + f.label : "")}>
+                  {f.name || f.chip}
+                  <b style={{ marginLeft: 4 }}>{f.rpm.toLocaleString()} RPM</b>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -261,7 +303,8 @@ function DiagResources({ host, fresh }) {
         </div>
       )}
 
-      {Array.isArray(host.sensors) && host.sensors.length > 0 && (
+      {((Array.isArray(host.sensors) && host.sensors.length > 0)
+        || (Array.isArray(host.fans) && host.fans.length > 0)) && (
         <SensorsCard host={host} frozen={frozen} ageShort={ageShort} />
       )}
 

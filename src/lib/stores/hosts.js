@@ -52,6 +52,8 @@ hostsStore.mergeMetrics = (id, t) => {
       if (t.ram) next.ram = t.ram;
       if (t.disks) next.disks = t.disks;
       if (t.sensors) next.sensors = t.sensors;
+      // fans adopts undefined-vs-value like gpus/slice: a measured empty must be able to clear the card.
+      if (t.fans !== undefined) next.fans = t.fans;
       // gpus/slice adopt the tick's value INCLUDING null (a measured absence — the card must go away),
       // but not undefined: a node whose api predates the field must not clear a newer REST read.
       if (t.gpus !== undefined) next.gpus = t.gpus;

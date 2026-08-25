@@ -44,8 +44,19 @@ function DiagOverview({ host, fresh, onAsk, onRun, onViewAlerts, onViewAudit, on
     return pct > acc.pct ? { disk: d, pct } : acc;
   }, { disk: null, pct: 0 });
   const diskTone = statusTone(fullestDisk.pct, 80, 90);
+  // The headline temperature is the CPU's, when the monitor could classify one. A plain max across
+  // every channel puts a warm SSD or DIMM under a tile labelled "Temperature", which reads as the host
+  // running hot; falling back to the max is only for a host whose chips aren't in the monitor's catalog,
+  // and the tile says so rather than implying the number is the processor's.
   const hasSensors = Array.isArray(host.sensors) && host.sensors.length > 0;
-  const hotTemp = hasSensors ? host.sensors.reduce((max, s) => s.value_c > max ? s.value_c : max, 0) : null;
+  const cpuSensors = hasSensors ? host.sensors.filter((s) => s.role === "cpu") : [];
+  const tempPool = cpuSensors.length > 0 ? cpuSensors : host.sensors;
+  const hotTemp = hasSensors ? tempPool.reduce((max, s) => (s.value_c > max ? s.value_c : max), 0) : null;
+  // The label stays one word: the KPI row is a fixed grid and a two-line label drops this tile's value
+  // out of line with its neighbours. Which sensor the number came from rides the subtitle instead.
+  const tempSub = cpuSensors.length > 0
+    ? (cpuSensors.length === 1 ? "CPU package sensor" : "hottest of " + cpuSensors.length + " CPU sensors")
+    : "highest of " + (host.sensors || []).length + " sensors";
   const tempTone = hotTemp != null ? statusTone(hotTemp, 75, 85) : "success";
   const netTotal = host.network.interfaces.reduce((sum, i) => sum + (i.rx_kbps || 0) + (i.tx_kbps || 0), 0);
   const ifaceCount = host.network.interfaces.length;
@@ -84,7 +95,7 @@ function DiagOverview({ host, fresh, onAsk, onRun, onViewAlerts, onViewAudit, on
         {hasSensors && (
           <KPI icon="thermometer"  label="Temperature" tone={gTone(tempTone)} className="kpi--metric" led={gLed} ledLabel={gLedLabel}
             value={hotTemp + "\u00b0C"}
-            sub={"highest of " + host.sensors.length + " sensors"} />
+            sub={tempSub} />
         )}
         <KPI icon="clock"        label="Uptime"      tone="ok" led="live"
           value={uptimeShort(host.boot_time)}

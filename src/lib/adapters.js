@@ -225,7 +225,7 @@ function telemetrySkeleton() {
   return {
     cpu: { model: "—", cores: 0, threads: null, freq_ghz: null, usage_pct: null, per_core: [], load_avg: null, temp_c: null },
     ram: { total_gb: 0, used_gb: 0, cached_gb: null, buffers_gb: null, free_gb: 0, swap_total_gb: null, swap_used_gb: null },
-    disks: [], network: { interfaces: [], open_ports: [] }, sensors: [], processes: [],
+    disks: [], network: { interfaces: [], open_ports: [] }, sensors: [], fans: [], processes: [],
   };
 }
 
@@ -291,11 +291,27 @@ function mapHostTelemetry(be) {
         rx_kbps: toKbps(i.rxBps), tx_kbps: toKbps(i.txBps), rx_pps: i.rxPps ?? null, tx_pps: i.txPps ?? null,
       }))
     : null;
-  // hwmon temperatures (M-diag depth). Empty array when no chip exposes one (never an invented row);
-  // null only when there's no snapshot at all (so adaptHost can fall back to the skeleton's []).
+  // hwmon temperatures. Empty array when no chip exposes one (never an invented row); null only when
+  // there's no snapshot at all (so adaptHost can fall back to the skeleton's []). role/name are the
+  // monitor's classification of the channel and are carried, never derived here — the daemon that read
+  // the register owns that knowledge. Both null together means the chip isn't in its catalog, which is
+  // unrecognised hardware and NOT a doubtful reading: value_c is measured either way, so the UI falls
+  // back to chip/label rather than hiding the row.
   const sensors = Array.isArray(be.sensors)
-    ? be.sensors.map((s) => ({ chip: s.chip, label: s.label || null, value_c: round(s.valueC, 1) }))
+    ? be.sensors.map((s) => ({
+        id: s.id, chip: s.chip, label: s.label || null, value_c: round(s.valueC, 1),
+        role: s.role || null, name: s.name || null,
+      }))
     : null;
+  // hwmon fan tachometers. Only fans that are TURNING are on the wire — an unpopulated header and a
+  // stopped fan both read zero and hwmon can't separate them — so expect fewer rows than the board has
+  // headers, and never read an absent row as "that fan stopped". undefined when the payload predates
+  // the field, which the merge keeps distinct from a measured empty.
+  const fans = Array.isArray(be.fans)
+    ? be.fans.map((f) => ({
+        id: f.id, chip: f.chip, label: f.label || null, rpm: f.rpm, name: f.name || null,
+      }))
+    : be.fans;
   // The host's GPUs — devices only (the per-process breakdown is detail-only and gated). GiB figures
   // straight from the api; each nullable field passes through (an unreadable SM/temp/power is unknown,
   // never 0). null = the host has no readable card; undefined = the payload predates the field — the
@@ -323,7 +339,7 @@ function mapHostTelemetry(be) {
   // timestamp. null when uptime isn't sourced → the helpers render "—".
   const boot_time = be.uptimeSec != null ? new Date(Date.now() - be.uptimeSec * 1000).toISOString() : null;
   const hostname = be.hostname || null;
-  return { cpu, ram, disks, interfaces, sensors, gpus, slice, boot_time, hostname };
+  return { cpu, ram, disks, interfaces, sensors, fans, gpus, slice, boot_time, hostname };
 }
 
 export function adaptHost(be) {
@@ -383,7 +399,8 @@ export function adaptHost(be) {
     // FE capability model {provisioned,status,since,message,info}.
     capabilities: be.capabilities || {},
     cpu, ram, disks, network,
-    sensors: tel.sensors || [],   // hwmon temps now sourced (M-diag depth); [] when none / no snapshot
+    sensors: tel.sensors || [],   // hwmon temperatures; [] when none / no snapshot
+    fans: tel.fans || [],         // hwmon tachometers that are turning; [] when none reported
     gpus: tel.gpus ?? null,       // devices only; null = no readable card on this host
     slice: tel.slice ?? null,     // kgsm.slice aggregate; null = no slice on this host
     processes: [],                // no host process-list source → honest-empty (not fabricated rows)
