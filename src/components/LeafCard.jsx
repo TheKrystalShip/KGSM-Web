@@ -65,6 +65,20 @@ function LeafProvisionControl({ svc, hostId }) {
 // whose presence is read off its socket file rather than stored. Either way there is no switch behind the
 // row, so it reads "not applicable" rather than offering one.
 function LinkAxis({ svc }) {
+  // The engine has no stored connection because none is needed: this panel reaches it by executing
+  // it, through kgsm-lib. That is a live path, not an absent one, so it is named rather than
+  // rendered as "not applicable".
+  if (svc.id === "kgsm") {
+    return (
+      <div className="svc-card__axis">
+        <span className="svc-card__axis-lbl">Link</span>
+        <span className="svc-card__axis-val svc-card__axis-val--linked">
+          <Icon name="terminal" size={13} strokeWidth={2.2} /> Direct exec
+        </span>
+        <span className="svc-card__axis-sub">via kgsm-lib</span>
+      </div>
+    );
+  }
   if (svc.provisioned == null) {
     return (
       <div className="svc-card__axis">
@@ -92,6 +106,9 @@ function LeafCard({ svc, hostId, canManage, onOpen, onConfigure }) {
   const s = leafStatus(svc);
   const kind = leafKind(svc.id);
   const icon = leafIcon(svc.id);
+  // The engine's pseudo-leaf row: a stateless CLI, not a unit. Runtime facts (memory, pid, boot),
+  // lifecycle controls and the config page are all unit-vocabulary, so none of them render for it.
+  const engine = svc.id === "kgsm";
   const running = svc.state === "active";
   // Runtime facts belong to a running unit. A stopped or absent one reports nothing, and the
   // card shows that as an em-dash rather than borrowing the last reading it had.
@@ -107,7 +124,9 @@ function LeafCard({ svc, hostId, canManage, onOpen, onConfigure }) {
         <div className="svc-card__id">
           {kind && <span className="svc-card__kind">{kind}</span>}
           <div className="svc-card__name" title={svc.displayName}>{svc.displayName}</div>
-          <div className="svc-card__unit" title={svc.unit}>{svc.unit}</div>
+          <div className="svc-card__unit" title={svc.unit || undefined}>
+            {svc.unit || (engine ? "stateless CLI — no resident process" : "")}
+          </div>
         </div>
         <button className="svc-cfg-btn svc-cfg-btn--go" onClick={onOpen} title={"Open " + svc.displayName}>
           Open <Icon name="arrow-right" size={12} strokeWidth={2} />
@@ -133,18 +152,20 @@ function LeafCard({ svc, hostId, canManage, onOpen, onConfigure }) {
         {unhealthy && svc.health.message && (
           <div className="svc-card__health"><Icon name="triangle-alert" size={12} /> {svc.health.message}</div>
         )}
-        <div className="svc-card__meta">
-          <span className="svc-fact" title="memory (systemd cgroup accounting)">
-            <Icon name="memory-stick" size={11} />{mem || "—"}
-          </span>
-          <span className="svc-fact" title="main pid"><Icon name="hash" size={11} />{pid || "—"}</span>
-          <span className={"svc-fact svc-fact--boot" + (svc.enabled ? " is-on" : "")} title="starts on boot">
-            <Icon name={svc.enabled ? "power" : "power-off"} size={11} />
-            {svc.enabled == null ? "—" : svc.enabled ? "boot" : "manual"}
-          </span>
-        </div>
+        {!engine && (
+          <div className="svc-card__meta">
+            <span className="svc-fact" title="memory (systemd cgroup accounting)">
+              <Icon name="memory-stick" size={11} />{mem || "—"}
+            </span>
+            <span className="svc-fact" title="main pid"><Icon name="hash" size={11} />{pid || "—"}</span>
+            <span className={"svc-fact svc-fact--boot" + (svc.enabled ? " is-on" : "")} title="starts on boot">
+              <Icon name={svc.enabled ? "power" : "power-off"} size={11} />
+              {svc.enabled == null ? "—" : svc.enabled ? "boot" : "manual"}
+            </span>
+          </div>
+        )}
 
-        {canManage && (
+        {canManage && !engine && (
           <div className="svc-card__quick">
             <button className="svc-cfg-btn" disabled title={LIFECYCLE_HINT}>
               <Icon name="play" size={12} /> Start
@@ -158,7 +179,7 @@ function LeafCard({ svc, hostId, canManage, onOpen, onConfigure }) {
           </div>
         )}
 
-        {canManage && (
+        {canManage && !engine && (
           <div className="svc-card__prov">
             {svc.provisioned != null && <LeafProvisionControl svc={svc} hostId={hostId} />}
             {/* Configuration is one tab of the leaf's own page — the all-leaves config page is

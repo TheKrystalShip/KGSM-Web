@@ -64,6 +64,7 @@ export const ROUTE_DEFAULT_TAB = {
 // Tabs a page registers next to their bodies rather than in the table above: the leaves'
 // extra tabs. Named here so the breadcrumb can read a name it has no other way to reach.
 const TAB_LABEL_FALLBACK = {
+  library: "Library",
   conversations: "Conversations",
   users: "Users",
   thresholds: "Thresholds",

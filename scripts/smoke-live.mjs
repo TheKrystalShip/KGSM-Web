@@ -2872,8 +2872,14 @@ try {
   const svc = adapt.adaptServices(await fetch(API + "/api/v1/hosts/" + hmId + "/services").then(r => r.json()));
   const apiLeaf = svc.find(s => s.id === "api");
   const fwLeaf = svc.find(s => s.id === "firewall");
-  assert(svc.length >= 6 && svc.every(s => s.id && s.displayName && s.unit && KNOWN_STATES.has(s.state)),
-    `host services (live): GET /hosts/${hmId}/services → ${svc.length} leaf row(s), each id/displayName/unit + a known systemd state`);
+  // The engine's pseudo-leaf row speaks its own measured vocabulary and carries no unit — it is a
+  // stateless CLI, not a systemd service. Every OTHER row is unit-backed and systemd-worded.
+  const engineRow = svc.find(s => s.id === "kgsm");
+  const unitRows = svc.filter(s => s.id !== "kgsm");
+  assert(unitRows.length >= 6 && unitRows.every(s => s.id && s.displayName && s.unit && KNOWN_STATES.has(s.state)),
+    `host services (live): GET /hosts/${hmId}/services → ${unitRows.length} leaf row(s), each id/displayName/unit + a known systemd state`);
+  assert(engineRow && engineRow.unit === "" && ["available", "unavailable", "not-installed"].includes(engineRow.state),
+    "host services (live): the engine pseudo-leaf row is unit-less and speaks its own vocabulary (available/unavailable/not-installed)");
   assert(apiLeaf && apiLeaf.state === "active" && apiLeaf.health && apiLeaf.health.status === "operational" && apiLeaf.mainPid != null,
     "host services (live): the api leaf is active + self-reports operational health + a real pid (it IS the service answering this request)");
   assert(fwLeaf && fwLeaf.onDemand === true,
@@ -3009,6 +3015,24 @@ try {
       "leaf Overview (bot): a bot set up in no Discord server says so, rather than looking broken");
   }
 
+  // The engine's pseudo-leaf page. Its Overview renders what GET /hosts/{id}/engine measured (the
+  // api invoking kgsm itself), and its Library tab holds the placement roots the host aggregate
+  // carries — both live reads, asserted against what the backend actually said.
+  const engineInfo = await fetch(API + "/api/v1/hosts/" + hmId + "/engine").then(r => (r.ok ? r.json() : null));
+  if (engineInfo) {
+    const engHtml = await nav(`#/cluster/${hmId}/services/kgsm`);
+    assert(engHtml.includes(engineInfo.version) && engHtml.includes(engineInfo.path),
+      `leaf Overview (kgsm): the engine's own version (${engineInfo.version}) and entrypoint render`);
+    const engLibs = (st.hostsStore.find(hmId) || {}).libraries || [];
+    const libHtml = await nav(`#/cluster/${hmId}/services/kgsm/library`);
+    assert(engLibs.every(l => libHtml.includes(l.name) && libHtml.includes(l.path)),
+      `leaf Library (kgsm): every placement root the host reports renders with its path (${engLibs.length})`);
+    assert(!engHtml.includes(">System<") && !engHtml.includes(">Logs<"),
+      "leaf page (kgsm): the engine page offers no unit-vocabulary tabs — it has no unit and no journal");
+  } else {
+    console.log("· leaf Overview (kgsm): this host reports no engine, so the pseudo-leaf page wasn't exercised");
+  }
+
   let cmds404 = 0;
   await fetch(API + "/api/v1/hosts/" + hmId + "/services/monitor/commands").then(r => { cmds404 = r.status; });
   const monitorCmdHtml = await nav(`#/cluster/${hmId}/services/monitor`);
@@ -3018,7 +3042,7 @@ try {
   // A stopped unit still carries `since` (ActiveEnterTimestamp, from its last run), so reading elapsed
   // time off it would claim a dead service had been up for hours. Exercise it against whichever leaf is
   // actually down rather than naming one, since which leaves run is the host's business, not ours.
-  const downLeaf = svc.find(s => s.state !== "active");
+  const downLeaf = svc.find(s => s.unit && s.state !== "active");
   if (downLeaf) {
     const downHtml = await nav(`#/cluster/${hmId}/services/${downLeaf.id}/system`);
     assert(downHtml.includes("Last started") && !downHtml.includes(">Uptime<") && downHtml.includes("not running"),

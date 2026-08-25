@@ -46,10 +46,17 @@ import { LeafLogs } from "./LeafLogs.jsx";
 import { LeafOverview } from "./LeafOverview.jsx";
 import { LeafSettingsTab } from "./LeafSettingsTab.jsx";
 import { LeafSystem } from "./LeafSystem.jsx";
+import { KgsmOverview } from "./KgsmOverview.jsx";
+import { KgsmLibraries } from "./KgsmLibraries.jsx";
 
 // Per-leaf tabs, inserted between the always-present Overview and Settings. A leaf absent from this
 // map simply has none — which is the correct answer for most of them today.
 const LEAF_TABS = {
+  // The engine's pseudo-leaf page. Library management sits here because a placement root is engine
+  // domain — a root somebody declared to kgsm, not a filesystem the monitor found.
+  kgsm: [
+    { id: "library", label: "Library", icon: "hard-drive", render: (p) => <KgsmLibraries {...p} /> },
+  ],
   assistant: [
     { id: "conversations", label: "Conversations", icon: "messages-square", render: (p) => <AssistantConversations {...p} /> },
   ],
@@ -78,6 +85,7 @@ const LEAF_TABS = {
 // The Overview body a leaf renders. Falls back to the generic one, which is built purely from the
 // service row + config descriptor and therefore works for any leaf.
 const LEAF_OVERVIEW = {
+  kgsm: (p) => <KgsmOverview {...p} />,
   assistant: (p) => <AssistantOverview {...p} />,
   firewall: (p) => <FirewallOverview {...p} />,
   api: (p) => <ApiOverview {...p} />,
@@ -113,6 +121,9 @@ function LeafPage({ hostId, leafId, tab, onSelectTab, onReviewConversation, onAu
     if (!hostId || !leafId) return undefined;
     let cancelled = false;
     setCommands(null);
+    // The engine takes no leaf commands — it is not in the leaf catalog, so asking would be a
+    // guaranteed 404 per page load.
+    if (leafId === "kgsm") return undefined;
     fetchLeafCommands(hostId, leafId).then(
       (m) => { if (!cancelled) setCommands(m); },
       () => { if (!cancelled) setCommands(null); },
@@ -132,7 +143,9 @@ function LeafPage({ hostId, leafId, tab, onSelectTab, onReviewConversation, onAu
   // System, Logs and Settings are here for every leaf, not per-leaf like the map above: each one is a
   // systemd unit, so each one has both a unit to report on and a journal. The shell's four come from
   // the shared table the breadcrumb reads (lib/labels.js); a leaf's own tabs slot in after Overview.
-  const shell = ROUTE_TABS.leaf;
+  // The engine is the exception — a stateless CLI with no unit, no journal and no config descriptor,
+  // so its page is Overview plus its own tabs and none of the unit-vocabulary ones.
+  const shell = leafId === "kgsm" ? [ROUTE_TABS.leaf[0]] : ROUTE_TABS.leaf;
   const tabs = [
     shell[0],
     ...extraTabs.map(t => ({ id: t.id, label: t.label, icon: t.icon })),

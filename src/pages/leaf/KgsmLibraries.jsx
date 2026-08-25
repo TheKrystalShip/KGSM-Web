@@ -1,9 +1,10 @@
-// DiagLibraries — the named roots this node places game servers in, and (for an admin) registering,
-// renaming and deregistering them.
+// KgsmLibraries — the Library tab of the engine's page: the named roots this node places game
+// servers in, and (for an admin) registering, renaming and deregistering them.
 //
-// It sits beside the disk card and is deliberately not folded into it: a disk is a filesystem the
-// monitor found, a library is a root somebody declared. One node can hold several libraries on one
-// disk, and a mounted disk kgsm knows nothing about is not a place a server can go.
+// A library is engine domain, not host telemetry — a root somebody declared, not a filesystem the
+// monitor found. One node can hold several libraries on one disk, and a mounted disk kgsm knows
+// nothing about is not a place a server can go. That is why this lives on the engine's page rather
+// than among the node's resource cards.
 
 import React from "react";
 import { Icon } from "../../components/Icon.jsx";
@@ -11,11 +12,12 @@ import { Select } from "../../components/Select.jsx";
 import { addLibrary, removeLibrary, renameLibrary } from "../../lib/stores.js";
 import { fmtBytes } from "../../lib/formatting.js";
 import { canOn } from "../../lib/persona.js";
+import { LeafNotice } from "./leafOverviewKit.jsx";
 
 const errText = (e, fallback) => (e && (e.userMessage || e.message)) || fallback;
 
-function DiagLibraries({ host }) {
-  const libraries = host.libraries;
+function KgsmLibraries({ host }) {
+  const libraries = host && host.libraries;
   const canManage = canOn("host.manage", host.id);
 
   const [adding, setAdding] = React.useState(false);
@@ -36,9 +38,17 @@ function DiagLibraries({ host }) {
   const [draining, setDraining] = React.useState(null);
   const [drainTo, setDrainTo] = React.useState("");
 
-  // A node whose engine predates libraries reports null and this card does not exist — there is no
-  // placement surface to draw and inventing one would offer a control the backend cannot act on.
-  if (!libraries) return null;
+  // A null registry means the engine could not report this node's placement roots — a node whose
+  // engine predates libraries, or one that would not answer. There is no placement surface to draw
+  // and inventing one would offer a control the backend cannot act on, so the tab says exactly that.
+  if (!libraries) {
+    return (
+      <LeafNotice title="Libraries unreadable">
+        The engine could not report this node’s placement roots — it may predate libraries, or it
+        didn’t answer.
+      </LeafNotice>
+    );
+  }
 
   const setErr = (key, msg) => setRowError(prev => ({ ...prev, [key]: msg }));
 
@@ -103,7 +113,7 @@ function DiagLibraries({ host }) {
   const drainTargets = (lib) => libraries.filter(l => l.online && l.name !== lib.name);
 
   return (
-    <div className="chat-brief" style={{ marginTop: 16 }}>
+    <div className="chat-brief">
       <div className="chat-brief__head">
         <span className="chat-brief__title">
           <Icon name="hard-drive" size={13} /> Librar{libraries.length === 1 ? "y" : "ies"}
@@ -273,4 +283,4 @@ function DiagLibraries({ host }) {
   );
 }
 
-export { DiagLibraries };
+export { KgsmLibraries };

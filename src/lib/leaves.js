@@ -10,6 +10,10 @@
 // resting) is deliberately neutral — it is not a fault — and nothing is green by default:
 // an unknown or missing unit is muted, never optimistic.
 const SVC_STATE = {
+  // The engine's own vocabulary — the kgsm row is a stateless CLI, not a unit, and its state is
+  // measured by invoking it: "available" is a --version that answered, never an inference.
+  available:       { tone: "up",   label: "Available" },
+  unavailable:     { tone: "down", label: "Unreachable" },
   active:          { tone: "up",   label: "Running" },
   activating:      { tone: "warn", label: "Starting" },
   deactivating:    { tone: "warn", label: "Stopping" },
@@ -40,6 +44,8 @@ function leafStatus(svc) {
 // generic icon and shows no kind at all, so a leaf joining the ecosystem later still renders
 // correctly without a frontend change.
 const LEAF_ICON = {
+  // The engine itself, first among the ecosystem components its leaves orbit.
+  kgsm: "cog",
   watchdog: "shield",
   monitor: "gauge",
   assistant: "bot",
@@ -58,6 +64,7 @@ const leafIcon = (id) => LEAF_ICON[id] || "box";
 // A two-word answer to "what is this thing", above the name. It complements the display name
 // rather than repeating it, and it is not the leaf's `role` — that sentence is the card's body.
 const LEAF_KIND = {
+  kgsm: "engine",
   watchdog: "supervisor",
   monitor: "metrics",
   assistant: "agent",

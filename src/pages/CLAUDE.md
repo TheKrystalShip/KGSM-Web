@@ -91,7 +91,7 @@ pieces live beside it.
 | Entry | Folder | Holds |
 |---|---|---|
 | `ChatPage.jsx` | `../chat/` (shared by both surfaces) | thread/message/parts, evidence cards, context meter, host picker, `chatUtils`/`chatConstants` |
-| `DiagnosticsPage.jsx` | `diagnostics/` | `DiagOverview/Resources/Services/Logs`, `DiagLibraries` (the placement roots + the admin's register/rename/deregister controls — its own file because `DiagResources` is otherwise a pure render), `DiagJobs` (the node's `JobQueue`), host cards, `LeafConfigModal`, `diagHelpers` (the leaf card itself is `components/LeafCard.jsx`) |
+| `DiagnosticsPage.jsx` | `diagnostics/` | `DiagOverview/Resources/Services/Logs`, `DiagJobs` (the node's `JobQueue`), host cards, `LeafConfigModal`, `diagHelpers` (the leaf card itself is `components/LeafCard.jsx`; the placement libraries live on the engine's leaf page — `leaf/KgsmLibraries.jsx`) |
 | `PerformanceTab.jsx` | `performance/` | `PerfCards`, `perfHelpers` |
 | `ServerSettings.jsx` | `serverSettings/` | `SettingsSections` |
 | `DashboardPage.jsx` | `dashboard/` | `catalog.js` (the widget registrations), `widgets/` (the pinnable bodies), `fleetKpis.js` (the fleet KPI figures), `DashFleetStrip`, `AddWidgetSheet`, `DashboardEmpty` |

@@ -283,6 +283,19 @@ function fetchLeafOverview(hostId, leaf, path) {
     });
 }
 
+// The engine's identity card — version and directory layout, measured by the api invoking kgsm itself.
+// Its own route rather than a /services/{leaf}/ path because the engine is not in the leaf catalog,
+// but the failure vocabulary matches fetchLeafOverview's: 404 (no engine configured on this host)
+// resolves null, and anything else rejects as worth retrying.
+function fetchEngineInfo(hostId) {
+  if (!hostId) return Promise.resolve(null);
+  return api.host(hostId).get("/hosts/" + hostId + "/engine")
+    .catch(err => {
+      if (err && err.code === 404) return null;
+      throw err;
+    });
+}
+
 // The scheduler's whole board: every instance it supervises, its configured cadence, when it next fires,
 // and how the last run went. Relayed by the api exactly as the leaf reports it — no adapter, because the
 // leaf's nulls ARE the view shape ("not scheduled" and "hasn't run yet" are both honest gaps, and a
@@ -348,7 +361,7 @@ function applyLeafConfig(hostId, leaf, body) {
 export {
   logsStore, logSourcesStore, leafLogsStore, servicesStore,
   subscribeHostLogs, subscribeLeafLogs, leafLogsKey, subscribeHostServices, setLeafProvisioned,
-  fetchLeafConfig, fetchLeafCommands, applyLeafConfig, fetchLeafMetricsHistory,
+  fetchLeafConfig, fetchLeafCommands, applyLeafConfig, fetchLeafMetricsHistory, fetchEngineInfo,
   fetchLeafSchedules, fetchLeafSupervision, fetchLeafMonitorStats, fetchLeafBotStatus,
   fetchLeafSpeechStatus, fetchLeafReactorStatus, fetchLeafReactorDecisions,
 };

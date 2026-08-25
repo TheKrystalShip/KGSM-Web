@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the engine is a pseudo-leaf: its own card, page and Library tab (`1.160.0`)
+
+KGSM itself now sits on the Services board with the rest of the ecosystem components. Its card
+comes from the backend's engine row — unit-less, with the engine's own measured vocabulary
+(`available`/`unavailable`/`not-installed` in `lib/leaves.js`) — and hides everything that is
+unit-speak: no memory/pid/boot facts, no lifecycle buttons, no Configure, and a Link axis that says
+how this panel actually reaches it (direct exec via kgsm-lib) rather than "not applicable".
+
+Opening it lands on a leaf page with exactly two tabs. **Overview** (`leaf/KgsmOverview.jsx`)
+renders the engine's identity from `GET /hosts/{id}/engine` — version, entrypoint, engine root,
+config file, instances and blueprints dirs — over KPIs joined from the stores the app already
+holds (servers on this node, running, libraries with their free space). **Library**
+(`leaf/KgsmLibraries.jsx`) is the placement-root management surface — register, rename, drain,
+deregister — living here because a library is engine domain: a root somebody declared to kgsm, not
+a filesystem the monitor found. The engine page offers none of the unit-vocabulary tabs (System,
+Logs, Settings) and fetches no command manifest.
+
+### Changed — the node's Resources tab is compute only
+
+The Resources tab shows the monitor's CPU core grid and the RAM bar, and nothing else. Raw disks
+and network interfaces are host plumbing the ecosystem doesn't manage, so the Control Panel no
+longer exposes them; the open-ports view belongs to the firewall leaf, and the placement libraries
+to the engine's page.
+
 ### Changed — a KPI draws a bar only for a figure that is a share of a whole
 
 The dashboard's twelve glance tiles are the same height as each other. A KPI's optional progress

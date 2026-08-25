@@ -86,7 +86,6 @@ function AppRouter({ route, setRoute, user, activeGame, serverForRender,
       onAsk={askAboutAlert}
       onRunAlertAction={(id, action) => handleAction(action, id)}
       onOpenServer={(id) => setRoute({ kind: "server", id })}
-      onOpenServerSettings={(id) => setRoute({ kind: "server", id, tab: "settings" })}
       onViewAlerts={() => setRoute({ kind: "attention" })}
       onViewAudit={() => setRoute({ kind: "audit" })}
       onOpenLeaf={(hostId, leaf, leafTab) => setRoute({ kind: "leaf", hostId, leaf, tab: leafTab })}
