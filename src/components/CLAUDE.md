@@ -324,9 +324,12 @@ answered is reported **undispatched**, never counted as a failure.
 body, mounted once per surface) and `NotificationsPanel.jsx` renders the history
 from the sidebar's foot.
 
-**The rule: a toast reports the outcome of something the user DID — never something
-that merely happened.** Fleet events already have the Alerts feed, the tiles and
-Recent activity; routing those here would bury the panel during a mass restart.
+**The rule: a toast reports the outcome of something the user DID, or a change to what
+THIS BROWSER may do — never something that merely happened to the fleet.** Fleet events
+have the Alerts feed, the tiles and Recent activity; routing those here would bury the
+panel during a mass restart. The second half has exactly one occupant: a role regraded
+under somebody mid-session (`sessionStore.onTierChange` → `App.jsx`), which is this panel
+changing under the person reading it rather than news from the fleet.
 
 It exists for the **shell-level** handlers only. Every write path that owns a
 component already renders its error beside the control that failed

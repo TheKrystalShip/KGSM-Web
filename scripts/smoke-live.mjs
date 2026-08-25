@@ -606,6 +606,38 @@ try {
   }
   assert(rtMode === "live", `realtime stream connected (mode=${rtMode})`);
 
+  // (a2) `me.patch` — the node stating this account's role while the panel is open. Injected at the
+  // same dispatch seam as every other frame, because what belongs to the SPA is the write, the
+  // re-gate and the delta it announces; that the node emits one is kgsm-api's contract. The tier is
+  // put back before anything below runs, since every gated surface after this reads it.
+  {
+    assert(api.__topics().includes("me"),
+      "the primary stream asks for `me` — a role change needs no reconnect to arrive");
+
+    const { can, resolveRoute } = await vite.ssrLoadModule("/src/lib/persona.js");
+    const seen = [];
+    const off = ss.sessionStore.onTierChange((d) => seen.push(d));
+    const push = (t) => api.__dispatch({ topic: "me", type: "me.patch", data: { tier: t, status: "active" } }, hid);
+
+    push("viewer");
+    assert(ss.sessionStore.tierOf(hid) === "viewer",
+      "me.patch is the authority: a pushed demotion is written to the session record, never refused as a downgrade");
+    assert(!can("nav.cluster") && !can("server.operate"),
+      "the demotion re-gates the policy layer at once — no cluster, no operating");
+    assert(resolveRoute({ kind: "cluster" }).kind !== "cluster",
+      "a route the new role may not occupy resolves away from itself");
+    assert(seen.length === 1 && seen[0].from === "admin" && seen[0].to === "viewer",
+      "the change is announced once, naming what it moved between");
+
+    push("viewer");
+    assert(seen.length === 1, "a frame restating the tier already held announces nothing");
+
+    push("admin");
+    off();
+    assert(ss.sessionStore.tierOf(hid) === "admin" && can("nav.cluster") && can("server.operate"),
+      "a promotion lands the same way and the gates come back with it");
+  }
+
   // (b) audit.append → auditStore prepends. The frame carries the real AuditRecord wire
   // shape (id/ts/origin/actor/action/severity/target/serverId/summary); audit is NOT in
   // adaptStreamMessage's remap table, so the store holds the wire row as-is and this

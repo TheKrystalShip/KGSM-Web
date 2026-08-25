@@ -2,16 +2,19 @@ import { createStore } from "./store.js";
 
 // toasts.js — transient outcome messages, and the history that outlives them.
 //
-// THE RULE: a toast reports the outcome of something YOU DID. It never reports
-// something that merely happened. Fleet events already have homes (the Alerts
-// feed, the live tiles, Recent activity); routing those through here would bury
-// the panel under cards during a mass restart.
+// THE RULE: a toast reports the outcome of something YOU DID, or a change to what THIS
+// BROWSER may do. It never reports something that merely happened to the fleet — those
+// events have homes already (the Alerts feed, the live tiles, Recent activity), and routing
+// them through here would bury the panel under cards during a mass restart.
 //
-// It exists for the SHELL-LEVEL handlers. Every write path that owns a component
-// already renders its own error next to the control that failed, which is the
-// better place for it — see ConsolePanel, ServerNotice, PlayersTab,
-// ServerSettings. App.jsx's lifecycle and install handlers own no control, which
-// is exactly why they used to swallow their errors, and why they need this.
+// The second half of that rule has exactly one occupant: a role regraded under somebody
+// mid-session. That is not a fleet event, it is this panel changing under the person reading
+// it — controls and tabs going, and the page possibly with them — and nothing else says why.
+//
+// It exists for the SHELL-LEVEL handlers. Every write path that owns a component renders its
+// own error next to the control that failed, which is the better place for it — see
+// ConsolePanel, ServerNotice, PlayersTab, ServerSettings. App.jsx's lifecycle and install
+// handlers own no control, which is why they need this.
 //
 // The HISTORY is client-side on purpose, and it is not a duplicate of the audit
 // log. kgsm-api writes an audit row from the ENGINE ECHO, so every command it

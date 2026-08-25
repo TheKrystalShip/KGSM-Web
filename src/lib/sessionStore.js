@@ -319,9 +319,11 @@ import { hostsStore } from "./stores.js";
     if (!refreshTok) return bootstrap(id);
     const p = api.refreshSession(id, refreshTok).then(
       res => {
-        // tier rides the refresh response so the RETURNING-VISITOR path (cold boot: no
-        // in-memory tier after a browser close, /me skipped) still resolves the role
-        // for UI gating. Keep any prior tier if the backend omits it, never downgrade.
+        // tier rides the refresh response, which is what resolves the role for UI gating on the
+        // RETURNING-VISITOR path (cold boot: no in-memory tier after a browser close, /me skipped).
+        // The node answers with the tier the account holds NOW, so it is adopted as given and a
+        // demotion lands exactly like a promotion. A response that OMITS it leaves what we already
+        // hold — an absent field is a node that said nothing, not a role that was taken away.
         const cur = getRec(id);
         const tier = (res && res.tier) || (cur && cur.tier) || "none";
         // ROLLING REFRESH (kgsm-api M4·c 4·b): the backend now ROTATES the refresh token on
@@ -404,6 +406,31 @@ import { hostsStore } from "./stores.js";
   // for anything — see the surfacing gate above.
   function needsReauth(id) { const r = getRec(id); return !!(r && r.reauthDue); }
 
+  // ---- me.patch: the node stating this session's role, live -----------------
+  // The node pushes `{tier, status}` on the `me` topic when the account behind THIS session is
+  // regraded, and the push is the AUTHORITY — it is the node's current answer, so it is written as
+  // given and a demotion lands exactly like a promotion. Persisted, so an in-tab reload resumes at
+  // the tier the node last stated rather than the one this session opened with.
+  //
+  // Only a genuine DELTA is announced. A frame restating the tier already held is not one, and a
+  // host with no tier yet has nothing to have changed from — somebody who was granted nothing is
+  // not told their access changed.
+  //
+  // Gating needs no listener: every gate reads `tierOf` through persona.js on each render, and the
+  // record write below re-renders the tree. The listeners are for the two things a re-render cannot
+  // do — say so out loud, and leave a route this role can no longer occupy.
+  const tierListeners = new Set();
+  function onTierChange(fn) { tierListeners.add(fn); return () => tierListeners.delete(fn); }
+
+  function applyMePatch(id, patch) {
+    if (!id || !patch) return;
+    const before = tierOf(id);
+    setRec(id, { tier: patch.tier || "none", account: patch.status || "unknown" }, true);
+    const after = tierOf(id);
+    if (before == null || before === after) return;
+    for (const fn of tierListeners) { try { fn({ hostId: id, from: before, to: after }); } catch {} }
+  }
+
   // Mark a host's session expired (apiClient's withRetry calls this on a mid-flight
   // 401 before its one silent-rotate replay).
   function expire(id) { setRec(id, { status: "expired", error: "expired" }, true); }
@@ -461,6 +488,8 @@ import { hostsStore } from "./stores.js";
   store.register = register;
   store.readRegistry = readRegistry;
   store.expire = expire;
+  store.applyMePatch = applyMePatch;
+  store.onTierChange = onTierChange;
   store.forgetHosts = forgetHosts;
   store.signOut = signOut;
 
@@ -486,16 +515,26 @@ import { hostsStore } from "./stores.js";
       if (statusOf(h.id) === "none") { register(h); authorize(h.id); }
     });
   };
+
+  // The `me` topic rides the same start/stop, and for the same reason: it is this store's live half,
+  // carrying the node's own re-statement of the tier the sweep above resolves once. It is a global
+  // topic on the primary stream, so subscribing costs a listener and no socket, and the frame is
+  // delivered by the node only to this account's connections — one that arrives is about the reader.
   let unsubscribeBootstrap = null;
+  let unsubscribeMe = null;
   store.startBootstrap = () => {
     if (unsubscribeBootstrap) return;
     unsubscribeBootstrap = hostsStore.subscribe(bootstrapNewHosts);
     bootstrapNewHosts();
+    unsubscribeMe = api.stream.subscribe(["me"], (m) => {
+      if (m && m.type === "me.patch" && m.data && m.hostId) applyMePatch(m.hostId, m.data);
+    });
   };
   store.stopBootstrap = () => {
     if (!unsubscribeBootstrap) return;
     unsubscribeBootstrap();
     unsubscribeBootstrap = null;
+    if (unsubscribeMe) { unsubscribeMe(); unsubscribeMe = null; }
   };
 
 export { TIER_LABEL, sessionStore };

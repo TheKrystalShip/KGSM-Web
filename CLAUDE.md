@@ -227,6 +227,15 @@ break boot. Read the comments before "tidying" an import.
   `establishNodeSession` is the shared adoption path both doors end in.
   The per-host record carries `account` (`active｜pending｜unknown`) beside the
   tier, because a `none` tier is two facts: waiting on an admin, and unknown here.
+  **A tier is LIVE, not something learned once at sign-in.** The node pushes
+  `{tier, status}` on the primary stream's `me` topic whenever it regrades the account
+  behind this session, and that push is the authority — a demotion is written exactly like
+  a promotion. The node delivers the frame only to this account's own connections, so one
+  that arrives is about the reader and needs no filtering here. Everything gated re-renders
+  off the record write; `App.jsx` re-runs `resolveRoute` against the page the person is
+  standing on and takes them home if they may no longer be there, and says once, per node,
+  what their access now is. Nothing reconnects — the node re-gates the connection in place,
+  so topics the new role may not read simply stop arriving.
   **`components/AuthGate.jsx` is everything in front of the app** — the node screen, the
   one sign-in/register card, and the wait for approval — and `App.jsx` renders it *instead
   of* the shell, so none of the shell's hooks and none of the data layer run for somebody
@@ -235,8 +244,8 @@ break boot. Read the comments before "tidying" an import.
   is viewer-gated. The gate holds their session itself (`lib/authFlow.js`, sessionStorage,
   keyed by origin) and polls `GET /me` — bare-authorized precisely so a tierless caller can
   ask — until an admin approves them, at which point the ordinary per-host session takes
-  over. There is no push here to replace the poll: `/api/v1/stream` is viewer-gated and the
-  hub has no per-user delivery.
+  over. There is no push here to replace the poll: `/api/v1/stream` is viewer-gated, so a
+  caller holding no tier cannot open one to be told on.
 - **`SettingsIdentities.jsx` — connected accounts, per host.** Which provider accounts are attached
   to the caller's own KGSM account, and attaching or detaching one. Both writes confirm the password
   first (`POST /auth/reauth`), asked BEFORE starting rather than after being refused; a fresh sign-in

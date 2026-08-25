@@ -797,6 +797,22 @@ export function adaptMe(be) {
   };
 }
 
+// ---- Me patch (a live change to what this account holds on a host) ------
+// The `me.patch` frame carries the two facts the session record gates on, and
+// nothing else — it is a patch, not a second /me, so it never stands in for an
+// identity. Same vocabulary as `adaptMe`: an unrecognised tier reads `none` and
+// an unrecognised status reads `unknown`, because inventing either would hand
+// somebody a role, or an explanation, the node never gave.
+export function adaptMePatch(be) {
+  if (!be) return be;
+  return {
+    tier: be.tier === "viewer" || be.tier === "operator" || be.tier === "admin" ? be.tier : "none",
+    status: be.status === "active" || be.status === "pending" || be.status === "disabled"
+      ? be.status
+      : "unknown",
+  };
+}
+
 // ---- Sessions (GET /auth/sessions, root-routed) ------------------------
 // A caller's (or, admin-scoped, another user's) active session list. Hardens
 // every row against a partial/missing field — honest null, never invented —

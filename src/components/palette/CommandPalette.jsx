@@ -8,6 +8,7 @@ import { buildEntries, previewTheme, restoreTheme } from "./sources.js";
 import { boostSnapshot, noteUse, recentIds } from "./recents.js";
 import { rank, segments } from "./score.js";
 import { createStore, useStore } from "../../lib/store.js";
+import { sessionStore } from "../../lib/sessionStore.js";
 import { hostsStore, libraryStore, servicesStore, serversStore } from "../../lib/stores.js";
 import { dashboardStore } from "../../lib/widgets/dashboardStore.js";
 import { usePlayerRoster } from "../../lib/hooks/usePlayerRoster.js";
@@ -129,13 +130,16 @@ function Palette({ onClose, onInstall }) {
   const wantRoster = !!scopeServer && scopeServer.status === "online";
   const players = usePlayerRoster(wantRoster ? scopeServer : null);
 
-  // `layout` is not read, but pinning changes it and the pin/unpin entries have to flip with it —
-  // depending on it is what re-builds them when something is pinned from anywhere.
+  // Neither `layout` nor `sessions` is read here, and both have to re-build the list. Pinning changes
+  // the layout and the pin/unpin entries flip with it; a role changes what `sources.js` is allowed to
+  // build at all, and permission is applied there rather than at render — so a palette left open
+  // across a regrade would keep offering verbs the node has stopped accepting.
   const layout = useStore(dashboardStore, (s) => s.layout);
+  const sessions = useStore(sessionStore, (s) => s.byHost);
   const entries = React.useMemo(
     () => buildEntries({ servers, hosts, library, services, players, themePref, scope, nav, openAssistant, onInstall }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `layout` is a rebuild trigger, not an input
-    [servers, hosts, library, services, players, themePref, scope, nav, openAssistant, onInstall, layout]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `layout` and `sessions` are rebuild triggers, not inputs
+    [servers, hosts, library, services, players, themePref, scope, nav, openAssistant, onInstall, layout, sessions]);
 
   // With nothing typed the palette shows where you have just been and then where you can go — it
   // never opens onto an empty box. Recents are resolved against the CURRENT entry set, so a server

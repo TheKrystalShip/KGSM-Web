@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — a role change reaches the panel that is already open (`1.166.0`)
+
+An administrator regrading somebody's account is felt in their browser at once. The node states the
+new tier on the primary stream's `me` topic, delivered to that account's connections alone; the
+session record takes it as the authority, so a demotion lands exactly like a promotion, and every
+gate — nav, tabs, buttons, widgets, the command palette — re-reads it on the next render.
+
+Somebody standing on a page their role no longer reaches is taken to their home rather than left on
+a screen that has stopped answering, and an install form with no node left to install on closes
+rather than collecting a config for a request that can only be refused. The change is said out loud
+once, naming the node, because a tier is per node and half the cluster may be unaffected.
+
+A dashboard nobody has arranged follows the role. One somebody has arranged is theirs and is left
+alone — a card the new role may not see stops drawing on its own.
+
 ### Changed — the node's Resources tab has a spine (`1.165.0`)
 
 A band of glance tiles over three named groups, in descending urgency: what the node is doing right

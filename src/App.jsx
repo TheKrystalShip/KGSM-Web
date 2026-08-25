@@ -8,6 +8,7 @@ import { NavProvider } from "./components/NavContext.jsx";
 import { KrystalFooter } from "./components/Footer.jsx";
 import { InstallModal } from "./components/InstallModal.jsx";
 import { Toasts } from "./components/Toasts.jsx";
+import { toast } from "./lib/toasts.js";
 import { alertBuckets, useAlerts } from "./components/NeedsAttention.jsx";
 import { Sidebar } from "./components/Sidebar.jsx";
 import { api, connectionStore } from "./lib/apiClient.js";
@@ -15,7 +16,7 @@ import { KRYSTAL_LABELS } from "./lib/labels.js";
 import { canOn, homeKind, resolveRoute, serverOperable } from "./lib/persona.js";
 import { KrystalRouter } from "./lib/router.js";
 import { runServerAction } from "./lib/serverActions.js";
-import { sessionStore } from "./lib/sessionStore.js";
+import { sessionStore, TIER_LABEL } from "./lib/sessionStore.js";
 import { useStore } from "./lib/store.js";
 import { hostsStore, installServer, libraryStore, serversStore, servicesStore, startDataLayer, stopDataLayer } from "./lib/stores.js";
 import { AddHostPage } from "./pages/HostAccess.jsx";
@@ -231,6 +232,40 @@ function AppInner({ user, setUser, route, setRoute }) {
     writeStoredUser(null);
     setUser(null);
   }, [sessionsByHost, setUser]);
+
+  // A role can change under somebody who is already standing on a page. `resolveRoute` is the
+  // chokepoint every navigation passes through, so re-running it against the route currently held is
+  // the whole guard: a route this role may still occupy comes back identical and nothing happens, a
+  // route it may not comes back as the persona's home and `setRoute` takes them there. It waits for
+  // `landingResolved` because every tier reads `none` until the sessions bootstrap, and bouncing on
+  // that would land a deep link on the viewer home a beat before its role arrived.
+  React.useEffect(() => {
+    if (!landingResolved) return;
+    const allowed = resolveRoute(route);
+    if (allowed !== route) setRoute(allowed);
+  }, [sessionsByHost, hosts, route, setRoute, landingResolved]);
+
+  // What a role change costs is visible immediately — controls and tabs go, and the page may change
+  // under them — and nothing else on the panel says why. So the shell says it: the one fact, named
+  // per node, because a tier is per node and half the cluster may be unaffected.
+  React.useEffect(() => sessionStore.onTierChange(({ hostId, to }) => {
+    const host = hostsStore.find(hostId);
+    toast.info("Your access on " + ((host && host.name) || hostId) + " is now " + (TIER_LABEL[to] || to));
+  }), []);
+
+  // The nodes an install could land on: online, this role may create there, and the session isn't
+  // refused. `server.create` is the capability that gates installing (persona.js) — every other
+  // create surface gates on the same one.
+  const installTargets = hosts.filter(h => {
+    const s = sessionsByHost[h.id];
+    return h.online && canOn("server.create", h.id) && (!s || !s.denied);
+  });
+  // An install nobody may make does not stay on screen with its fields. A role can be regraded while
+  // the form is open, and a form with no node left to install on is one whose button can only be
+  // refused — so it closes rather than collecting a config for a request that cannot be made.
+  React.useEffect(() => {
+    if (installing && !installTargets.length) { setInstalling(null); setInstallError(null); }
+  }, [installing, installTargets.length]);
 
   const activeServer = route.kind === "server"
     ? servers.find(s => s.id === route.id) || null
@@ -465,14 +500,7 @@ function AppInner({ user, setUser, route, setRoute }) {
       {installing && (
         <InstallModal
           game={installing}
-          // The nodes that can actually take this install: online, the user may
-          // create there, and the session isn't refused. `server.create` is the
-          // capability that gates installing (persona.js) — every other create
-          // surface gates on the same one.
-          hosts={hosts.filter(h => {
-            const s = sessionsByHost[h.id];
-            return h.online && canOn("server.create", h.id) && (!s || !s.denied);
-          })}
+          hosts={installTargets}
           onInstall={confirmInstall}
           error={installError}
           onClose={() => { setInstalling(null); setInstallError(null); }}

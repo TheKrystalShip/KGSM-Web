@@ -396,7 +396,9 @@ import("./stores.js").then((m) => {
   // The primary stream carries a fixed global topic set and drives realtimeStore
   // mode + rehydrateAll on open. Resource-scoped topics (containing '/') get
   // their own ref-counted dynamic streams.
-  const GLOBAL_TOPICS = ["servers", "jobs", "audit", "alerts", "console", "players", "batches"];
+  // `me` is delivered by the SERVER only to the connections this account holds, so a frame that
+  // arrives on it is about the reader and needs no client-side filtering.
+  const GLOBAL_TOPICS = ["servers", "jobs", "audit", "alerts", "console", "players", "batches", "me"];
   const isResourceScoped = (t) => t.includes("/");
 
   const listeners = new Set();
@@ -421,6 +423,7 @@ import("./stores.js").then((m) => {
     const { topic, type, data } = msg;
     const at = (d) => ({ topic, type, data: d, hostId });
     if (topic === "servers" && type === "server.patch") return at(adapt.adaptServer(data));
+    if (topic === "me" && type === "me.patch") return at(adapt.adaptMePatch(data));
     if (topic === "jobs" && type === "job.patch") return at(adapt.adaptJob(data));
     if (topic === "alerts" && type === "alert.raise") return at(adapt.adaptAlert(data));
     if (type === "host.metrics" && /^hosts\/[^/]+\/metrics$/.test(topic || "")) return at(adapt.adaptHostMetrics(data));
@@ -873,6 +876,9 @@ import("./stores.js").then((m) => {
     // `hostId` is the node the frame is delivered AS — a real socket always stamps one, so a check
     // that reads the origin off a message has to be able to state it here too.
     __dispatch: (raw, hostId = null) => dispatchMessage(adaptStreamMessage(raw, hostId)),
+    // The topic set every primary stream asks for. A topic missing from it is a feature that
+    // silently never arrives — nothing errors, the frames simply are not sent — so it is readable.
+    __topics: () => GLOBAL_TOPICS.slice(),
   };
 
 export { api, connectionStore, reachStore, realtimeStore };

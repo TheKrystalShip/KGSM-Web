@@ -6,6 +6,7 @@
 // first render, and a round trip would mean an empty grid on every cold load.
 
 import { can } from "../persona.js";
+import { sessionStore } from "../sessionStore.js";
 import { createStore } from "../store.js";
 import { PREF_KEYS, prefsStore } from "../stores/prefs.js";
 import { getWidget, hasWidget } from "./registry.js";
@@ -212,6 +213,39 @@ const commit = (layout) => {
   dashboardStore.setState({ layout, hydrated: true });
   writeStored(layout);
 };
+
+// ---- Following a role change ---------------------------------------------
+//
+// A dashboard NOBODY HAS ARRANGED follows the role; one somebody has arranged is theirs.
+//
+// The seed is `DEFAULT_LAYOUT` filtered by what the role may see, so an untouched dashboard is that
+// list, in that order, at those sizes, with nothing added and nothing renamed. Recognising exactly
+// that is what makes re-seeding safe: for any other layout the arrangement is a decision, and
+// replacing it would throw the decision away. Nothing is lost by leaving one alone either —
+// `WidgetHost` asks the capability on every render, so a card the new role may not see stops
+// drawing whether or not the layout was rewritten.
+function isUntouchedSeed(layout) {
+  const seed = DEFAULT_LAYOUT.filter(d => hasWidget(d.type));
+  let i = 0;
+  for (const w of layout) {
+    while (i < seed.length && seed[i].type !== w.type) i++;
+    if (i === seed.length) return false;                        // a type the seed never places, or moved
+    if (w.w !== seed[i].w || w.h !== seed[i].h || w.title) return false;
+    if (w.params && Object.keys(w.params).length) return false;
+    i++;
+  }
+  return true;
+}
+
+/// Re-seed for the role now held. A dashboard that has not loaded yet needs nothing: `hydrate` runs
+/// on the next mount and reads the role then.
+dashboardStore.retier = () => {
+  const { layout, hydrated } = dashboardStore.getState();
+  if (!hydrated || !isUntouchedSeed(layout)) return;
+  commit(defaultLayout());
+};
+
+sessionStore.onTierChange(() => dashboardStore.retier());
 
 dashboardStore.replace = (layout) => commit(layout);
 

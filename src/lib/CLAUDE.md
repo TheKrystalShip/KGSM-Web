@@ -115,7 +115,13 @@ re-exports `stores/` — import from either.
 **Auth / RBAC / capabilities**
 - `sessionStore.js` — per-host identity (Model A): Discord SSO anchor, each host
   mints its own access (sessionStorage) + refresh (localStorage) token, resolves
-  role via that host's bot.
+  role via that host's bot. It also holds the LIVE half of that role: the primary
+  stream's `me` topic carries the node's own `{tier, status}` whenever it regrades
+  this account, and `applyMePatch` writes it as given — the push is the node's
+  current answer, so a demotion lands exactly like a promotion. `onTierChange`
+  reports a genuine delta to the two things a re-render cannot cover on its own:
+  the shell (which says so, and leaves a route the role can no longer occupy) and
+  the dashboard's default arrangement.
 - `authRedirect.js` — captures the OAuth fragment handoff at boot, and **says who issued
   it**. A node login and an assistant-leaf login both land on this origin with the same
   `access`/`refresh`/`error` fragment keys; the `assistant_login=<hostId>` marker that
