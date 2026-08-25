@@ -194,6 +194,36 @@ registerWidget({
 });
 
 registerWidget({
+  type: "host.sensor",
+  label: "Sensor",
+  icon: "thermometer",
+  group: "Nodes",
+  scope: "host",
+  params: ["hostId", "sensorId"],
+  // Two channels differ only by their params, so the title has to be built from them or a dashboard
+  // holding the CPU and an SSD shows the same name twice.
+  describe: (p) => (p.sensorId || "sensor").split("/").pop() + " \u00b7 " + (p.hostId || "node"),
+  // Repeatable: pinning one channel and not another is the entire point of a per-sensor card.
+  repeatable: true,
+  size: { w: 3, h: 2, minW: 2, minH: 2 },
+  // No wrapper: WidgetHost spreads the descriptor's params as props, and SensorTile already takes
+  // hostId and sensorId — so the card the page renders is literally the card the dashboard mounts.
+  load: () => import("../diagnostics/SensorTile.jsx").then(m => m.SensorTile),
+});
+
+registerWidget({
+  type: "host.thermal",
+  label: "Thermal",
+  icon: "thermometer",
+  group: "Nodes",
+  scope: "host",
+  params: ["hostId"],
+  describe: (p) => (p.hostId || "node") + " \u00b7 thermal",
+  size: { w: 6, h: 4, minPx: 420, minH: 3 },
+  load: () => import("../diagnostics/ThermalPanel.jsx").then(m => m.ThermalPanelWidget),
+});
+
+registerWidget({
   type: "host.logs",
   label: "Node journal",
   icon: "scroll-text",

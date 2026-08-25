@@ -301,6 +301,15 @@ function mapHostTelemetry(be) {
     ? be.sensors.map((s) => ({
         id: s.id, chip: s.chip, label: s.label || null, value_c: round(s.valueC, 1),
         role: s.role || null, name: s.name || null,
+        // The device's own thermal lines, carried UNROUNDED — a limit is a setting, and a rounded
+        // threshold is a different threshold. null means the device publishes none, which is a
+        // consumer's cue to fall back to the host's policy, never to a number written in here.
+        limit_high_c: s.limitHighC ?? null,
+        limit_critical_c: s.limitCriticalC ?? null,
+        // Which channel speaks for a device, and what a channel restates. Absent on an older node's
+        // payload, where every channel stands alone — hence the `!== false` reads at the call sites.
+        primary: s.primary,
+        duplicate_of: s.duplicateOf || null,
       }))
     : null;
   // hwmon fan tachometers. Only fans that are TURNING are on the wire — an unpopulated header and a
@@ -322,6 +331,7 @@ function mapHostTelemetry(be) {
         mem_used_gb: g.memUsed != null ? round(g.memUsed, 2) : null,
         mem_total_gb: g.memTotal != null ? round(g.memTotal, 2) : null,
         sm_pct: g.smPct ?? null, temp_c: g.tempC ?? null,
+        temp_limit_c: g.tempLimitC ?? null, temp_shutdown_c: g.tempShutdownC ?? null,
         power_w: g.powerW ?? null, power_cap_w: g.powerCapW ?? null,
       }))
     : be.gpus;

@@ -3765,3 +3765,199 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Thermal panel ────────────────────────────────────────────────────────────
+   Every hwmon channel on one shared axis. The three columns are fixed so every
+   row's track starts and ends at the same x — a track that sized to its label
+   would put each channel on its own scale and destroy the comparison the panel
+   exists to make. */
+.therm-rows {
+  display: grid;
+  gap: 0;
+}
+
+.therm-row {
+  display: grid;
+  grid-template-columns: 168px 1fr 84px 22px;
+  align-items: center;
+  gap: 14px;
+  padding: 7px 0;
+  min-width: 0;
+}
+
+.therm-row + .therm-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.045);
+}
+
+.therm-row__name {
+  font-size: 13px;
+  color: var(--fg-2);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.therm-row__now {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--fg-1);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.therm-row__now.is-warn { color: var(--warning-fg); }
+.therm-row__now.is-danger { color: var(--danger-fg); }
+
+.therm-unit {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--fg-3);
+  margin-left: 3px;
+  font-weight: 500;
+}
+
+.therm-row__track {
+  position: relative;
+  height: 20px;
+  min-width: 0;
+}
+
+.therm-track__axis {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 9px;
+  height: 2px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.therm-track__range {
+  position: absolute;
+  top: 6px;
+  height: 8px;
+  border-radius: var(--r-sm);
+  background: rgba(64, 160, 192, 0.30);
+}
+
+.therm-track__now {
+  position: absolute;
+  top: 2px;
+  width: 3px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--krystal-teal);
+  box-shadow: 0 0 0 2px var(--surface-2);
+}
+
+.therm-track__now.is-warn { background: var(--warning-fg); }
+.therm-track__now.is-danger { background: var(--danger-fg); }
+
+.therm-track__tick {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 20px;
+}
+
+.therm-track__tick--warn { background: rgba(251, 191, 36, 0.34); }
+.therm-track__tick--danger { background: rgba(251, 113, 133, 0.34); }
+
+.therm-scale {
+  display: grid;
+  grid-template-columns: 168px 1fr 84px 22px;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.therm-scale__marks {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg-4);
+  font-style: normal;
+}
+
+.therm-scale__marks i { font-style: normal; }
+
+.therm-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 11.5px;
+  color: var(--fg-3);
+}
+
+.therm-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.therm-legend__note { color: var(--fg-4); }
+
+.therm-sw { flex: none; border-radius: var(--r-sm); }
+.therm-sw--range { width: 16px; height: 8px; background: rgba(64, 160, 192, 0.30); }
+.therm-sw--now { width: 3px; height: 14px; border-radius: 2px; background: var(--krystal-teal); }
+.therm-sw--warn { width: 2px; height: 14px; border-radius: 1px; background: rgba(251, 191, 36, 0.55); }
+.therm-sw--danger { width: 2px; height: 14px; border-radius: 1px; background: rgba(251, 113, 133, 0.55); }
+
+/* One row's pin, revealed with the card's own pin family rather than sitting on every row at rest —
+   a column of twelve always-lit controls reads as the point of the panel, which it is not. */
+.therm-row__pin { display: flex; justify-content: flex-end; opacity: 0; transition: opacity var(--dur-fast, 120ms) ease; }
+.therm-row:hover .therm-row__pin,
+.therm-row__pin:focus-within { opacity: 1; }
+
+.therm-toggle {
+  font: inherit;
+  font-size: 11.5px;
+  background: none;
+  border: 0;
+  color: var(--fg-3);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--r-sm);
+  margin-left: auto;
+}
+
+.therm-toggle:hover { color: var(--krystal-teal); background: var(--krystal-teal-dim); }
+.therm-toggle:focus-visible { outline: 2px solid var(--krystal-teal-ring); outline-offset: 1px; }
+
+/* On a phone the label column would leave the track too narrow to read a position off, so the row
+   becomes two lines: name and value together, the full-width track beneath them. */
+@media (max-width: 620px) {
+  .therm-row {
+    grid-template-columns: 1fr auto 22px;
+    gap: 2px 10px;
+    padding: 9px 0;
+  }
+  /* Placed explicitly, not left to auto-flow: a full-width track is the second child, so flowing it
+     would take row 2 and push the value onto a third line away from the name it belongs to. */
+  .therm-row__name { grid-area: 1 / 1; }
+  .therm-row__now { grid-area: 1 / 2; }
+  .therm-row__track { grid-area: 2 / 1 / 3 / -1; }
+  /* Touch has no hover, so a control that reveals on it is unreachable — the pin stays visible. */
+  .therm-row__pin { grid-area: 1 / 3; opacity: 1; }
+  /* A fan has no track; without this its row keeps the empty second line's height. */
+  .therm-row__track--none { display: none; }
+  .therm-scale { grid-template-columns: 1fr; }
+  .therm-scale > span:first-child, .therm-scale > span:last-child { display: none; }
+}
+
+/* A sensor tile's trace and the line it is judged against, in the KPI's chart slot. */
+.sensor-tile__trace {
+  display: block;
+  width: 100%;
+  height: 34px;
+  margin-top: 10px;
+}
+
+.sensor-tile__limit {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--fg-4);
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}

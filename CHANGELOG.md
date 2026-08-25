@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the thermal panel, and a sensor as a pinnable card (`1.163.0`)
+
+The Resources tab draws every hwmon channel on ONE shared axis: the 24 h min–max as a bar, the current
+reading marked on it, and the lines that channel is judged against drawn where they fall. A shared
+axis is the point — twelve numbers in a list are twelve comparisons a reader has to do, while on a
+common scale "the package swings hardest and the DIMMs barely move" is a shape. The axis is fixed
+rather than fitted, because one that rescales makes a calm host and a hot one look identical.
+
+Channels another channel speaks for — a CPU's per-die reading, an NVMe's component sensors, the same
+CPU temperature relayed through the motherboard — fold behind a count and are never dropped: one
+diverging from the channel that supposedly speaks for it is exactly what is worth being able to look
+at. The ranges arrive in a single request per window rather than one per channel.
+
+Each row pins its own channel to the dashboard, where it renders as a tile carrying the reading, the
+window's min/avg/max and a trace with the warn line inside the trace's own domain — so the headroom to
+it is to scale rather than a curve that fills its box whatever the values are. A tile says which line
+it drew, because a device's rated limit and a fleet-wide default are different claims. The whole panel
+pins too.
+
+Limits and the threshold policy are both READ from the host. Neither is written into the SPA, which
+would be a second copy of a number the monitor owns and would keep drawing a line after an operator
+moved theirs.
+
 ### Added — the Temperatures card reads in plain words, and shows fan speeds (`1.162.0`)
 
 Readings group under what they measure — Processor, Memory, Storage, Motherboard, Chipset, Network —

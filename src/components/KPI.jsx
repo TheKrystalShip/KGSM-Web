@@ -28,6 +28,10 @@ import { Icon } from "./Icon.jsx";
 //                            green, "down" = solid red); a per-card signal light
 //   ledLabel               — optional compact age shown just LEFT of the LED
 //                            (e.g. "2m"), for the time since the feed dropped
+//   chart                  — optional node drawn under the sub line: a trace, a
+//                            meter, whatever the figure's own shape is. A slot
+//                            rather than a fork, so a card carrying one is the
+//                            same card as a card without.
 //   compact                — the dense variant, for a band of twelve rather than
 //                            four. Same card, smaller type, and the header's
 //                            "View →" becomes the arrow alone: at a sixth of the
@@ -42,7 +46,7 @@ const KPI_TONE_COLOR = {
   off:    "var(--fg-4)",
 };
 
-function KPI({ icon, label, value, unit, sub, tone = "muted", pin, onView, barPct, barColor, className, led, ledLabel, compact = false }) {
+function KPI({ icon, label, value, unit, sub, tone = "muted", pin, onView, barPct, barColor, className, led, ledLabel, chart, compact = false }) {
   return (
     <div className={"chat-brief kpi kpi--" + tone + (compact ? " kpi--compact" : "") + (className ? " " + className : "")}>
       <div className="chat-brief__head">
@@ -65,6 +69,7 @@ function KPI({ icon, label, value, unit, sub, tone = "muted", pin, onView, barPc
           {value}{unit && <small> {unit}</small>}
         </div>
         {sub && <div className="kpi__sub">{sub}</div>}
+        {chart}
         {barPct !== undefined && barPct !== null && (
           <div className="kpi__bar">
             <i style={{ width: Math.max(0, Math.min(100, barPct)) + "%", background: barColor || "var(--krystal-teal)" }}></i>

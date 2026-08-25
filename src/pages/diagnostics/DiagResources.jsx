@@ -1,8 +1,8 @@
 // DiagResources — the Resources sub-tab: the node's compute, from the monitor's live telemetry.
 // CPU core grid and the RAM bar; the kgsm.slice split (what the game servers collectively cost,
-// measured at the parent cgroup); the GPUs, on a host that has any; the hwmon temperatures; and the
-// recorded history (its own file — DiagHostHistory owns the fetch, everything here is pure render
-// from props). Engine domain (placement libraries, ports) lives on the engine's and firewall's own
+// measured at the parent cgroup); the GPUs, on a host that has any; the thermal panel (its own file —
+// ThermalPanel fetches its own ranges so it pins as-is); and the recorded history (likewise, in
+// DiagHostHistory). Everything else here is pure render from props. Engine domain (placement libraries, ports) lives on the engine's and firewall's own
 // pages; host plumbing the ecosystem doesn't manage (raw disks, network interfaces) is deliberately
 // not surfaced here.
 
@@ -10,6 +10,7 @@ import { Icon } from "../../components/Icon.jsx";
 import { fmtBytes } from "../../lib/formatting.js";
 import { StatusLed } from "./diagComponents.jsx";
 import { DiagHostHistory } from "./DiagHostHistory.jsx";
+import { ThermalPanel } from "./ThermalPanel.jsx";
 
 const GiB = 1073741824;
 
@@ -143,83 +144,6 @@ function GpuCard({ host, frozen, ageShort }) {
   );
 }
 
-// Temperatures grouped by what they measure, and the fans that are turning. Emphasis only — a reading
-// at 75°C+ is tinted and 90°C+ is red — while the thresholds that actually act live in the monitor's
-// policy, not here.
-//
-// The monitor classifies each channel and sends a role and a human name; neither is derived here,
-// because the daemon that read the register is the one that knows what it is. A reading with no role
-// is unrecognised hardware rather than a doubtful measurement, so it still renders — under "Other",
-// falling back to the raw chip/label pair.
-const SENSOR_GROUPS = [
-  ["cpu", "Processor"],
-  ["gpu", "Graphics"],
-  ["memory", "Memory"],
-  ["drive", "Storage"],
-  ["board", "Motherboard"],
-  ["chipset", "Chipset"],
-  ["network", "Network"],
-];
-
-function sensorLabel(s) {
-  if (s.name) return s.name;
-  return s.label ? s.chip + " · " + s.label : s.chip;
-}
-
-function SensorsCard({ host, frozen, ageShort }) {
-  const sensors = host.sensors || [];
-  const fans = Array.isArray(host.fans) ? host.fans : [];
-
-  const groups = [];
-  for (const [role, heading] of SENSOR_GROUPS) {
-    const rows = sensors.filter((s) => s.role === role);
-    if (rows.length) groups.push([heading, rows]);
-  }
-  const unclassified = sensors.filter((s) => !SENSOR_GROUPS.some(([role]) => s.role === role));
-  if (unclassified.length) groups.push(["Other", unclassified]);
-
-  const toneColor = (c) => (c >= 90 ? "var(--danger)" : c >= 75 ? "var(--warning)" : "var(--fg-1)");
-  return (
-    <div className={"chat-brief" + (frozen ? " is-frozen" : "")} style={{ marginTop: 16 }}>
-      <div className="chat-brief__head">
-        <span className="chat-brief__title">
-          <Icon name="thermometer" size={13} /> Temperatures
-          <span className="chat-brief__count chat-brief__count--neutral">{sensors.length}</span>
-        </span>
-        <StatusLed live={!frozen} label={frozen ? ageShort : null} />
-      </div>
-      <div className="chat-brief__pad">
-        {groups.map(([heading, rows]) => (
-          <div key={heading}>
-            <div className="diag-subhead">{heading}</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {rows.map((s) => (
-                <span key={s.id} className="svc-fact" title={s.chip + (s.label ? " · " + s.label : "")}>
-                  {sensorLabel(s)}
-                  <b style={{ color: toneColor(s.value_c), marginLeft: 4 }}>{s.value_c.toFixed(1)}°C</b>
-                </span>
-              ))}
-            </div>
-          </div>
-        ))}
-        {fans.length > 0 && (
-          <div>
-            <div className="diag-subhead">Fans</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {fans.map((f) => (
-                <span key={f.id} className="svc-fact" title={f.chip + (f.label ? " · " + f.label : "")}>
-                  {f.name || f.chip}
-                  <b style={{ marginLeft: 4 }}>{f.rpm.toLocaleString()} RPM</b>
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function DiagResources({ host, fresh }) {
   const frozen = !!(fresh && fresh.frozen);
   const noTelemetry = !host.cpu || !Array.isArray(host.cpu.per_core) || host.cpu.per_core.length === 0 || !host.ram || !host.ram.total_gb;
@@ -305,7 +229,7 @@ function DiagResources({ host, fresh }) {
 
       {((Array.isArray(host.sensors) && host.sensors.length > 0)
         || (Array.isArray(host.fans) && host.fans.length > 0)) && (
-        <SensorsCard host={host} frozen={frozen} ageShort={ageShort} />
+        <ThermalPanel host={host} frozen={frozen} ageShort={ageShort} />
       )}
 
       <DiagHostHistory host={host} />

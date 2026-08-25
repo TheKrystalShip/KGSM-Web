@@ -140,6 +140,23 @@ async function fetchHostMetricsHistory(hostId, range) {
   return api.host(hostId).get("/hosts/" + hostId + "/metrics/history?range=" + (range || "1h"));
 }
 
+// Every hwmon channel's range over a window — min/max/mean per channel in ONE request. A thermal panel
+// draws a range per channel, and asking the per-entity endpoint once per channel would fetch a full
+// window of points each time only to reduce it to three numbers.
+async function fetchSensorSummary(hostId, range) {
+  if (!hostId) return null;
+  return api.host(hostId).get("/hosts/" + hostId + "/sensors/metrics/summary?range=" + (range || "24h"));
+}
+
+// ONE channel's series, for a card that draws a trace. The channel id goes in a query parameter because
+// a sensor id is chip/device/tempN and carries the separator a path segment would split on.
+async function fetchSensorHistory(hostId, sensorId, range) {
+  if (!hostId || !sensorId) return null;
+  return api.host(hostId).get(
+    "/hosts/" + hostId + "/sensors/metrics/history?sensor=" + encodeURIComponent(sensorId) +
+    "&range=" + (range || "1h"));
+}
+
 // Lifecycle events for ONE server
 async function fetchServerEvents(serverId, hostId, sinceIso) {
   if (!serverId) return [];
@@ -211,6 +228,6 @@ function removeLibrary(hostId, name, drainTo) {
 export {
   hostsStore, syncCapabilitySubscriptions,
   subscribeHostMetrics, subscribeServerMetrics,
-  fetchServerMetricsHistory, fetchHostMetricsHistory, fetchServerEvents, fetchHostDetail,
+  fetchServerMetricsHistory, fetchHostMetricsHistory, fetchSensorSummary, fetchSensorHistory, fetchServerEvents, fetchHostDetail,
   addLibrary, renameLibrary, removeLibrary,
 };
