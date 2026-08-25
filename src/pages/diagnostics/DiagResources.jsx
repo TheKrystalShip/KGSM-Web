@@ -1,18 +1,51 @@
 // DiagResources — the Resources sub-tab: the node's compute, from the monitor's live telemetry.
-// CPU core grid and the RAM bar; the kgsm.slice split (what the game servers collectively cost,
-// measured at the parent cgroup); the GPUs, on a host that has any; the thermal panel (its own file —
-// ThermalPanel fetches its own ranges so it pins as-is); and the recorded history (likewise, in
-// DiagHostHistory). Everything else here is pure render from props. Engine domain (placement libraries, ports) lives on the engine's and firewall's own
-// pages; host plumbing the ecosystem doesn't manage (raw disks, network interfaces) is deliberately
-// not surfaced here.
+//
+// The page is a band of glance tiles over three groups, in descending urgency: what the node is doing
+// right now (CPU cores and the RAM bar, the kgsm.slice split, the GPUs), how hot it is running (the
+// thermal panel, its own file — it fetches its own ranges so it pins as-is), and what it has been doing
+// (the recorded history, likewise, in DiagHostHistory). The group headings state the tense, because a
+// live reading, a 24-hour range and a recorded curve are three different claims and look alike.
+//
+// A device is named once. The GPUs' temperature is a thermal row like every other channel, so the GPU
+// card here holds what only it can say: VRAM, power and utilisation.
+//
+// Engine domain (placement libraries, ports) lives on the engine's and firewall's own pages; host
+// plumbing the ecosystem doesn't manage (raw disks, network interfaces) is deliberately not surfaced
+// here.
 
 import { Icon } from "../../components/Icon.jsx";
-import { fmtBytes } from "../../lib/formatting.js";
+import { KPI } from "../../components/KPI.jsx";
+import { fmtBytes, metricTone } from "../../lib/formatting.js";
+import { useHostThresholds, ruleLines } from "../../lib/hostThresholds.js";
 import { StatusLed } from "./diagComponents.jsx";
 import { DiagHostHistory } from "./DiagHostHistory.jsx";
 import { ThermalPanel } from "./ThermalPanel.jsx";
 
 const GiB = 1073741824;
+
+// A meter is always painted, so its healthy state is a filled bar rather than the tiles' silence.
+const fillTone = (tone) => (tone === "muted" ? "success" : tone);
+
+// The channel closest to the line it is judged by. This is the one cross-device comparison per-device
+// limits make possible: 68.9° against 85 and 50.8° against 80.85 are not comparable as readings, and
+// a plain maximum would name whichever device happens to run hot by design.
+function nearestLimit(sensors, hostLines) {
+  let best = null;
+  for (const s of sensors || []) {
+    if (s.primary === false) continue;
+    const warn = s.limit_high_c ?? (hostLines ? hostLines.warn : null);
+    if (!warn) continue;
+    const pct = (s.value_c / warn) * 100;
+    if (!best || pct > best.pct) {
+      best = {
+        sensor: s,
+        pct,
+        lines: { warn, danger: s.limit_critical_c ?? (hostLines ? hostLines.danger : null) },
+      };
+    }
+  }
+  return best;
+}
 
 // The kgsm.slice split: the servers' collective share drawn against the host's own bar. CPU needs
 // the thread count to put "percent of one core" and "percent of the host" on one axis — without it
@@ -95,8 +128,9 @@ function SliceCard({ host, frozen, ageShort }) {
 
 // The GPUs — rendered only on a host that reports a readable card: a node without one is an
 // ordinary node, not a degraded one, so there is no empty state to draw. VRAM per device, never
-// summed across devices (it does not pool).
-function GpuCard({ host, frozen, ageShort }) {
+// summed across devices (it does not pool). Temperature belongs to the thermal panel, which has the
+// axis, the device's own limits and the window to put it in.
+function GpuCard({ host, frozen, ageShort, memLines }) {
   const gpus = host.gpus;
   return (
     <div className={"chat-brief" + (frozen ? " is-frozen" : "")}>
@@ -111,13 +145,12 @@ function GpuCard({ host, frozen, ageShort }) {
         {gpus.map((g) => {
           const pct = g.mem_used_gb != null && g.mem_total_gb
             ? Math.round((g.mem_used_gb / g.mem_total_gb) * 100) : null;
-          const tone = pct == null ? "success" : pct > 90 ? "danger" : pct > 80 ? "warn" : "success";
+          const tone = fillTone(metricTone(pct, memLines, 80, 90));
           return (
             <div className="disk-row" key={g.uuid || g.index}>
               <div className="disk-row__head">
                 <code className="disk-row__mount">{g.name}</code>
                 <span style={{ flex: 1 }}></span>
-                {g.temp_c != null && <span className="disk-row__fs">{g.temp_c.toFixed(0)}°C</span>}
                 {g.power_w != null && (
                   <span className="disk-row__fs">{g.power_w.toFixed(0)}W{g.power_cap_w != null ? " / " + g.power_cap_w.toFixed(0) + "W" : ""}</span>
                 )}
@@ -145,6 +178,7 @@ function GpuCard({ host, frozen, ageShort }) {
 }
 
 function DiagResources({ host, fresh }) {
+  const thresholds = useHostThresholds(host && host.id);
   const frozen = !!(fresh && fresh.frozen);
   const noTelemetry = !host.cpu || !Array.isArray(host.cpu.per_core) || host.cpu.per_core.length === 0 || !host.ram || !host.ram.total_gb;
   if (noTelemetry) {
@@ -163,8 +197,79 @@ function DiagResources({ host, fresh }) {
   const bufPct = hasBreakdown ? (host.ram.buffers_gb / host.ram.total_gb) * 100 : 0;
   const hasSlice = !!host.slice;
   const hasGpus = Array.isArray(host.gpus) && host.gpus.length > 0;
+  const sensors = Array.isArray(host.sensors) ? host.sensors : [];
+  const fans = Array.isArray(host.fans) ? host.fans : [];
+
+  // Every line comes from what this host publishes, so a tile and the alert the same number would
+  // raise cannot disagree. The literals are only for the quantities the host states no rule for.
+  const memLines = ruleLines(thresholds, "HostMemUsedPct");
+  const swapLines = ruleLines(thresholds, "HostSwapUsedPct");
+  const gpuMemLines = ruleLines(thresholds, "HostGpuMemUsedPct");
+  const tempLines = ruleLines(thresholds, "HostTempC");
+
+  const swapPct = host.ram.swap_total_gb > 0
+    ? (host.ram.swap_used_gb / host.ram.swap_total_gb) * 100 : null;
+  const swapTone = metricTone(swapPct, swapLines, 50, 90);
+
+  const gTone = (tone) => (frozen ? "off" : tone);
+  const gLed = frozen ? "down" : "live";
+  const gLedLabel = frozen ? ageShort : null;
+
+  const threads = host.cpu.threads || host.cpu.per_core.length;
+  const sliceCores = hasSlice && host.slice.cpu_pct_core != null ? host.slice.cpu_pct_core / 100 : null;
+
+  // The fullest card, since VRAM does not pool — a mean across devices would describe none of them.
+  const fullestGpu = hasGpus
+    ? host.gpus.reduce((acc, g) => {
+        const pct = g.mem_used_gb != null && g.mem_total_gb ? (g.mem_used_gb / g.mem_total_gb) * 100 : null;
+        return pct != null && (acc.pct == null || pct > acc.pct) ? { gpu: g, pct } : acc;
+      }, { gpu: host.gpus[0], pct: null })
+    : null;
+
+  const hottest = nearestLimit(sensors, tempLines);
+
   return (
     <>
+      <div className={"diag-tiles" + (frozen ? " is-frozen" : "")}>
+        <KPI icon="cpu" label="CPU" className="kpi--metric" led={gLed} ledLabel={gLedLabel}
+          tone={gTone(metricTone(host.cpu.usage_pct, null, 60, 80))}
+          value={host.cpu.usage_pct + "%"}
+          sub={"load " + host.cpu.load_avg.map((v) => v.toFixed(1)).join(" / ") + " · " + threads + " threads"} />
+
+        <KPI icon="memory-stick" label="Memory" className="kpi--metric" led={gLed} ledLabel={gLedLabel}
+          tone={gTone(metricTone(ramPct, memLines, 70, 85))}
+          value={ramPct + "%"}
+          sub={host.ram.used_gb.toFixed(1) + " / " + host.ram.total_gb + " GB · " + host.ram.free_gb.toFixed(1) + " GB free"} />
+
+        {hasSlice && (
+          <KPI icon="gamepad-2" label="Servers" className="kpi--metric" led={gLed} ledLabel={gLedLabel}
+            tone={gTone("muted")}
+            value={host.slice.pids != null ? host.slice.pids : "—"}
+            sub={[
+              sliceCores != null ? "≈" + sliceCores.toFixed(1) + " cores" : null,
+              host.slice.mem_bytes != null ? fmtBytes(host.slice.mem_bytes) : null,
+            ].filter(Boolean).join(" · ") || "unmeasured"} />
+        )}
+
+        {hasGpus && fullestGpu && (
+          <KPI icon="microchip" label="GPU" className="kpi--metric" led={gLed} ledLabel={gLedLabel}
+            tone={gTone(metricTone(fullestGpu.pct, gpuMemLines, 80, 90))}
+            value={fullestGpu.pct != null ? Math.round(fullestGpu.pct) + "%" : "—"}
+            sub={fullestGpu.gpu.mem_used_gb != null && fullestGpu.gpu.mem_total_gb != null
+              ? fullestGpu.gpu.mem_used_gb.toFixed(1) + " / " + fullestGpu.gpu.mem_total_gb.toFixed(1) + " GiB VRAM"
+              : "VRAM unmeasured"} />
+        )}
+
+        {hottest && (
+          <KPI icon="thermometer" label="Temperature" className="kpi--metric" led={gLed} ledLabel={gLedLabel}
+            tone={gTone(metricTone(hottest.sensor.value_c, hottest.lines, 75, 85))}
+            value={hottest.sensor.value_c.toFixed(1) + "°C"}
+            sub={(hottest.sensor.name || hottest.sensor.chip) + " · "
+              + Math.round(hottest.pct) + "% of its " + hottest.lines.warn + "°"} />
+        )}
+      </div>
+
+      <div className="diag-subhead">Right now</div>
       <div className="diag-2col">
         <div className={"chat-brief" + (frozen ? " is-frozen" : "")}>
           <div className="chat-brief__head">
@@ -211,10 +316,7 @@ function DiagResources({ host, fresh }) {
               <span><span className="swatch" style={{ background: "var(--surface-3)" }}></span>free <b>{host.ram.free_gb.toFixed(1)} GB</b></span>
             </div>
             <div className="diag-meta-line" style={{ marginTop: 14 }}>
-              swap: <b>{host.ram.swap_used_gb} / {host.ram.swap_total_gb} GB</b>
-              {host.ram.swap_used_gb / host.ram.swap_total_gb > 0.3 && (
-                <span style={{ color: "var(--warning-fg)", marginLeft: 10 }}>↑ rising — investigate</span>
-              )}
+              swap: <b className={"is-" + swapTone}>{host.ram.swap_used_gb} / {host.ram.swap_total_gb} GB</b>
             </div>
           </div>
         </div>
@@ -223,15 +325,18 @@ function DiagResources({ host, fresh }) {
       {(hasSlice || hasGpus) && (
         <div className="diag-2col" style={{ marginTop: 16 }}>
           {hasSlice && <SliceCard host={host} frozen={frozen} ageShort={ageShort} />}
-          {hasGpus && <GpuCard host={host} frozen={frozen} ageShort={ageShort} />}
+          {hasGpus && <GpuCard host={host} frozen={frozen} ageShort={ageShort} memLines={gpuMemLines} />}
         </div>
       )}
 
-      {((Array.isArray(host.sensors) && host.sensors.length > 0)
-        || (Array.isArray(host.fans) && host.fans.length > 0)) && (
-        <ThermalPanel host={host} frozen={frozen} ageShort={ageShort} />
+      {(sensors.length > 0 || fans.length > 0) && (
+        <>
+          <div className="diag-subhead">Heat</div>
+          <ThermalPanel host={host} frozen={frozen} ageShort={ageShort} policy={tempLines} />
+        </>
       )}
 
+      <div className="diag-subhead">Recorded</div>
       <DiagHostHistory host={host} />
     </>
   );

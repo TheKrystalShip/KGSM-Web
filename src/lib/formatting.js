@@ -47,6 +47,22 @@ function statusTone(value, amber, red) {
   return "success";
 }
 
+// A KPI's tone for a measured value against the lines it is judged by. Healthy is MUTED, not green:
+// a glance card earns attention by turning amber, and a band where every tile is lit has nothing left
+// to say when one of them matters.
+//
+// `lines` is the host's own rule for this metric when it publishes one (see lib/hostThresholds.js);
+// the fallbacks are for the quantities no rule covers. A value that isn't a number is muted rather
+// than compared, since "unmeasured" is not "fine".
+function metricTone(value, lines, fallbackWarn = null, fallbackDanger = null) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "muted";
+  const warn = lines && lines.warn != null ? lines.warn : fallbackWarn;
+  const danger = lines && lines.danger != null ? lines.danger : fallbackDanger;
+  if (danger != null && value >= danger) return "danger";
+  if (warn != null && value >= warn) return "warn";
+  return "muted";
+}
+
 // ---------- Uptime ----------
 
 // How long something has been up, in the two coarsest units that say anything —
@@ -266,6 +282,7 @@ export {
   fmtUntil,
   ordinal,
   parseTs,
+  metricTone,
   statusTone,
   uptimeShort,
 };

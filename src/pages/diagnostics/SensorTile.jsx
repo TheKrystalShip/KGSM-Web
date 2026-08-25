@@ -5,7 +5,7 @@ import { hostsStore } from "../../lib/stores.js";
 import {
   fetchSensorHistory, fetchSensorSummary, fetchGpuHistory, fetchGpuSummary,
 } from "../../lib/stores/hosts.js";
-import { api } from "../../lib/apiClient.js";
+import { useHostThresholds, ruleLines } from "../../lib/hostThresholds.js";
 
 // SensorTile — ONE channel as a glance card: the reading now, its range over the window, and a trace
 // with the line it is judged against drawn where that line falls.
@@ -81,7 +81,10 @@ function SensorTile({ hostId, sensorId, range = "1h", pin, onView }) {
   const hosts = useStore(hostsStore, (s) => s.list);
   const [points, setPoints] = React.useState(null);
   const [summary, setSummary] = React.useState(null);
-  const [policy, setPolicy] = React.useState(null);
+  // The host's own temperature rule, for a channel whose device publishes none. Shared with every
+  // other surface on the page that needs it, so a card and the panel behind it draw the same line.
+  const thresholds = useHostThresholds(hostId);
+  const policy = ruleLines(thresholds, "HostTempC");
 
   const host = (hosts || []).find((h) => h.id === hostId) || null;
   const ch = host ? resolve(host, sensorId) : null;
@@ -122,18 +125,6 @@ function SensorTile({ hostId, sensorId, range = "1h", pin, onView }) {
     return () => { alive = false; };
   }, [hostId, sensorId, range, kind, isGpu, metric]);
 
-  React.useEffect(() => {
-    let alive = true;
-    if (!hostId || isFan) return undefined;
-    api.host(hostId).get("/hosts/" + encodeURIComponent(hostId) + "/thresholds").then(
-      (d) => {
-        if (!alive) return;
-        const rule = ((d && d.rules) || []).find((r) => r.metric === "HostTempC" && r.enabled);
-        setPolicy(rule ? { warn: rule.warn, danger: rule.danger } : null);
-      },
-      () => { if (alive) setPolicy(null); });
-    return () => { alive = false; };
-  }, [hostId, isFan]);
 
   // A widget whose target is gone says so, rather than mounting an empty card that reads as a
   // healthy sensor at no temperature.

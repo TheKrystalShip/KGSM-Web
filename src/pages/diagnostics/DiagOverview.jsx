@@ -5,12 +5,11 @@ import { KPI } from "../../components/KPI.jsx";
 import { NeedsAttention } from "../../components/NeedsAttention.jsx";
 import { RecentActivity } from "../../components/RecentActivity.jsx";
 import { useStore } from "../../lib/store.js";
-import { statusTone, uptimeShort } from "../../lib/formatting.js";
+import { metricTone, uptimeShort } from "../../lib/formatting.js";
+import { useHostThresholds, ruleLines } from "../../lib/hostThresholds.js";
 import { useKeyedResource } from "../../lib/keyedResource.js";
 import { servicesStore, subscribeHostServices } from "../../lib/stores.js";
 import { ServicesSummaryCard } from "./diagComponents.jsx";
-
-const DIAG_KPI_TONE = { cpu: "teal", ram: "teal", disk: "teal", net: "muted", temp: "teal", uptime: "ok" };
 
 // What this machine is running, under how long it has been up. Either half can be
 // missing — a host that reports neither says so rather than showing an empty line.
@@ -32,18 +31,23 @@ function DiagOverview({ host, fresh, onAsk, onRun, onViewAlerts, onViewAudit, on
     }
     wasFrozen.current = frozen;
   }, [frozen]);
-  const gTone = (t) => frozen ? "off" : DIAG_KPI_TONE[t];
+  // A dropped feed darkens every readout; otherwise the tone is whatever the value earned. Healthy is
+  // muted, so a band with nothing wrong stays quiet and one amber tile is the only lit thing on it.
+  const gTone = (t) => (frozen ? "off" : t);
   const gLed = frozen ? "down" : "live";
   const ageShort = fresh && fresh.label ? fresh.label.replace(/\s*ago$/, "") : null;
   const gLedLabel = frozen ? ageShort : null;
-  const cpuTone = statusTone(host.cpu.usage_pct, 60, 80);
+  const thresholds = useHostThresholds(host && host.id);
+  // Coloured by the lines this host publishes, so a tile and the alert the same number would raise
+  // cannot disagree. CPU keeps a literal: the host states no rule for utilisation.
+  const cpuTone = metricTone(host.cpu.usage_pct, null, 60, 80);
   const ramPct = Math.round((host.ram.used_gb / host.ram.total_gb) * 100);
-  const ramTone = statusTone(ramPct, 70, 85);
+  const ramTone = metricTone(ramPct, ruleLines(thresholds, "HostMemUsedPct"), 70, 85);
   const fullestDisk = host.disks.reduce((acc, d) => {
     const pct = (d.used_gb / d.total_gb) * 100;
     return pct > acc.pct ? { disk: d, pct } : acc;
   }, { disk: null, pct: 0 });
-  const diskTone = statusTone(fullestDisk.pct, 80, 90);
+  const diskTone = metricTone(fullestDisk.pct, ruleLines(thresholds, "HostDiskUsedPct"), 80, 90);
   // The headline temperature is the CPU's, when the monitor could classify one. A plain max across
   // every channel puts a warm SSD or DIMM under a tile labelled "Temperature", which reads as the host
   // running hot; falling back to the max is only for a host whose chips aren't in the monitor's catalog,
@@ -57,7 +61,7 @@ function DiagOverview({ host, fresh, onAsk, onRun, onViewAlerts, onViewAudit, on
   const tempSub = cpuSensors.length > 0
     ? (cpuSensors.length === 1 ? "CPU package sensor" : "hottest of " + cpuSensors.length + " CPU sensors")
     : "highest of " + (host.sensors || []).length + " sensors";
-  const tempTone = hotTemp != null ? statusTone(hotTemp, 75, 85) : "success";
+  const tempTone = metricTone(hotTemp, ruleLines(thresholds, "HostTempC"), 75, 85);
   const netTotal = host.network.interfaces.reduce((sum, i) => sum + (i.rx_kbps || 0) + (i.tx_kbps || 0), 0);
   const ifaceCount = host.network.interfaces.length;
 

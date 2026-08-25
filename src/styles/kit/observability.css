@@ -2341,11 +2341,14 @@
   align-items: stretch;
 }
 
+/* Cards take their content's height, not their neighbour's. Stretching them evens the row's bottom
+   edge at the cost of half an empty card wherever two cards have different amounts to say — and a
+   card that is 44% blank reads as one that failed to load. */
 .diag-2col {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-  align-items: stretch;
+  align-items: start;
 }
 
 .diag-subhead {
@@ -2366,6 +2369,11 @@
   color: var(--fg-1);
   font-weight: 600;
 }
+
+/* A figure the host's own rule has something to say about. Silent otherwise, so a line that turns
+   amber is the only one on the card that has. */
+.diag-meta-line b.is-warn { color: var(--warning-fg); }
+.diag-meta-line b.is-danger { color: var(--danger-fg); }
 
 /* Padded body for non-list cards (CPU / Memory visualisations, Open ports) so
    their content gets the same inset as a card's header. --divided adds a top

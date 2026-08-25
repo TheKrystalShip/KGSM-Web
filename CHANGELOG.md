@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the node's Resources tab has a spine (`1.165.0`)
+
+A band of glance tiles over three named groups, in descending urgency: what the node is doing right
+now, how hot it is running, what it has been doing. The group headings state the tense, because a
+live reading, a 24-hour range and a recorded curve are three different claims that look alike.
+
+A device is named once. The GPU card holds what only it can say — VRAM, power and utilisation — and
+its temperature is a thermal row like every other channel, where the axis, the device's own limits
+and the window already are.
+
+Cards in a two-column row take their own content's height. Stretching them evened the row's bottom
+edge at the cost of half an empty card wherever two cards had different amounts to say, and a card
+that is 44% blank reads as one that failed to load.
+
+### Fixed — the diagnostics KPI band can turn amber (`1.165.0`)
+
+Every metric tile on a node's Overview resolved to no tone at all, so the value never coloured and
+the band's accent hairline was never painted — silently, and only when a value crossed a line, which
+is the one time it matters.
+
+### Changed — a figure is coloured by the line its host publishes (`1.165.0`)
+
+Memory, swap, disk, VRAM and temperature take their warn and danger points from the host's own
+threshold rules, read once per page and shared by every surface that needs them. A tile and the
+alert the same number would raise can no longer disagree, and an operator who moves a line moves what
+the panel calls amber. The quantities the host states no rule for keep a stated default.
+
+Healthy is muted rather than green: a glance card earns attention by turning amber, and a band where
+every tile is lit has nothing left to say when one of them matters.
+
 ### Added — the GPU on the thermal axis, and a crosshair that reads it (`1.164.0`)
 
 The thermal panel draws every GPU as a row beside the hwmon channels, under Graphics, with the

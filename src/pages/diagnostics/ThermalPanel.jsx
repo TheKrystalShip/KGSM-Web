@@ -2,7 +2,7 @@ import React from "react";
 import { Icon } from "../../components/Icon.jsx";
 import { StatusLed } from "./diagComponents.jsx";
 import { fetchSensorSummary, fetchGpuSummary } from "../../lib/stores/hosts.js";
-import { api } from "../../lib/apiClient.js";
+import { useHostThresholds, ruleLines } from "../../lib/hostThresholds.js";
 import { useStore } from "../../lib/store.js";
 import { hostsStore } from "../../lib/stores.js";
 import { PinButton } from "../../components/widgets/PinButton.jsx";
@@ -127,28 +127,19 @@ function SensorRow({ sensor, range, policy, hostId, cross }) {
   );
 }
 
-function ThermalPanel({ host, frozen, ageShort, range = "24h" }) {
+function ThermalPanel({ host, frozen, ageShort, range = "24h", policy: given }) {
   const hostId = host && host.id;
   const [ranges, setRanges] = React.useState(null);
-  const [policy, setPolicy] = React.useState(null);
   const [showAll, setShowAll] = React.useState(false);
   const [cross, setCross] = React.useState(null);
   const plotRef = React.useRef(null);
 
-  // The host's own temperature rule, for the channels whose devices publish no limit. Null until it
-  // arrives and null if it cannot be read, which draws no line rather than a line nobody set.
-  React.useEffect(() => {
-    let alive = true;
-    if (!hostId) return undefined;
-    api.host(hostId).get("/hosts/" + encodeURIComponent(hostId) + "/thresholds").then(
-      (d) => {
-        if (!alive) return;
-        const rule = ((d && d.rules) || []).find((r) => r.metric === "HostTempC" && r.enabled);
-        setPolicy(rule ? { warn: rule.warn, danger: rule.danger } : null);
-      },
-      () => { if (alive) setPolicy(null); });
-    return () => { alive = false; };
-  }, [hostId]);
+  // The host's own temperature rule, for the channels whose devices publish no limit. A page that has
+  // already read the host's rules hands them down; pinned on a dashboard the panel reads them itself,
+  // which is what keeps it the same component in both places. Null until it arrives and null if it
+  // cannot be read, which draws no line rather than a line nobody set.
+  const fetched = useHostThresholds(given ? null : hostId);
+  const policy = given || ruleLines(fetched, "HostTempC");
 
   // One request per row set for every channel's range — hwmon and the GPUs are separate kinds, keyed
   // differently, so they are separate queries folded into one map here. Re-fetched when the host or
@@ -214,7 +205,7 @@ function ThermalPanel({ host, frozen, ageShort, range = "24h" }) {
   const anyOwnLimit = channels.some((s) => s.limit_high_c != null || s.limit_critical_c != null);
 
   return (
-    <div className={"chat-brief" + (frozen ? " is-frozen" : "")} style={{ marginTop: 16 }}>
+    <div className={"chat-brief" + (frozen ? " is-frozen" : "")}>
       <div className="chat-brief__head">
         <span className="chat-brief__title">
           <Icon name="thermometer" size={13} /> Thermal
