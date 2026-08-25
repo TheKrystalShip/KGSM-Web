@@ -1,19 +1,26 @@
 import React from "react";
 import { Icon } from "../../components/Icon.jsx";
 import { StatusLed } from "./diagComponents.jsx";
-import { fetchSensorSummary } from "../../lib/stores/hosts.js";
+import { fetchSensorSummary, fetchGpuSummary } from "../../lib/stores/hosts.js";
 import { api } from "../../lib/apiClient.js";
 import { useStore } from "../../lib/store.js";
 import { hostsStore } from "../../lib/stores.js";
 import { PinButton } from "../../components/widgets/PinButton.jsx";
 
-// ThermalPanel — every hwmon channel on ONE shared axis: the window's min–max as a bar, the current
-// reading marked on it, and the lines the channel is actually judged against drawn where they fall.
+// ThermalPanel — every channel on this host that reports a temperature, on ONE shared axis: the window's
+// min–max as a bar, the current reading marked on it, and the lines the channel is actually judged
+// against drawn where they fall.
 //
 // A shared axis is the whole point. Twelve numbers in a list are twelve comparisons the reader has to
 // do; on a common scale "the package swings hardest and the DIMMs barely move" is a shape. It is also
 // why the axis is fixed rather than fitted to the data — an axis that rescales makes a calm host and a
-// hot one look identical.
+// hot one look identical. Hovering reads the axis back: a crosshair anywhere over the tracks names the
+// temperature under the cursor and lifts every channel whose window reached it.
+//
+// The GPU arrives from the driver rather than hwmon and is keyed by its UUID, but it is a temperature on
+// the same host, so it is a row here like any other. Keeping it on a card of its own would leave the one
+// comparison people actually make — is the card hotter than the package — as a comparison between two
+// cards.
 //
 // Standalone by construction (it takes a host and fetches its own ranges), so the dashboard pins the
 // same component this page renders. There is no widget-only fork.
@@ -38,6 +45,25 @@ const clampPct = (v) => {
   return Math.max(0, Math.min(100, p));
 };
 
+// A GPU as a thermal channel. Its identity is the UUID the monitor keys its rows by, so the range lookup
+// and the pinned tile address the same device the driver does. A card whose temperature the driver would
+// not give up is left out entirely rather than shown at a temperature nobody measured.
+function gpuChannels(gpus) {
+  return (Array.isArray(gpus) ? gpus : [])
+    .filter((g) => g && typeof g.temp_c === "number")
+    .map((g) => ({
+      id: g.uuid,
+      chip: g.name,
+      label: null,
+      name: g.name,
+      role: "gpu",
+      value_c: g.temp_c,
+      limit_high_c: g.temp_limit_c ?? null,
+      limit_critical_c: g.temp_shutdown_c ?? null,
+      primary: true,
+    }));
+}
+
 // A channel's own limits when the device published them, else the host's policy — which is READ from the
 // host, never assumed here. A default written into the SPA would be a second copy of a number the monitor
 // owns, and it would keep drawing a line after an operator moved theirs.
@@ -54,11 +80,15 @@ function toneFor(sensor, policy) {
   return null;
 }
 
-function SensorRow({ sensor, range, policy, hostId }) {
+function SensorRow({ sensor, range, policy, hostId, cross }) {
   const { warn, danger, own } = linesFor(sensor, policy);
   const tone = toneFor(sensor, policy);
   const lo = range ? clampPct(range.min) : null;
   const hi = range ? clampPct(range.max) : null;
+
+  // Whether this channel's window reached the temperature under the cursor. This is the read the shared
+  // axis exists for — "which of these has been at 80°" is one glance instead of twelve comparisons.
+  const crossed = cross != null && range != null && cross >= range.min && cross <= range.max;
 
   const limitNote = own ? "device limit" : "host policy";
   const title =
@@ -74,7 +104,8 @@ function SensorRow({ sensor, range, policy, hostId }) {
         {/* The range only exists once a window has accumulated; before that the marker stands alone
             rather than a zero-width bar implying a channel that has never moved. */}
         {range && (
-          <i className="therm-track__range" style={{ left: lo + "%", width: Math.max(hi - lo, 0.6) + "%" }} />
+          <i className={"therm-track__range" + (crossed ? " is-crossed" : "")}
+            style={{ left: lo + "%", width: Math.max(hi - lo, 0.6) + "%" }} />
         )}
         {warn != null && warn <= AX_HI && (
           <i className="therm-track__tick therm-track__tick--warn" style={{ left: clampPct(warn) + "%" }} />
@@ -101,6 +132,8 @@ function ThermalPanel({ host, frozen, ageShort, range = "24h" }) {
   const [ranges, setRanges] = React.useState(null);
   const [policy, setPolicy] = React.useState(null);
   const [showAll, setShowAll] = React.useState(false);
+  const [cross, setCross] = React.useState(null);
+  const plotRef = React.useRef(null);
 
   // The host's own temperature rule, for the channels whose devices publish no limit. Null until it
   // arrives and null if it cannot be read, which draws no line rather than a line nobody set.
@@ -117,34 +150,58 @@ function ThermalPanel({ host, frozen, ageShort, range = "24h" }) {
     return () => { alive = false; };
   }, [hostId]);
 
-  // One request for every channel's range. Re-fetched when the host or window changes; a failure leaves
-  // ranges null, which renders markers with no bars rather than bars over invented numbers.
+  // One request per row set for every channel's range — hwmon and the GPUs are separate kinds, keyed
+  // differently, so they are separate queries folded into one map here. Re-fetched when the host or
+  // window changes; a failure leaves ranges null, which renders markers with no bars rather than bars
+  // over invented numbers.
   React.useEffect(() => {
     let alive = true;
     if (!hostId) return undefined;
-    fetchSensorSummary(hostId, range)
-      .then((r) => {
-        if (!alive) return;
-        const byId = {};
+    Promise.all([
+      fetchSensorSummary(hostId, range).catch(() => null),
+      fetchGpuSummary(hostId, range).catch(() => null),
+    ]).then(([sensors, gpus]) => {
+      if (!alive) return;
+      if (!sensors && !gpus) { setRanges(null); return; }
+      const byId = {};
+      for (const r of [sensors, gpus]) {
         for (const e of (r && r.entries) || []) {
           if (e.metric !== "tempC" && e.metric !== "rpm") continue;
           byId[e.entityId] = e;
         }
-        setRanges(byId);
-      })
-      .catch(() => { if (alive) setRanges(null); });
+      }
+      setRanges(byId);
+    });
     return () => { alive = false; };
   }, [hostId, range]);
 
+  // The cursor's position read back as a temperature. Measured off a real track rather than computed
+  // from the column template, so it stays exact through the mobile layout that makes the track
+  // full-width. Mouse only: a tap carries no position to read, and a crosshair frozen where a finger
+  // last touched would be a reading nobody is taking.
+  const onMove = React.useCallback((e) => {
+    if (e.pointerType && e.pointerType !== "mouse") return;
+    const plot = plotRef.current;
+    const track = plot && plot.querySelector(".therm-row__track:not(.therm-row__track--none)");
+    if (!track) return;
+    const tr = track.getBoundingClientRect();
+    if (tr.width <= 0) return;
+    const pct = (e.clientX - tr.left) / tr.width;
+    if (pct < 0 || pct > 1) { setCross(null); return; }
+    const x = Math.round(e.clientX - plot.getBoundingClientRect().left);
+    setCross((prev) => (prev && prev.x === x ? prev : { x, value: AX_LO + pct * (AX_HI - AX_LO) }));
+  }, []);
+
   const sensors = Array.isArray(host.sensors) ? host.sensors : [];
   const fans = Array.isArray(host.fans) ? host.fans : [];
+  const channels = sensors.concat(gpuChannels(host.gpus));
 
   // A non-primary channel is one another channel on the same device speaks for — the CPU's per-die
   // reading, an NVMe's component sensors, the same CPU temperature relayed through the motherboard.
   // Folded by default and never dropped: they are real measurements, and one diverging from the channel
   // that supposedly speaks for it is exactly the thing worth being able to look at.
-  const shown = showAll ? sensors : sensors.filter((s) => s.primary !== false);
-  const folded = sensors.length - shown.length;
+  const shown = showAll ? channels : channels.filter((s) => s.primary !== false);
+  const folded = channels.length - shown.length;
 
   const groups = [];
   for (const [role, label] of ROLE_GROUPS) {
@@ -154,7 +211,7 @@ function ThermalPanel({ host, frozen, ageShort, range = "24h" }) {
   const rest = shown.filter((s) => !ROLE_GROUPS.some(([role]) => s.role === role));
   if (rest.length) groups.push(["Other", rest]);
 
-  const anyOwnLimit = sensors.some((s) => s.limit_high_c != null || s.limit_critical_c != null);
+  const anyOwnLimit = channels.some((s) => s.limit_high_c != null || s.limit_critical_c != null);
 
   return (
     <div className={"chat-brief" + (frozen ? " is-frozen" : "")} style={{ marginTop: 16 }}>
@@ -172,16 +229,40 @@ function ThermalPanel({ host, frozen, ageShort, range = "24h" }) {
         <StatusLed live={!frozen} label={frozen ? ageShort : null} />
       </div>
       <div className="chat-brief__pad">
-        {groups.map(([label, rows]) => (
-          <div key={label}>
-            <div className="diag-subhead">{label}</div>
-            <div className="therm-rows">
-              {rows.map((s) => (
-                <SensorRow key={s.id} sensor={s} range={ranges && ranges[s.id]} policy={policy} hostId={hostId} />
-              ))}
-            </div>
+        {/* The crosshair reaches exactly as far as the axis it reads — the temperature rows and the scale
+            that labels them. It deliberately stops short of the fans below, which are not on this axis. */}
+        <div className="therm-plot" ref={plotRef} onPointerMove={onMove} onPointerLeave={() => setCross(null)}>
+          <div className="therm-plot__readout">
+            {cross && (
+              <span className="therm-readout" style={{ left: cross.x + "px" }}>
+                {cross.value.toFixed(1)}°
+              </span>
+            )}
           </div>
-        ))}
+
+          <div className="therm-plot__rows">
+            {groups.map(([label, rows]) => (
+              <div key={label}>
+                <div className="diag-subhead">{label}</div>
+                <div className="therm-rows">
+                  {rows.map((s) => (
+                    <SensorRow key={s.id} sensor={s} range={ranges && ranges[s.id]} policy={policy}
+                      hostId={hostId} cross={cross ? cross.value : null} />
+                  ))}
+                </div>
+              </div>
+            ))}
+            {/* Spans the rows and nothing else, so the line ends where the axis does instead of striking
+                through the labels that name it. */}
+            {cross && <i className="therm-cross" style={{ left: cross.x + "px" }} aria-hidden="true" />}
+          </div>
+
+          <div className="therm-scale">
+            <span />
+            <span className="therm-scale__marks"><i>30°</i><i>50°</i><i>70°</i><i>90°</i><i>110°</i></span>
+            <span />
+          </div>
+        </div>
 
         {fans.length > 0 && (
           <div>
@@ -203,12 +284,6 @@ function ThermalPanel({ host, frozen, ageShort, range = "24h" }) {
             </div>
           </div>
         )}
-
-        <div className="therm-scale">
-          <span />
-          <span className="therm-scale__marks"><i>30°</i><i>50°</i><i>70°</i><i>90°</i><i>110°</i></span>
-          <span />
-        </div>
 
         <div className="therm-legend">
           <span><i className="therm-sw therm-sw--range" /> {range} range</span>

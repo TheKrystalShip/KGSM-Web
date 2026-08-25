@@ -2,17 +2,21 @@ import React from "react";
 import { KPI } from "../../components/KPI.jsx";
 import { useStore } from "../../lib/store.js";
 import { hostsStore } from "../../lib/stores.js";
-import { fetchSensorHistory, fetchSensorSummary } from "../../lib/stores/hosts.js";
+import {
+  fetchSensorHistory, fetchSensorSummary, fetchGpuHistory, fetchGpuSummary,
+} from "../../lib/stores/hosts.js";
 import { api } from "../../lib/apiClient.js";
 
-// SensorTile — ONE hwmon channel as a glance card: the reading now, its range over the window, and a
-// trace with the line it is judged against drawn where that line falls.
+// SensorTile — ONE channel as a glance card: the reading now, its range over the window, and a trace
+// with the line it is judged against drawn where that line falls.
 //
 // The number answers "what is it"; the trace answers "where is it going", which a number cannot. The
 // line matters because headroom is the actual question — 72 °C means nothing until you know whether
 // this device is rated to 80 or to 95, and different devices on one host are rated differently.
 //
-// Binds to a host and a sensor id, reads both itself, and so renders identically on a page and pinned.
+// Binds to a host and a channel id, reads both itself, and so renders identically on a page and pinned.
+// The id resolves against every channel the host reports — an hwmon temperature, a tachometer, or a GPU
+// by its UUID — because they are one namespace to a person pinning a row, and no two of them collide.
 
 const TRACE_HEIGHT = 34;
 
@@ -41,6 +45,38 @@ function traceGeometry(points, warn) {
   };
 }
 
+// What the id points at on this host, flattened to the one shape the card draws. `kind` survives into
+// the fetches because the two row sets are stored and addressed separately.
+function resolve(host, id) {
+  const sensor = (host.sensors || []).find((s) => s.id === id);
+  if (sensor) {
+    return {
+      kind: "sensor", unit: "°C", metric: "tempC",
+      name: sensor.name || sensor.chip, value: sensor.value_c,
+      warn: sensor.limit_high_c ?? null, danger: sensor.limit_critical_c ?? null,
+    };
+  }
+  const fan = (host.fans || []).find((f) => f.id === id);
+  if (fan) {
+    return {
+      kind: "fan", unit: "RPM", metric: "rpm",
+      name: fan.name || fan.chip, value: fan.rpm, warn: null, danger: null,
+    };
+  }
+  const gpu = (host.gpus || []).find((g) => g.uuid === id);
+  if (gpu) {
+    // A card present but silent about its temperature is a different fact from a card that is gone, and
+    // the tile says which. Never a substituted zero.
+    return {
+      kind: "gpu", unit: "°C", metric: "tempC",
+      name: gpu.name, value: gpu.temp_c ?? null,
+      warn: gpu.temp_limit_c ?? null, danger: gpu.temp_shutdown_c ?? null,
+      missing: gpu.temp_c == null ? "This device reports no temperature" : null,
+    };
+  }
+  return null;
+}
+
 function SensorTile({ hostId, sensorId, range = "1h", pin, onView }) {
   const hosts = useStore(hostsStore, (s) => s.list);
   const [points, setPoints] = React.useState(null);
@@ -48,35 +84,43 @@ function SensorTile({ hostId, sensorId, range = "1h", pin, onView }) {
   const [policy, setPolicy] = React.useState(null);
 
   const host = (hosts || []).find((h) => h.id === hostId) || null;
-  const sensor = host && (host.sensors || []).find((s) => s.id === sensorId);
-  const fan = host && (host.fans || []).find((f) => f.id === sensorId);
-  const isFan = !sensor && !!fan;
-  const reading = sensor || fan || null;
+  const ch = host ? resolve(host, sensorId) : null;
+  const kind = ch && ch.kind;
+  const isFan = kind === "fan";
+  const isGpu = kind === "gpu";
+  const metric = ch && ch.metric;
 
   React.useEffect(() => {
     let alive = true;
-    if (!hostId || !sensorId) return undefined;
-    fetchSensorHistory(hostId, sensorId, range)
+    if (!hostId || !sensorId || !kind) return undefined;
+    const req = isGpu
+      ? fetchGpuHistory(hostId, sensorId, range)
+      : fetchSensorHistory(hostId, sensorId, range);
+    req
       .then((r) => {
         if (!alive) return;
         const series = (r && r.series) || {};
-        setPoints(series.tempC || series.rpm || []);
+        setPoints(series[metric] || []);
       })
       .catch(() => { if (alive) setPoints(null); });
     return () => { alive = false; };
-  }, [hostId, sensorId, range]);
+  }, [hostId, sensorId, range, kind, isGpu, metric]);
 
   React.useEffect(() => {
     let alive = true;
-    if (!hostId) return undefined;
-    fetchSensorSummary(hostId, range)
+    if (!hostId || !kind) return undefined;
+    const req = isGpu ? fetchGpuSummary(hostId, range) : fetchSensorSummary(hostId, range);
+    req
       .then((r) => {
         if (!alive) return;
-        setSummary(((r && r.entries) || []).find((e) => e.entityId === sensorId) || null);
+        // Matched on the metric as well as the id: a GPU carries several series under one UUID, and the
+        // first row for it is whichever the store returned, not the one this card draws.
+        setSummary(((r && r.entries) || [])
+          .find((e) => e.entityId === sensorId && e.metric === metric) || null);
       })
       .catch(() => { if (alive) setSummary(null); });
     return () => { alive = false; };
-  }, [hostId, sensorId, range]);
+  }, [hostId, sensorId, range, kind, isGpu, metric]);
 
   React.useEffect(() => {
     let alive = true;
@@ -93,16 +137,19 @@ function SensorTile({ hostId, sensorId, range = "1h", pin, onView }) {
 
   // A widget whose target is gone says so, rather than mounting an empty card that reads as a
   // healthy sensor at no temperature.
-  if (!host || !reading) {
+  if (!host || !ch || ch.value == null) {
+    const sub = !host ? "Node unavailable"
+      : !ch ? "This channel is no longer reported"
+      : ch.missing || "This channel is no longer reported";
     return (
-      <KPI icon="thermometer" label="Sensor" tone="muted" value="—"
-        sub={host ? "This channel is no longer reported" : "Node unavailable"} pin={pin} onView={onView} />
+      <KPI icon="thermometer" label={ch ? ch.name : "Sensor"} tone="muted" value="—"
+        sub={sub} pin={pin} onView={onView} />
     );
   }
 
-  const warn = isFan ? null : reading.limit_high_c ?? (policy ? policy.warn : null) ?? null;
-  const danger = isFan ? null : reading.limit_critical_c ?? (policy ? policy.danger : null) ?? null;
-  const value = isFan ? reading.rpm : reading.value_c;
+  const warn = isFan ? null : ch.warn ?? (policy ? policy.warn : null) ?? null;
+  const danger = isFan ? null : ch.danger ?? (policy ? policy.danger : null) ?? null;
+  const value = ch.value;
 
   let tone = "muted";
   if (!isFan && danger != null && value >= danger) tone = "danger";
@@ -135,16 +182,16 @@ function SensorTile({ hostId, sensorId, range = "1h", pin, onView }) {
   ) : null;
 
   const limitLine = !isFan && warn != null
-    ? (reading.limit_high_c != null ? "Device limit " : "Host policy ") + warn + "\u00b0"
-      + (danger != null ? " \u00b7 critical " + danger + "\u00b0" : "")
+    ? (ch.warn != null ? "Device limit " : "Host policy ") + warn + "°"
+      + (danger != null ? " · critical " + danger + "°" : "")
     : null;
 
   return (
     <KPI
       icon={isFan ? "fan" : "thermometer"}
-      label={reading.name || reading.chip}
+      label={ch.name}
       value={isFan ? value.toLocaleString() : value.toFixed(1)}
-      unit={isFan ? "RPM" : "\u00b0C"}
+      unit={ch.unit}
       sub={stats}
       tone={tone}
       pin={pin}

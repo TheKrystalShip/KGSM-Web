@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the GPU on the thermal axis, and a crosshair that reads it (`1.164.0`)
+
+The thermal panel draws every GPU as a row beside the hwmon channels, under Graphics, with the
+driver's own rated and shutdown temperatures as its lines. A card is a temperature on the same host,
+and keeping it on a surface of its own would leave the one comparison people actually make — is the
+card hotter than the package — as a comparison between two cards. Its range comes from
+`GET /hosts/{id}/gpus/metrics/summary`, a second request beside the hwmon one because the two are
+separate row sets keyed differently. A device the driver will not give a temperature for is left out
+rather than drawn at a temperature nobody measured.
+
+Hovering the panel reads the shared axis back. A crosshair stands where the cursor is and names the
+temperature under it, so a position between two scale marks 20° apart is a number rather than an
+estimate — and every window the line crosses lights up, which turns "which of these has been this
+hot" into one glance. The line is measured off a track's own box, so it stays exact through the phone
+layout that makes the track full-width; it spans the temperature rows and stops before the fans,
+which are not on this axis. Mouse only: a tap carries no position to read, and a crosshair frozen
+where a finger last touched would be a reading nobody is taking.
+
+A pinned row resolves against every channel the host reports, a GPU by its UUID among them, so the
+card names the device, draws its series, and states which line it drew.
+
 ### Added — the thermal panel, and a sensor as a pinnable card (`1.163.0`)
 
 The Resources tab draws every hwmon channel on ONE shared axis: the 24 h min–max as a bar, the current

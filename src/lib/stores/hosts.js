@@ -148,6 +148,20 @@ async function fetchSensorSummary(hostId, range) {
   return api.host(hostId).get("/hosts/" + hostId + "/sensors/metrics/summary?range=" + (range || "24h"));
 }
 
+// Every GPU's range over the same window. A separate request from the hwmon one because the two are
+// separate row sets keyed differently — a device by UUID, a channel by chip/device/tempN.
+async function fetchGpuSummary(hostId, range) {
+  if (!hostId) return null;
+  return api.host(hostId).get("/hosts/" + hostId + "/gpus/metrics/summary?range=" + (range || "24h"));
+}
+
+// ONE device's series. Addressed by UUID, which survives the driver renumbering the cards.
+async function fetchGpuHistory(hostId, uuid, range) {
+  if (!hostId || !uuid) return null;
+  return api.host(hostId).get(
+    "/hosts/" + hostId + "/gpus/" + encodeURIComponent(uuid) + "/metrics/history?range=" + (range || "1h"));
+}
+
 // ONE channel's series, for a card that draws a trace. The channel id goes in a query parameter because
 // a sensor id is chip/device/tempN and carries the separator a path segment would split on.
 async function fetchSensorHistory(hostId, sensorId, range) {
@@ -228,6 +242,7 @@ function removeLibrary(hostId, name, drainTo) {
 export {
   hostsStore, syncCapabilitySubscriptions,
   subscribeHostMetrics, subscribeServerMetrics,
-  fetchServerMetricsHistory, fetchHostMetricsHistory, fetchSensorSummary, fetchSensorHistory, fetchServerEvents, fetchHostDetail,
+  fetchServerMetricsHistory, fetchHostMetricsHistory, fetchSensorSummary, fetchSensorHistory,
+  fetchGpuSummary, fetchGpuHistory, fetchServerEvents, fetchHostDetail,
   addLibrary, renameLibrary, removeLibrary,
 };

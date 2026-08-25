@@ -3785,8 +3785,10 @@
   min-width: 0;
 }
 
+/* Weaker than the axis it sits between, so the line a position is read against stays the strongest
+   thing on the row. */
 .therm-row + .therm-row {
-  border-top: 1px solid rgba(255, 255, 255, 0.045);
+  border-top: 1px solid color-mix(in srgb, var(--border-subtle) 55%, transparent);
 }
 
 .therm-row__name {
@@ -3831,7 +3833,7 @@
   top: 9px;
   height: 2px;
   border-radius: var(--r-pill);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--border-subtle);
 }
 
 .therm-track__range {
@@ -3924,6 +3926,47 @@
 
 .therm-toggle:hover { color: var(--krystal-teal); background: var(--krystal-teal-dim); }
 .therm-toggle:focus-visible { outline: 2px solid var(--krystal-teal-ring); outline-offset: 1px; }
+
+/* The hover layer. A shared axis can be read back: the cursor's x IS a temperature, so the panel says
+   which one rather than leaving it to be estimated between two scale marks 20° apart. */
+.therm-plot { position: relative; }
+.therm-plot__rows { position: relative; }
+
+/* Reserved above the first group so the readout has somewhere to sit that is not on top of a heading.
+   The strip holds its height whether or not anything is in it — a layout that shifts on hover is worse
+   than a few px of quiet space. */
+.therm-plot__readout { position: relative; height: 17px; }
+.therm-plot__readout + .therm-plot__rows .diag-subhead { margin-top: 2px; }
+
+.therm-readout {
+  position: absolute;
+  bottom: 0;
+  transform: translateX(-50%);
+  padding: 1px 6px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-3);
+  color: var(--fg-1);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.therm-cross {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--krystal-teal);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* A window that reached the temperature under the cursor. The whole reason the bars share an axis is to
+   make "which of these has been this hot" one glance, and this is that glance. */
+.therm-track__range.is-crossed { background: rgba(64, 160, 192, 0.85); }
 
 /* On a phone the label column would leave the track too narrow to read a position off, so the row
    becomes two lines: name and value together, the full-width track beneath them. */
