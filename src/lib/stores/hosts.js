@@ -52,6 +52,10 @@ hostsStore.mergeMetrics = (id, t) => {
       if (t.ram) next.ram = t.ram;
       if (t.disks) next.disks = t.disks;
       if (t.sensors) next.sensors = t.sensors;
+      // gpus/slice adopt the tick's value INCLUDING null (a measured absence — the card must go away),
+      // but not undefined: a node whose api predates the field must not clear a newer REST read.
+      if (t.gpus !== undefined) next.gpus = t.gpus;
+      if (t.slice !== undefined) next.slice = t.slice;
       if (t.boot_time != null) next.boot_time = t.boot_time;
       if (t.hostname) next.hostname = t.hostname;
       next.network = { ...(h.network || {}), interfaces: t.interfaces || (h.network && h.network.interfaces) || [] };
@@ -127,6 +131,13 @@ async function fetchServerMetricsHistory(serverId, range, hostId) {
   return api.host(hostId).get("/servers/" + serverId + "/metrics/history?range=" + r);
 }
 
+// HOST metrics history — the monitor's host-entity series (cpuTotalPct, memUsedKb, load, disk I/O,
+// and the slice split sliceCpuPctCore/sliceMemBytes), relayed verbatim by the api.
+async function fetchHostMetricsHistory(hostId, range) {
+  if (!hostId) return null;
+  return api.host(hostId).get("/hosts/" + hostId + "/metrics/history?range=" + (range || "1h"));
+}
+
 // Lifecycle events for ONE server
 async function fetchServerEvents(serverId, hostId, sinceIso) {
   if (!serverId) return [];
@@ -198,6 +209,6 @@ function removeLibrary(hostId, name, drainTo) {
 export {
   hostsStore, syncCapabilitySubscriptions,
   subscribeHostMetrics, subscribeServerMetrics,
-  fetchServerMetricsHistory, fetchServerEvents, fetchHostDetail,
+  fetchServerMetricsHistory, fetchHostMetricsHistory, fetchServerEvents, fetchHostDetail,
   addLibrary, renameLibrary, removeLibrary,
 };

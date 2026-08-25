@@ -296,11 +296,34 @@ function mapHostTelemetry(be) {
   const sensors = Array.isArray(be.sensors)
     ? be.sensors.map((s) => ({ chip: s.chip, label: s.label || null, value_c: round(s.valueC, 1) }))
     : null;
+  // The host's GPUs — devices only (the per-process breakdown is detail-only and gated). GiB figures
+  // straight from the api; each nullable field passes through (an unreadable SM/temp/power is unknown,
+  // never 0). null = the host has no readable card; undefined = the payload predates the field — the
+  // merge distinguishes the two so an older node's tick can't clear a newer read.
+  const gpus = Array.isArray(be.gpus)
+    ? be.gpus.map((g) => ({
+        index: g.index, name: g.name, uuid: g.uuid,
+        mem_used_gb: g.memUsed != null ? round(g.memUsed, 2) : null,
+        mem_total_gb: g.memTotal != null ? round(g.memTotal, 2) : null,
+        sm_pct: g.smPct ?? null, temp_c: g.tempC ?? null,
+        power_w: g.powerW ?? null, power_cap_w: g.powerCapW ?? null,
+      }))
+    : be.gpus;
+  // The kgsm.slice aggregate — what the game servers collectively cost, measured at the parent cgroup.
+  // cpu_pct_core is percent of ONE core (may exceed 100) and null on the monitor's first observation;
+  // null slice = no kgsm.slice on this host; undefined = an older payload, same rule as gpus.
+  const slice = be.slice
+    ? {
+        cpu_pct_core: be.slice.cpuPctCore ?? null,
+        mem_bytes: be.slice.memBytes ?? null,
+        pids: be.slice.pids ?? null,
+      }
+    : be.slice;
   // boot_time derived from the measured uptime (now − uptimeSec); the FE's uptime helpers want a
   // timestamp. null when uptime isn't sourced → the helpers render "—".
   const boot_time = be.uptimeSec != null ? new Date(Date.now() - be.uptimeSec * 1000).toISOString() : null;
   const hostname = be.hostname || null;
-  return { cpu, ram, disks, interfaces, sensors, boot_time, hostname };
+  return { cpu, ram, disks, interfaces, sensors, gpus, slice, boot_time, hostname };
 }
 
 export function adaptHost(be) {
@@ -361,6 +384,8 @@ export function adaptHost(be) {
     capabilities: be.capabilities || {},
     cpu, ram, disks, network,
     sensors: tel.sensors || [],   // hwmon temps now sourced (M-diag depth); [] when none / no snapshot
+    gpus: tel.gpus ?? null,       // devices only; null = no readable card on this host
+    slice: tel.slice ?? null,     // kgsm.slice aggregate; null = no slice on this host
     processes: [],                // no host process-list source → honest-empty (not fabricated rows)
     events: [], logs: [],
     // The named roots this host places servers in, each with its live state and capacity. null when the

@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the Resources tab reads the whole node: slice split, GPU, temperatures, history (`1.161.0`)
+
+Four cards join the CPU core grid and RAM bar, every figure measured upstream and adapted honestly:
+
+- **Game servers** — the kgsm.slice aggregate (`host.slice`, new on the api): the servers' collective
+  CPU and memory drawn against the host's own bar, with "rest of host" beside it. Absent slice (no
+  watchdog, nothing native) → no card; the monitor's first CPU observation (no delta yet) renders as
+  cores-only, never a fabricated 0%.
+- **GPU** — conditional on the host reporting a readable card (`host.gpus`, now adapted instead of
+  discarded): per-device VRAM bar (never summed across devices), temperature, power draw/cap and SM
+  utilisation, each nullable field preserved.
+- **Temperatures** — the hwmon readings (`host.sensors`) the adapter already carried, grouped by chip.
+  Tinting at 75/90°C is emphasis only; the thresholds that act live in the monitor's policy.
+- **History** (`diagnostics/DiagHostHistory.jsx`) — the monitor's host-entity series over
+  `GET /hosts/{id}/metrics/history` with the Performance tab's chart cards and range selector. Where
+  the slice series exist, each chart overlays "Game servers", aligned by the shared persist timestamp
+  so an unmeasured bucket is a gap, never a zero.
+
+The live tick merges `gpus`/`slice` including null (a measured absence removes the card) but not
+undefined, so a node whose api predates the fields cannot clear a newer read.
+
 ### Added — the engine is a pseudo-leaf: its own card, page and Library tab (`1.160.0`)
 
 KGSM itself now sits on the Services board with the rest of the ecosystem components. Its card

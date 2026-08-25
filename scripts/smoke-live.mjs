@@ -324,6 +324,36 @@ try {
     assert(opHost.cpu.temp_c === null, "host cpu: temp_c stays null (temps live in sensors, never a fabricated cpu field)");
     assert(opHost.disks.every((d) => d.smart === null) && opHost.network.interfaces.every((i) => i.ip === null),
       "host: SMART health / iface IP honest-null (no source → no fabricated claim or address)");
+    // The kgsm.slice aggregate and the GPUs. Both are honest-conditional: null when the host has no
+    // slice / no readable card, adapted 1:1 when it does — and slice cpu may be null on the monitor's
+    // first observation (no delta yet), which must never read as 0.
+    const rawOp = rawHosts[hosts.indexOf(opHost)];
+    assert((rawOp.slice == null) === (opHost.slice === null),
+      "host slice: absent stays null (no kgsm.slice is an ordinary host, not an empty sample)");
+    if (opHost.slice) {
+      assert((opHost.slice.mem_bytes === (rawOp.slice.memBytes ?? null))
+        && (opHost.slice.cpu_pct_core === (rawOp.slice.cpuPctCore ?? null))
+        && (opHost.slice.pids === (rawOp.slice.pids ?? null)),
+        "host slice: cpu/mem/pids carried through untouched (nulls preserved, never zeroed)");
+    }
+    assert((rawOp.gpus == null) === (opHost.gpus === null),
+      "host gpus: a host with no readable card stays null (the card simply doesn't render)");
+    if (opHost.gpus) {
+      assert(opHost.gpus.every((g, i) => g.name && g.uuid
+        && g.mem_total_gb === (rawOp.gpus[i].memTotal ?? null)
+        && g.sm_pct === (rawOp.gpus[i].smPct ?? null)),
+        `host gpus: ${opHost.gpus.length} device(s) adapted 1:1 (VRAM in GiB, nullable SM/temp/power preserved)`);
+    }
+    // Host metrics HISTORY — the monitor's host-entity series relayed verbatim by the api. cpuTotalPct
+    // is always persisted, so a live monitor with history on must answer with it.
+    const hh = await fetch(API + "/api/v1/hosts/" + opHost.id + "/metrics/history?range=1h").then(r => (r.ok ? r.json() : null));
+    if (hh) {
+      assert(hh.series && Array.isArray(hh.series.cpuTotalPct) && hh.series.cpuTotalPct.length > 0
+        && typeof hh.step === "number",
+        `host history: cpuTotalPct relayed (${hh.series.cpuTotalPct.length} pts, ${hh.tier} tier, step ${hh.step}s)`);
+    } else {
+      console.log("· host history: this backend serves no /metrics/history (monitor history off) — not exercised");
+    }
   } else {
     // Metrics capability down → meters must be empty (no fabricated CPU/RAM bars).
     assert(diag.hostCapacityMeters(hosts[0]).length === 0, "hostCapacityMeters([] when metrics down — no fabricated meters)");
