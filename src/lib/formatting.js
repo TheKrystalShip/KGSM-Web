@@ -142,7 +142,14 @@ const ICON_TRIE = ns("circle-dot", {
   // they never share a glyph: `ports` is the host's own firewall rule, `upnp` is the router's NAT
   // forward, and a host can hold one without the other.
   network: ns("globe", {
-    ports: ns("lock"),
+    // The two doors an instance's ports pass through, and they never share a glyph: ports is the
+    // HOST firewall rule, upnp is the ROUTER's NAT forward, and a host can hold one without the
+    // other. Only the firewall door draws its two directions apart — a router forward looks the same
+    // whichever way it went, and the tone is what says which.
+    ports: ns("lock", {
+      open:  ns("lock-open"),
+      close: ns("lock"),
+    }),
     upnp:  ns("router"),
   }),
   player: ns("users", {
