@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the reactor's rules are written here (`1.173.0`)
+
+The Reactor's Rules tab is an editor. A rule is an ordered list of steps where the first whose
+comparisons all hold decides, and it is drawn as one: steps down a rail, each carrying its comparison
+chips, what it concludes and the sentence it records with its placeholders shown as the slots they
+are. Steps are added, reordered and removed; comparisons pick a measurement, an operator and a figure;
+a rule can be created, edited, retired and restored.
+
+**The whole vocabulary comes from the leaf.** Signals with their kinds, units and prose; the operators
+each kind takes; the outcomes a step may conclude; the actions and whether each changes the server;
+where subjects come from and the rule shape that follows; and the events a rule may wake on, read off
+what this host's ledger has actually observed — each with its producer and how often it fires, because
+a rule built on something that happens two hundred times a week is a different proposition from one
+built on something that happens twice.
+
+**Preview asks the leaf what a rule would decide right now** and shows the verdict per instance with
+the exact sentence it would record, figures filled in from the live world. Nothing is stored and
+nothing is dispatched — it is what turns "this looks right" into knowing whether it fires on anything.
+
+⚠ **What is stored and what is running are different questions, and both are on the page.** A rule the
+leaf refuses is in the file and in neither of the leaf's lists, so the stored set is what is edited and
+the leaf's own complaint is shown against the rule it is about. A save that lands with one bad rule in
+it is a save: the rest runs, and the problem says what to fix.
+
+Saving is admin, and restarts the reactor.
+
 ### Changed — the three features that name an event use its own name (`1.172.0`)
 
 The console history, the fleet's player and crash counters, and the firewall's activity card each ask

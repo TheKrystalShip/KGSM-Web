@@ -351,11 +351,65 @@ function fetchLeafSpeechStatus(hostId) {
 }
 
 // The reactor's account of what it is doing right now. Relayed verbatim, and the per-rule fields are the
-// reason: the leaf reports each rule's mode and suppression window AS RESOLVED — the safest of the lists a
-// rule is named in, and the host-wide window where the rule carries none — so re-deriving either here from
-// the settings would show an authority a rule does not actually have.
+// reason: the leaf reports each rule's mode and suppression window AS RESOLVED — what a rule is actually
+// permitted to do rather than what it asked for, and the host-wide window where the rule carries none —
+// so re-deriving either here would show an authority a rule does not actually have.
 function fetchLeafReactorStatus(hostId) {
   return fetchLeafOverview(hostId, "reactor", "status");
+}
+
+// What a rule may be MADE of on the build this host is running: every signal with its kind, unit,
+// arguments and prose, every subject source, every action, and the operator/outcome spellings the rules
+// file uses. Read from the leaf on every visit rather than held here — the leaf is the only thing that
+// knows what it can measure, and a copy in this file would go on offering a signal after the build that
+// measured it was replaced, and refuse one a later build added.
+function fetchLeafReactorCatalog(hostId) {
+  return fetchLeafOverview(hostId, "reactor", "catalog");
+}
+
+// The events a rule may wake on, read off what this host's ledger has actually observed — each with
+// its producer, how many were seen, and the weekly rate.
+//
+// ⚠ The rate is what makes it usable. A rule built on something that fires two hundred times a week
+// is a different proposition from one built on something that fires twice, and a person should see
+// that before they build it rather than after. `days` is the leaf's to bound, like the review's.
+function fetchLeafReactorTriggers(hostId, days) {
+  const q = days > 0 ? "?days=" + days : "";
+  return fetchLeafOverview(hostId, "reactor", "triggers" + q);
+}
+
+// The rules this host's api has stored, verbatim, for editing.
+//
+// ⚠ What is STORED and what is RUNNING are different questions, and this answers the first. A rule the
+// leaf refuses appears in neither of the lists on `status`, so an editor built on that alone would
+// silently drop the rule somebody is halfway through fixing. `managed:false` is the ordinary answer on a
+// host nobody has edited — the leaf runs the rules it ships — and is not an empty rule set.
+function fetchLeafReactorRules(hostId) {
+  return fetchLeafOverview(hostId, "reactor", "rules");
+}
+
+// What a proposed rule WOULD decide about this host right now — the verdict per subject and the exact
+// sentence it would record, with the figures filled in from the live world.
+//
+// ⚠ A read that carries a body. The leaf stores nothing, dispatches nothing and writes no decision, which
+// is why this is an operator-tier call rather than an admin one: previewing a rule is not having one.
+function previewLeafReactorRule(hostId, rule, subject) {
+  if (!hostId) return Promise.reject(new Error("previewLeafReactorRule: hostId required"));
+  return api.host(hostId).post(
+    "/hosts/" + hostId + "/services/reactor/preview",
+    subject ? { rule, subject } : { rule });
+}
+
+// Store the rules this host's reactor runs. The api writes the file, points the leaf at it and restarts
+// it, then reports what the leaf made of them.
+//
+// ⚠ `problems` in the answer is NOT a failure. A file with one bad rule in it stores and the rest runs —
+// the leaf names what it could not honour, and a surface that treated that as an error would make a
+// partly-good file impossible to save and therefore impossible to fix.
+function saveLeafReactorRules(hostId, rules) {
+  if (!hostId) return Promise.reject(new Error("saveLeafReactorRules: hostId required"));
+  return api.host(hostId).put(
+    "/hosts/" + hostId + "/services/reactor/rules", { rules: rules || [] });
 }
 
 // The reactor's decision review over a window — what each rule concluded, the busiest hour a ceiling
@@ -379,4 +433,6 @@ export {
   fetchLeafConfig, fetchLeafCommands, applyLeafConfig, fetchLeafMetricsHistory, fetchEngineInfo,
   fetchLeafSchedules, controlLeafWindow, fetchLeafSupervision, fetchLeafMonitorStats, fetchLeafBotStatus,
   fetchLeafSpeechStatus, fetchLeafReactorStatus, fetchLeafReactorDecisions,
+  fetchLeafReactorCatalog, fetchLeafReactorTriggers, fetchLeafReactorRules,
+  previewLeafReactorRule, saveLeafReactorRules,
 };
