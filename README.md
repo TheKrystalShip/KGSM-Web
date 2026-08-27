@@ -162,6 +162,12 @@ it names is missing from `dist-assistant/`.
 - **The manifests** carry name/short_name, `start_url`/`scope` `/`, `display: standalone`, the
   `#0B0F14` theme/background and 192/512/maskable icons. Chrome will not offer an install without
   the 192 **and** 512.
+- **Neither manifest declares an `orientation`, and neither may.** Chrome hands the member straight
+  to the installed app's Android activity, and every value there overrides the phone's own rotation
+  setting — `any` pins it to full-sensor rotation, so a device locked to portrait spins anyway, and
+  `portrait` would pin it the other way for someone who wants landscape. Omitted, the activity is
+  left unspecified and the system's rotation lock decides. Both layouts are fluid to the viewport,
+  so there is nothing the app needs to say about which way it is held.
 - **The artwork is `.chat-empty__logo`**, the badge at the head of an empty conversation, drawn to
   the pixel: `scripts/make-assistant-icons.mjs` renders the lucide `bot` in `--krystal-teal` on
   `--krystal-teal-dim` over `--canvas`, the glyph 26/56 of the frame and its stroke the `1.7` every

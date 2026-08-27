@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — the installed app obeys the phone's rotation lock (`1.169.1`)
+
+Neither surface's manifest declares an `orientation`. Chrome passes that member straight through to
+the installed app's Android activity, where any value there outranks the phone's own rotation
+setting; with the member absent the activity is left unspecified and the system's lock decides which
+way the Control Panel and the standalone assistant are held.
+
+⚠ Android caches an installed PWA's manifest in the WebAPK. The change reaches an app already on a
+home screen when Chrome next refreshes it (up to a day, online); reinstalling it takes effect at once.
+
 ### Added — the fleet's maintenance windows are a board on the scheduler leaf (`1.169.0`)
 
 Scheduler → Windows is every maintenance window on the host in one table: the server it belongs to,
