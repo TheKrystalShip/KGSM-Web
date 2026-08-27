@@ -74,11 +74,11 @@ function playersPeak(rows, current, windowMs, now) {
   let count = current;
   let peak = current;
   const events = inWindow(rows, windowMs, now,
-    ev => ev.action === "player.join" || ev.action === "player.leave");
+    ev => ev.action === "player.joined" || ev.action === "player.left");
 
   for (const ev of events) {
     // Undo this event to learn the count immediately before it.
-    if (ev.action === "player.join") count -= 1;
+    if (ev.action === "player.joined") count -= 1;
     else count += 1;
     if (count > peak) peak = count;
   }
@@ -97,7 +97,7 @@ function uniquePlayers(rows, windowMs, now) {
   const cov = coverage(rows, windowMs, now);
   const people = new Set();
   const servers = new Set();
-  for (const ev of inWindow(rows, windowMs, now, ev => ev.action === "player.join")) {
+  for (const ev of inWindow(rows, windowMs, now, ev => ev.action === "player.joined")) {
     const id = playerIdOf(ev);
     if (id) people.add(id);
     if (ev.serverId) servers.add(ev.serverId);
@@ -119,7 +119,7 @@ function uniquePlayers(rows, windowMs, now) {
 function sessionHours(rows, windowMs, now) {
   const cov = coverage(rows, windowMs, now);
   const events = inWindow(rows, windowMs, now,
-    ev => ev.action === "player.join" || ev.action === "player.leave");
+    ev => ev.action === "player.joined" || ev.action === "player.left");
 
   // Newest-first, so a leave is met before its join. Hold the leave, then close it on the join.
   const openLeaves = new Map(); // key -> leave ts
@@ -137,7 +137,7 @@ function sessionHours(rows, windowMs, now) {
     const k = key(ev);
     const ts = tsOf(ev);
     if (ts == null) continue;
-    if (ev.action === "player.leave") {
+    if (ev.action === "player.left") {
       // A second leave with no join between them is a repeat the engine emitted; keep the newest.
       if (!openLeaves.has(k)) openLeaves.set(k, ts);
     } else if (openLeaves.has(k)) {
@@ -167,7 +167,7 @@ function sessionHours(rows, windowMs, now) {
 function timeToReady(rows, windowMs, now) {
   const cov = coverage(rows, windowMs, now);
   const events = inWindow(rows, windowMs, now,
-    ev => ev.action === "server.start" || ev.action === "server.ready" || ev.action === "server.restart");
+    ev => ev.action === "server.started" || ev.action === "server.ready" || ev.action === "server.restarted");
 
   const pendingReady = new Map(); // serverId -> ready ts (newest-first: ready comes before its start)
   const durations = [];
@@ -197,7 +197,7 @@ function timeToReady(rows, windowMs, now) {
 // all (the caller checks the capability; a zero from a blind fleet would be a lie).
 function crashes(rows, windowMs, now) {
   const cov = coverage(rows, windowMs, now);
-  const list = inWindow(rows, windowMs, now, ev => ev.action === "server.crash");
+  const list = inWindow(rows, windowMs, now, ev => ev.action === "server.crashed");
   return { count: list.length, last: list[0] || null, ...cov };
 }
 

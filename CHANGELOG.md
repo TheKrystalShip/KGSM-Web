@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the three features that name an event use its own name (`1.172.0`)
+
+The console history, the fleet's player and crash counters, and the firewall's activity card each ask
+about one specific event, and each now asks in the vocabulary the producer writes: `console.input.sent`,
+`player.joined` / `player.left`, `server.started` / `server.restarted` / `server.crashed`. Everything
+else about an audit row is still drawn from the dimensions it carries, so a new event needs no change
+here at all.
+
+The lifecycle verbs an alert offers are a separate vocabulary — the operation a button performs, not
+the event that prompted it — and stay as they are.
+
 ### Changed — an audit row is drawn from what it carries, not from what it is called (`1.171.0`)
 
 Every presentation decision about an audit event keys on a dimension the row carries. Its colour is

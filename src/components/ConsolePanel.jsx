@@ -86,7 +86,7 @@ function useRecentCommands(server, enabled) {
     let alive = true;
     const qs = "?serverId=" + encodeURIComponent(id) + "&category=console&limit=" + RECENT_COMMANDS;
     const load = () => api.host(hostId).get("/audit" + qs).then(
-      (page) => { if (alive) setRows(((page && page.rows) || []).filter(r => r && r.action === "console.input")); },
+      (page) => { if (alive) setRows(((page && page.rows) || []).filter(r => r && r.action === "console.input.sent")); },
       () => { if (alive) setRows([]); }   // no audit access / unreachable — show nothing, claim nothing
     );
     load();
@@ -94,7 +94,7 @@ function useRecentCommands(server, enabled) {
     // live topic is what saves this from polling for it.
     const dispose = api.stream.subscribe(["audit"], (m) => {
       if (!alive || !m || m.type !== "audit.append" || !m.data) return;
-      if (m.data.action !== "console.input" || m.data.serverId !== id) return;
+      if (m.data.action !== "console.input.sent" || m.data.serverId !== id) return;
       setRows(prev => [m.data, ...prev.filter(r => r.id !== m.data.id)].slice(0, RECENT_COMMANDS));
     });
     return () => { alive = false; dispose(); };
