@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — every audit action has a pill, and its colour reads the row (`1.170.0`)
+
+The audit feed's action map covers the whole vocabulary kgsm-api emits, plus the `engine.<type>`
+shape it gives an engine event it holds no mapper for. Uninstalling a server, moving one between
+libraries, pinning and unpinning an archive, registering a library, an account provisioned or
+disabled or regraded, an identity attached, a leaf restarted, a command that failed or was refused
+or was cancelled, a threshold crossed and cleared, and each of the four things the assistant reports
+about its own conduct — each has its own glyph, its own plain-English label on hover, and a tone.
+An action with no entry still renders as its own raw name, which is the forward-compat floor.
+
+A row's colour is the louder of what its action means and what the record's own severity says. One
+action carries two outcomes often enough that a fixed tone per action lies about one of them: an
+update that landed and one that could not, a crash the supervisor is restarting from and one it has
+given up on, a threshold nudged and a threshold blown through. kgsm-api decides that weight per row,
+and a row never reads quieter than either half of it says.
+
+The category filter offers every category the vocabulary can produce, so Network, Console,
+Libraries, Commands, Services, Accounts and the rest are reachable.
+
 ### Fixed — the installed app obeys the phone's rotation lock (`1.169.1`)
 
 Neither surface's manifest declares an `orientation`. Chrome passes that member straight through to

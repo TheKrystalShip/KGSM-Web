@@ -1,6 +1,6 @@
 import { AuditActor } from "./AuditActor.jsx";
 import { Icon } from "./Icon.jsx";
-import { ACTION_META, fmtRelative, fmtTime, parseTs } from "../lib/formatting.js";
+import { actionMeta, auditTone, fmtRelative, fmtTime, parseTs } from "../lib/formatting.js";
 
 // AuditEventRow — the single presentational row for one audit event. Shared by
 // three surfaces so activity looks the same everywhere it appears: the full
@@ -24,7 +24,10 @@ import { ACTION_META, fmtRelative, fmtTime, parseTs } from "../lib/formatting.js
 // host, where "which node" is not a question the reader has.
 function AuditEventRow({ ev, now, hosts, avatarSize, showMeta = true, showHost = true, onClick,
                         resolveHost = (e) => (e && e.hostId) || null }) {
-  const meta = ACTION_META[ev.action] || { label: ev.action, icon: "circle-dot", tone: "info" };
+  const meta = actionMeta(ev.action);
+  // The pill prints the dotted action, which is the searchable, filterable thing; the plain-English
+  // label is its tooltip. Its colour is the row tone, not the action's own — see auditTone.
+  const tone = auditTone(ev);
   const date = parseTs(ev.ts);
   // Render the meta dictionary as compact "key=value" chips (full page only).
   const metaEntries = showMeta ? Object.entries(ev.meta || {}) : [];
@@ -43,7 +46,7 @@ function AuditEventRow({ ev, now, hosts, avatarSize, showMeta = true, showHost =
           <span className="audit-row__summary">{ev.summary}</span>
         </div>
         <div className="audit-row__meta">
-          <span className={"audit-pill audit-pill--" + meta.tone}>
+          <span className={"audit-pill audit-pill--" + tone} title={meta.label}>
             <Icon name={meta.icon} size={11} strokeWidth={2.2} className="audit-pill__icon" />
             {ev.action}
           </span>

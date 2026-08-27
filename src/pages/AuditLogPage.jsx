@@ -5,7 +5,7 @@ import { Icon } from "../components/Icon.jsx";
 import { Pagination, useDebouncedValue } from "../components/Pagination.jsx";
 import { AuditSkeleton } from "../components/Skeletons.jsx";
 import { Toolbar, ToolbarCount, ToolbarFilters, ToolbarSearch, ToolbarSpacer } from "../components/Toolbar.jsx";
-import { ACTION_META, CATEGORY_LABEL, actionCategory, fmtRelative, fmtTime, parseTs } from "../lib/formatting.js";
+import { ACTION_META, AUDIT_CATEGORIES, CATEGORY_LABEL, actionCategory, fmtRelative, fmtTime, parseTs } from "../lib/formatting.js";
 import { useStore } from "../lib/store.js";
 import { auditEventHost, auditStore, hostsStore, serversStore } from "../lib/stores.js";
 
@@ -14,7 +14,7 @@ import { auditEventHost, auditStore, hostsStore, serversStore } from "../lib/sto
 // dashboard; this page is the canonical view with filters and search.
 
 // Re-export from the shared module so existing consumers don't break.
-export { ACTION_META, actionCategory, CATEGORY_LABEL, fmtRelative, fmtTime, parseTs };
+export { ACTION_META, actionCategory, AUDIT_CATEGORIES, CATEGORY_LABEL, fmtRelative, fmtTime, parseTs };
 
 function dayBucket(date, now = new Date()) {
   const d0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -203,7 +203,7 @@ function AuditLogPage({ initialSeverity, initialServer }) {
     else grouped.push({ bucket, events: [ev] });
   }
 
-  const categories = ["all", "server", "host", "player", "backup", "file", "settings", "auth", "discord"];
+  const categories = ["all", ...AUDIT_CATEGORIES];
 
   // Per-option counts behind each filter dimension, computed off the host-scoped
   // event set so the popover shows how many events each choice would surface.

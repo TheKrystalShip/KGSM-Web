@@ -183,8 +183,9 @@ function auditEventRow(e, fleetWide) {
 // dashboard show — one consistent activity design across the app. The assistant reads the monitor's
 // raw engine store directly (leaf independence — it never runs kgsm-api's shaping), so the mapping
 // has to live on this side too. An unmapped type falls back to `engine.<type>` (kgsm-api's own
-// GenericShape fallback), which ACTION_META renders with the neutral circle-dot pill exactly as the
-// audit page does — so a future kgsm event still shows up, never guessed into a wrong meaning.
+// GenericShape fallback), which the audit page's action map renders the same way it renders one
+// arriving from kgsm-api — so a future kgsm event still shows up, never guessed into a wrong
+// meaning. These rows carry no shaped severity, so each takes its action's own tone.
 const RAW_EVENT_ACTION = {
   instance_started:         { action: "server.start",       summary: (i) => "started " + i },
   instance_ready:           { action: "server.ready",       summary: (i) => i + " is ready to play" },
