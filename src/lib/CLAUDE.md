@@ -151,8 +151,21 @@ re-exports `stores/` — import from either.
   picker's Tributes section and each swatch's tooltip. A theme carries at most one
   of the two. Mirror the `index.html` / `assistant.html` boot scripts when you
   change the list.
-- `formatting.js` / `labels.js` / `art.js` / `servers.js` / `leaves.js` —
-  formatting, display-label vocabulary (including `ROUTE_TABS`, every tabbed
+- `formatting.js` — the pure formatters, and **the two bindings that turn an audit row
+  into pixels**. Both key on a DIMENSION the row carries and never on the event's name:
+  `auditTone` reads the severity its producer stamped (`info｜warn｜danger`, with `outcome`
+  separating a good routine fact from a neutral one; absent reads `info`, never a guess),
+  and `eventIcon` walks a prefix trie over the dotted name where every node is a
+  NAMESPACE. A segment matches a key when it STARTS WITH it, so one node covers a verb in
+  every tense; the longest key wins at each level and an unrecognised segment falls back to
+  the namespace above it, down to a root `circle-dot`. `humanizeAction` spells the name for
+  a person and `auditCategories` derives the filter's options from a served vocabulary, or
+  from the rows in hand when the feed carries none. **Nothing here holds a per-event-type
+  entry** — a table with one arm per event has a missing arm for every event nobody has
+  added yet, and a missing arm paints a destructive act neutral. Authority:
+  `/home/heisen/tks/event-display-contract.md`.
+- `labels.js` / `art.js` / `servers.js` / `leaves.js` —
+  display-label vocabulary (including `ROUTE_TABS`, every tabbed
   route's sub-tabs — read by the page that draws the strip AND by the breadcrumb
   that names the tab in the URL, so the two cannot disagree), key-art helpers,
   server-shape helpers,

@@ -1,8 +1,6 @@
-// formatting.js — shared formatting helpers extracted from page files.
-//
-// These were previously co-located in AuditLogPage.jsx, DiagnosticsPage.jsx,
-// and LibraryPage.jsx. They are pure functions / data maps with no React
-// dependencies — consumed across pages and components.
+// formatting.js — the shared pure formatters: time, bytes, uptime, metric tones, and the two
+// bindings that turn an audit row into something on screen. No React and no imports, so pages and
+// components both read it.
 
 // ---------- Time helpers ----------
 
@@ -79,163 +77,144 @@ function uptimeShort(bootTime) {
   return `${mins}m`;
 }
 
-// ---------- Action metadata ----------
+// ---------- Event presentation ----------
 
-// Icon + tone + label per audit action, keyed by the dotted action kgsm-api emits. The map covers
-// the whole closed vocabulary (`AuditAction`) plus the `engine.*` passthroughs the API's generic
-// shaping produces for an engine event it has no mapper for. An action with no entry still renders
-// — a neutral dot with the raw action as its own label — so a backend that grows a new one is never
-// a broken row. That fallback is the forward-compat floor, not the target: an action nobody maps
-// reads as indistinct from every other unmapped one, which is exactly how a port opening and a
-// router forward came to look like the same grey dot.
-//
-// Tone is what the action MEANS, on five steps:
-//
-//   success  something came into being or finished well — installed, ready, backed up, recovered
-//   info     a neutral fact worth recording — a key set, a command sent, a player arriving, a sign-in
-//   update   a transition, or a version moving — restart, update, a move between libraries
-//   warn     something is now off, reduced, refused, or somebody's authority changed
-//   danger   irreversible destruction, or a failure
-//
-// The two doors an instance's ports pass through — ports.* is the HOST firewall rule, upnp.* is the
-// router's NAT forward — share their tones because they are the same fact about different doors,
-// and never their icons, because a host can hold one without the other.
-const ACTION_META = {
-  "server.install":        { label: "Server installed",   icon: "package-plus",  tone: "success" },
-  "server.start":          { label: "Server started",     icon: "play",          tone: "success" },
-  // Its own row, not a repeat of the start above it: that one says the process spawned, this says
-  // the game will accept a connection, and on a big world the two are minutes apart.
-  "server.ready":          { label: "Ready to play",      icon: "circle-check",  tone: "success" },
-  // A stop is a transition, not a loss: the server is off and can be started again. The row that
-  // destroys one is server.uninstall, and it is the only server row that reads danger on its own.
-  "server.stop":           { label: "Server stopped",     icon: "square",        tone: "warn"    },
-  "server.restart":        { label: "Server restarted",   icon: "rotate-cw",     tone: "update"  },
-  "server.update":         { label: "Server updated",     icon: "download",      tone: "update"  },
-  "server.update_available":{label: "Update available",   icon: "circle-arrow-up",tone: "info"   },
-  "server.move":           { label: "Server moved",       icon: "folder-symlink",tone: "update"  },
-  "server.rename":         { label: "Server renamed",     icon: "pencil",        tone: "info"    },
-  // Warn, and escalated to danger by the severity the supervisor stamps: a crash it is restarting
-  // from is a warning, one it has given up on is a failure, and the two must not draw the same.
-  "server.crash":          { label: "Server crashed",     icon: "alert-triangle",tone: "warn"    },
-  "server.uninstall":      { label: "Server uninstalled", icon: "trash-2",       tone: "danger"  },
-  "network.ports.open":    { label: "Ports opened",       icon: "lock-open",     tone: "info"    },
-  "network.ports.close":   { label: "Ports closed",       icon: "lock",          tone: "warn"    },
-  "network.upnp.open":     { label: "Router forwarded",   icon: "router",        tone: "info"    },
-  "network.upnp.close":    { label: "Router forward removed", icon: "router",    tone: "warn"    },
-  "network.upnp.reassert": { label: "Router forward restored", icon: "refresh-cw", tone: "warn"  },
-  "player.join":           { label: "Player joined",      icon: "log-in",        tone: "info"    },
-  "player.leave":          { label: "Player left",        icon: "log-out",       tone: "info"    },
-  "player.kick":           { label: "Player kicked",      icon: "user-x",        tone: "warn"    },
-  "player.ban":            { label: "Player banned",      icon: "shield-off",    tone: "danger"  },
-  "player.unban":          { label: "Player unbanned",    icon: "shield-check",  tone: "info"    },
-  "backup.create":         { label: "Backup created",     icon: "database",      tone: "success" },
-  // Warn rather than success: a restore overwrites the live world with an older one, and the world
-  // it replaced is not in the backup set.
-  "backup.restore":        { label: "Backup restored",    icon: "rotate-ccw",    tone: "warn"    },
-  "backup.delete":         { label: "Backup deleted",     icon: "trash-2",       tone: "danger"  },
-  "backup.prune":          { label: "Backups pruned",     icon: "archive-x",     tone: "info"    },
-  "backup.pin":            { label: "Backup pinned",      icon: "pin",           tone: "info"    },
-  // The unpin is the half that can cost data later — it is what lets the next sweep take an archive
-  // somebody deliberately protected.
-  "backup.unpin":          { label: "Backup unpinned",    icon: "pin-off",       tone: "warn"    },
-  "backup.download":       { label: "Backup downloaded",  icon: "download",      tone: "info"    },
-  "file.write":            { label: "File saved",         icon: "file-pen",      tone: "info"    },
-  "blueprint.write":       { label: "Blueprint edited",   icon: "file-code",     tone: "info"    },
-  "blueprint.revert":      { label: "Blueprint reverted", icon: "rotate-ccw",    tone: "warn"    },
-  // library.* — a named placement root. The subject is a library, never a server, so these rows
-  // carry no serverId; a removal is the destructive one, since it is a disk leaving the fleet.
-  "library.add":           { label: "Library added",      icon: "folder-plus",   tone: "success" },
-  "library.remove":        { label: "Library removed",    icon: "folder-minus",  tone: "danger"  },
-  "library.rename":        { label: "Library renamed",    icon: "folder-pen",    tone: "info"    },
-  "library.failed":        { label: "Library change failed", icon: "folder-x",   tone: "danger"  },
-  "config.set":            { label: "Setting changed",    icon: "sliders-horizontal", tone: "info" },
-  "console.input":         { label: "Console command",    icon: "terminal",      tone: "info"    },
-  // assistant.* — what the assistant reports about its own conduct, never a record of what it did:
-  // an action it performs is the engine's own row, attributed to the person who asked.
-  "assistant.action.proposed": { label: "Action proposed", icon: "hand",         tone: "info"    },
-  "assistant.action.declined": { label: "Action refused",  icon: "shield-x",     tone: "warn"    },
-  "assistant.claim.corrected": { label: "Claim corrected", icon: "message-square-x", tone: "warn" },
-  "assistant.blueprint.authored": { label: "Blueprint authored", icon: "sparkles", tone: "success" },
-  // command.* — a command the API issued that ended without doing the thing. The three are separate
-  // questions: a fault to chase, a fleet that is full, and somebody calling off queued work.
-  "command.failed":        { label: "Command failed",     icon: "octagon-x",     tone: "danger"  },
-  "command.refused":       { label: "Command refused",    icon: "ban",           tone: "warn"    },
-  "command.cancelled":     { label: "Command cancelled",  icon: "circle-slash",  tone: "warn"    },
-  "service.connect":       { label: "Leaf connected",     icon: "plug",          tone: "success" },
-  "service.disconnect":    { label: "Leaf disconnected",  icon: "unplug",        tone: "warn"    },
-  "service.config":        { label: "Leaf reconfigured",  icon: "settings",      tone: "info"    },
-  "service.restart":       { label: "Leaf restarted",     icon: "rotate-cw",     tone: "update"  },
-  // host.threshold.* — one glyph, because a breach and its recovery are the same measurement
-  // crossing the same line; the tone is what separates them. The breach's own severity carries how
-  // far past the line it went, so a hard breach escalates to danger.
-  "host.threshold.breach": { label: "Threshold breached", icon: "gauge",         tone: "warn"    },
-  "host.threshold.clear":  { label: "Threshold cleared",  icon: "gauge",         tone: "success" },
-  "auth.login":            { label: "Signed in",          icon: "log-in",        tone: "info"    },
-  "auth.logout":           { label: "Signed out",         icon: "log-out",       tone: "info"    },
-  "auth.session.revoke":   { label: "Session revoked",    icon: "user-minus",    tone: "info"    },
-  "auth.session.revoke.all":{label: "All sessions revoked",icon: "users",        tone: "warn"    },
-  // An admin ending SOMEONE ELSE's session — louder than the two self-service rows
-  // above, which is why the API stamps it warn-severity upstream too.
-  "auth.session.revoke.admin":{label:"Session revoked (admin)",icon:"shield-off",tone: "danger"  },
-  "auth.cluster_session":  { label: "Cluster sign-in",    icon: "network",       tone: "info"    },
-  // user.* / identity.* — somebody's authority. A tier change is the only way anyone's authority
-  // ever changes, and a link means whoever controls that provider account can sign in as this one.
-  "user.provision":        { label: "Account created",    icon: "user-plus",     tone: "info"    },
-  "user.approve":          { label: "Account approved",   icon: "user-check",    tone: "info"    },
-  "user.disable":          { label: "Account disabled",   icon: "user-x",        tone: "warn"    },
-  "user.tier_change":      { label: "Role changed",       icon: "shield-alert",  tone: "warn"    },
-  "user.delete":           { label: "Account deleted",    icon: "user-minus",    tone: "danger"  },
-  "user.password":         { label: "Password set",       icon: "key-round",     tone: "warn"    },
-  "identity.link":         { label: "Identity linked",    icon: "link",          tone: "warn"    },
-  "identity.unlink":       { label: "Identity unlinked",  icon: "unlink",        tone: "info"    },
-  // engine.* — the shape kgsm-api gives an engine event it holds no mapper for: the raw type,
-  // prefixed, never dropped. These four are the ones the ecosystem's event catalog can produce
-  // today, and three of them are failures that must not read as neutral.
-  "engine.reactor_decided": { label: "Reactor decision",  icon: "workflow",      tone: "info"    },
-  "engine.instance_download_failed": { label: "Download failed", icon: "octagon-alert", tone: "danger" },
-  "engine.instance_deploy_failed":   { label: "Deploy failed",   icon: "octagon-alert", tone: "danger" },
-  "engine.instance_announcement_sent": { label: "Announcement sent", icon: "megaphone", tone: "info" },
-};
+// An audit row's presentation keys on a DIMENSION the row carries — the severity its producer
+// stamped, the outcome it reports, the shape of its dotted name — and never on the name itself. A
+// table with one entry per event type holds a missing entry for every event nobody has added yet,
+// and a missing entry paints a destructive act neutral, which is a lie. Keyed by dimension the
+// table is closed while the vocabulary stays open: an event this build has never heard of lands on
+// an entry that already exists, because the entry describes a KIND of thing rather than a thing.
 
-// The pill drawn for an action with no entry above.
-const ACTION_META_FALLBACK = { label: "", icon: "circle-dot", tone: "info" };
+// Severity is the producer's judgement and nothing here second-guesses it — the scheduler knows its
+// prune is routine and the engine knows an uninstall is not, and that knowledge exists nowhere
+// else. Outcome only separates a good routine fact from a neutral one, so a success lifts a routine
+// row to green and changes nothing louder; a `success` in the severity field says the same thing
+// about the same row and reads the same green.
+//
+// A row carrying no severity is `info` — the honest floor for an event nobody declared, never a
+// weight guessed from what its name looks like it means.
+const SEVERITY_TONE = { info: "info", success: "success", warn: "warn", danger: "danger" };
 
-function actionMeta(action) {
-  return ACTION_META[action] || { ...ACTION_META_FALLBACK, label: action };
+function auditTone(ev) {
+  const tone = SEVERITY_TONE[ev && ev.severity] || "info";
+  return tone === "info" && ev && ev.outcome === "success" ? "success" : tone;
 }
 
-// How loud each tone reads. success and info sit together at the floor: neither is louder than the
-// other, they just say different things about a routine fact.
-const TONE_RANK = { success: 0, info: 0, update: 1, warn: 2, danger: 3 };
-const SEVERITY_TONE = { success: "success", info: "info", warn: "warn", danger: "danger" };
+// One node of the icon trie: the glyph this depth draws, and the namespaces nested beneath it.
+const ns = (icon, kids) => ({ icon, kids: kids || null });
 
-// The tone one audit row renders in: the LOUDER of what its action means and what the record's own
-// severity says. One action carries two outcomes often enough that a fixed tone per action would
-// lie about one of them — an update that landed and one that could not, a crash being restarted
-// from and one the supervisor gave up on, a threshold nudged and a threshold blown through. The
-// API decides that weight per row, so a row never reads quieter than either half says.
+// Icon, from the shape of the dotted name. The name is structured data, so its own hierarchy
+// carries the specificity: every node below is a NAMESPACE, and a new event inside one that already
+// exists needs nothing added here.
 //
-// Severity is optional: the chat "Recent events" card builds its rows from the assistant's raw
-// engine feed, which carries no shaped severity, and those fall back to the action's own tone.
-function auditTone(ev) {
-  const base = actionMeta(ev && ev.action).tone;
-  const fromSeverity = SEVERITY_TONE[ev && ev.severity];
-  if (!fromSeverity) return base;
-  return TONE_RANK[fromSeverity] > TONE_RANK[base] ? fromSeverity : base;
+// A segment matches a key when it STARTS WITH that key, which is what lets one node cover a verb
+// however it is spelled — `uninstall`, `uninstalled` and `uninstall_failed` all walk the same
+// branch. Keys are whole words for that reason: a stem short enough to bite a neighbouring
+// namespace would route its rows to the wrong glyph. An irregular past tense is out of a stem's
+// reach, so it is a second key onto the same glyph. The longest key matching a segment wins at that
+// level, and the walk stops at the deepest node it reaches — an unrecognised segment falls back to
+// the namespace above it, and a name in no namespace at all falls to the root glyph. Plain, and
+// never invisible.
+const ICON_TRIE = ns("circle-dot", {
+  server: ns("server", {
+    install:   ns("package-plus"),
+    uninstall: ns("trash-2"),
+    start:     ns("play"),
+    stop:      ns("square"),
+    ready:     ns("circle-check"),
+    restart:   ns("rotate-cw"),
+    update:    ns("download"),
+    move:      ns("folder-symlink"),
+    rename:    ns("pencil"),
+    crash:     ns("alert-triangle"),
+    fail:      ns("octagon-x"),
+  }),
+  backup: ns("database", {
+    restore:  ns("rotate-ccw"),
+    delete:   ns("trash-2"),
+    prune:    ns("archive-x"),
+    pin:      ns("pin"),
+    unpin:    ns("pin-off"),
+    download: ns("download"),
+  }),
+  // The two doors an instance's ports pass through are the same fact about different hardware, so
+  // they never share a glyph: `ports` is the host's own firewall rule, `upnp` is the router's NAT
+  // forward, and a host can hold one without the other.
+  network: ns("globe", {
+    ports: ns("lock"),
+    upnp:  ns("router"),
+  }),
+  player: ns("users", {
+    join:  ns("log-in"),
+    leave: ns("log-out"),
+    left:  ns("log-out"),
+    kick:  ns("user-x"),
+    ban:   ns("shield-off"),
+    unban: ns("shield-check"),
+  }),
+  config:    ns("sliders-horizontal"),
+  console:   ns("terminal"),
+  file:      ns("file-pen"),
+  blueprint: ns("file-code", { revert: ns("rotate-ccw") }),
+  library:   ns("folder", { add: ns("folder-plus"), remove: ns("folder-minus") }),
+  command:   ns("octagon-x", { refuse: ns("ban"), cancel: ns("circle-slash") }),
+  service:   ns("plug", { disconnect: ns("unplug"), config: ns("settings"), restart: ns("rotate-cw") }),
+  host:      ns("gauge"),
+  assistant: ns("sparkles", { action: ns("hand"), claim: ns("message-square-x") }),
+  auth:      ns("key-round", { login: ns("log-in"), logout: ns("log-out"), session: ns("user-minus"), cluster: ns("network") }),
+  user:      ns("user", {
+    provision: ns("user-plus"),
+    approve:   ns("user-check"),
+    disable:   ns("user-x"),
+    tier:      ns("shield-alert"),
+    delete:    ns("user-minus"),
+    password:  ns("key-round"),
+  }),
+  identity:  ns("link", { unlink: ns("unlink") }),
+  engine:    ns("cpu"),
+  reactor:   ns("workflow"),
+  scheduler: ns("calendar-clock"),
+  firewall:  ns("shield"),
+  monitor:   ns("activity"),
+  watchdog:  ns("radar"),
+  leaf:      ns("plug"),
+});
+
+function eventIcon(action) {
+  let cursor = ICON_TRIE;
+  for (const segment of String(action || "").split(".")) {
+    const kids = cursor.kids;
+    if (!kids) break;
+    let match = null;
+    for (const key in kids) {
+      if (segment.startsWith(key) && (match === null || key.length > match.length)) match = key;
+    }
+    if (match === null) break;
+    cursor = kids[match];
+  }
+  return cursor.icon;
+}
+
+// A dotted name spelled for a person: dots and underscores are word breaks and the first letter is
+// capitalised, so `server.update.failed` reads "Server update failed". It is the name the producer
+// chose with nothing added to it, which is what makes it right for an event this build has never
+// seen as well as for one it has.
+function humanizeAction(action) {
+  const words = String(action || "").split(/[._]/).filter(Boolean).join(" ");
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : "";
 }
 
 function actionCategory(action) {
-  return action.split(".")[0];
+  return String(action || "").split(".")[0];
 }
 
-// The audit page's category filter reads this; an unlabelled category falls back to
-// its own key, so a new one is a plain word rather than a missing option.
+// Display labels for the category words. Categories are a small closed set of nouns and this only
+// spells them: an unlisted one reads as its own word, capitalised, so the filter can never withhold
+// a category for want of a label.
 const CATEGORY_LABEL = {
-  server:    "Server",
   player:    "Players",
   backup:    "Backups",
-  network:   "Network",
-  console:   "Console",
   config:    "Configuration",
   file:      "Files",
   blueprint: "Blueprints",
@@ -243,20 +222,31 @@ const CATEGORY_LABEL = {
   command:   "Commands",
   service:   "Services",
   host:      "Hosts",
-  engine:    "Engine",
-  assistant: "Assistant",
-  auth:      "Auth",
   user:      "Accounts",
   identity:  "Identities",
 };
 
-// Every category the vocabulary can produce, in the order the filter offers them. Hardcoded rather
-// than derived from what is loaded: the filter is pushed to the API, so a category absent from the
-// page in hand may still have rows behind the cursor, and deriving would hide exactly those.
-const AUDIT_CATEGORIES = [
-  "server", "player", "backup", "network", "console", "config", "file", "blueprint",
-  "library", "command", "service", "host", "engine", "assistant", "auth", "user", "identity",
-];
+function categoryLabel(category) {
+  const word = String(category || "");
+  return CATEGORY_LABEL[word] || (word ? word.charAt(0).toUpperCase() + word.slice(1) : "");
+}
+
+// The categories the audit filter offers, alphabetical by label so the list holds still as rows
+// arrive. `vocabulary` — every dotted name the feed can produce — is the authority when the API
+// serves one, because the category filter is pushed down and a category with no row in the loaded
+// window may still have rows behind the cursor. Without one, the loaded rows are what can honestly
+// be claimed, so the list offers exactly the categories in hand.
+function auditCategories(rows, vocabulary) {
+  const names = Array.isArray(vocabulary) && vocabulary.length
+    ? vocabulary
+    : (rows || []).map(row => row && row.action);
+  const set = new Set();
+  for (const name of names) {
+    const category = actionCategory(name);
+    if (category) set.add(category);
+  }
+  return Array.from(set).sort((a, b) => categoryLabel(a).localeCompare(categoryLabel(b)));
+}
 
 // ---------- Byte & rate formatting ----------
 
@@ -350,12 +340,13 @@ function ordinal(n) {
 }
 
 export {
-  ACTION_META,
-  AUDIT_CATEGORIES,
   CATEGORY_LABEL,
   actionCategory,
-  actionMeta,
+  auditCategories,
   auditTone,
+  categoryLabel,
+  eventIcon,
+  humanizeAction,
   formatBytes,
   formatBps,
   fmtBytesTight,

@@ -1,6 +1,7 @@
-// perfHelpers — pure constants + formatters for the Performance tab. No React.
-// Extracted from PerformanceTab.jsx (#8 big-file split) so the tab file keeps
-// only its two stateful views (Live / Historical) + the orchestrator.
+// perfHelpers — pure constants + formatters for the Performance tab. No React, so the tab file
+// holds only its two stateful views (Live / Historical) and the orchestrator between them.
+
+import { actionCategory, auditTone, humanizeAction } from "../../lib/formatting.js";
 
 export const BUFFER_CAP = 150;
 export const STALE_MS   = 10000;
@@ -21,23 +22,17 @@ export const RANGES = [{ key: "live", label: "Live" }, ...HISTORY_RANGES];
 
 export const RANGE_MS = { "1h": 3600e3, "24h": 86400e3, "7d": 7 * 86400e3, "30d": 30 * 86400e3 };
 
-// Lifecycle audit actions worth pinning to the metrics timeline (#3). Tone matches
-// the audit log's vocabulary; the label is terse for a chart flag.
-export const EVENT_META = {
-  "server.start":   { label: "Started",   tone: "success" },
-  "server.stop":    { label: "Stopped",   tone: "danger"  },
-  "server.restart": { label: "Restarted", tone: "update"  },
-  "server.crash":   { label: "Crashed",   tone: "danger"  },
-  "server.update":  { label: "Updated",   tone: "info"    },
-  "server.install": { label: "Installed", tone: "success" },
-  "player.join":    { label: "Player joined", tone: "info" },
-  "player.leave":   { label: "Player left",   tone: "info" },
-};
+// The audit rows worth pinning to a metrics timeline: what happened to the server itself and who
+// was on it, the two things a reading of its CPU and memory is read against. Both are NAMESPACES,
+// so an event either of them grows is flagged with nothing added here. A flag's colour is the tone
+// its producer's severity gives it and its label is the event's own name spelled for a person.
+const FLAGGED_CATEGORIES = new Set(["server", "player"]);
+
 export function rowsToEvents(rows) {
   if (!Array.isArray(rows)) return [];
   return rows
-    .filter(r => r && EVENT_META[r.action])
-    .map(r => ({ t: Date.parse(r.ts), ...EVENT_META[r.action] }))
+    .filter(r => r && FLAGGED_CATEGORIES.has(actionCategory(r.action)))
+    .map(r => ({ t: Date.parse(r.ts), label: humanizeAction(r.action), tone: auditTone(r) }))
     .filter(e => isFinite(e.t));
 }
 

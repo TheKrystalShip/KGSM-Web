@@ -3,7 +3,7 @@
 // which returns JSX from plain data).
 
 import { commandMeta, NEW_CHAT_TITLE } from "./chatConstants.js";
-import { fmtRelative } from "../lib/formatting.js";
+import { auditTone, eventIcon, fmtRelative, humanizeAction } from "../lib/formatting.js";
 
 const CHAT_LS_KEY      = "krystal:chat:conversations";
 const CHAT_ACTIONS_LS  = "krystal:chat:actions";
@@ -120,94 +120,35 @@ const HEALTH_CHECK_ICONS = {
   updates:  "download",
   disk:     "hard-drive",
 };
-// CheckState → chain tone, same 5-tone vocabulary as EVENT_TYPE_META (danger/warn/update/
-// info/success). "skip" (source unavailable / not applicable) reads as neutral info — never a
+// CheckState → chain tone, on the same scale the audit rows beside it read in (danger/warn/info/
+// success). "skip" (source unavailable / not applicable) reads as neutral info — never a
 // fabricated pass or fail.
 const CHECK_STATE_TONE = { pass: "success", warn: "warn", fail: "danger", skip: "info" };
 
-// Icon/tone/label for the RAW kgsm engine event-type vocabulary (get_audit_log /
-// get_change_timeline). Deliberately separate from formatting.js's ACTION_META: that map is
-// keyed by kgsm-api's dotted, shaped audit vocabulary (server.start, …) applied at ITS read
-// time; the assistant reads the monitor's engine-event store directly and never runs that
-// shaping (it surfaces raw enriched events, neutral), so the wire `type` here is
-// always the unshaped kgsm name (instance_started, …). An unrecognized type (a future kgsm
-// event) falls back to a plain formatting of the raw string — never a guessed meaning.
-const EVENT_TYPE_META = {
-  instance_started:         { icon: "play",             tone: "success", label: "Started" },
-  instance_restarted:       { icon: "rotate-cw",         tone: "info",    label: "Restarted" },
-  instance_stopped:         { icon: "square",            tone: "info",    label: "Stopped" },
-  instance_ready:           { icon: "circle-check",      tone: "success", label: "Ready" },
-  instance_crashed:         { icon: "alert-triangle",     tone: "danger",  label: "Crashed" },
-  instance_failed:          { icon: "octagon-x",          tone: "danger",  label: "Failed (gave up restarting)" },
-  instance_installed:       { icon: "package-plus",       tone: "success", label: "Installed" },
-  instance_uninstalled:     { icon: "trash-2",            tone: "danger",  label: "Uninstalled" },
-  instance_updated:         { icon: "download",           tone: "update",  label: "Updated" },
-  instance_update_finished: { icon: "download",           tone: "update",  label: "Update finished" },
-  instance_version_updated: { icon: "circle-arrow-up",    tone: "update",  label: "Version updated" },
-  instance_backup_created:  { icon: "database",           tone: "success", label: "Backup created" },
-  instance_deploy_failed:   { icon: "octagon-alert",       tone: "danger",  label: "Deploy failed" },
-  instance_download_failed: { icon: "octagon-alert",       tone: "danger",  label: "Download failed" },
-  instance_uninstall_failed:{ icon: "octagon-alert",       tone: "danger",  label: "Uninstall failed" },
-  instance_ports_opened:    { icon: "lock-open",          tone: "info",    label: "Ports opened" },
-  instance_ports_closed:    { icon: "lock",               tone: "warn",    label: "Ports closed" },
-  instance_player_joined:   { icon: "log-in",             tone: "info",    label: "Player joined" },
-  instance_player_left:     { icon: "log-out",            tone: "info",    label: "Player left" },
+// A raw engine type carries no namespace of its own, so it is placed in `engine.` — a rule about
+// the SHAPE of a name, applied to every type alike. A type that already reads as a dotted name is
+// one, and stands as it is. Everything downstream then keys on the dimensions the row carries: the
+// name's own hierarchy picks the glyph, and the producer's severity picks the tone.
+const engineAction = (type) => {
+  const name = String(type || "event");
+  return name.includes(".") ? name : "engine." + name;
 };
-function eventTypeMeta(type) {
-  return EVENT_TYPE_META[type] || {
-    icon: "circle",
-    tone: "info",
-    label: String(type || "event").replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()),
-  };
-}
-// One raw event/change row → the flat display shape EvidenceAudit/EvidenceChangeTimeline
-// render. `by` is honestly "unknown actor" for a null actor (a bare CLI call) — never
-// defaulted to a fabricated "system". `detail` names the owning instance only in a fleet-wide
-// read (redundant once the card is already scoped to one server).
+
+// One raw event/change row → the flat display shape EvidenceChangeTimeline and EvidenceRootCause
+// render. `by` is honestly "unknown actor" for a null actor (a bare CLI call) — never defaulted to
+// a fabricated "system". `detail` names the owning instance only in a fleet-wide read (redundant
+// once the card is already scoped to one server).
 function auditEventRow(e, fleetWide) {
-  const meta = eventTypeMeta(e && e.type);
   const ts = e && e.ts ? new Date(e.ts) : null;
   return {
-    icon: meta.icon,
-    tone: meta.tone,
-    label: meta.label,
+    icon: eventIcon(engineAction(e && e.type)),
+    tone: auditTone(e),
+    label: humanizeAction((e && e.type) || "event"),
     by: (e && e.actor) || "unknown actor",
     detail: fleetWide ? ((e && e.instance) || "host-level") : "",
     rel: ts && !isNaN(ts.getTime()) ? fmtRelative(ts) : "",
   };
 }
-
-// The raw kgsm engine event-type → the dotted audit action + summary wording kgsm-api's read-time
-// shaping (MonitorEventShaping.Shape) emits for the SAME event. Mirroring it here lets the chat
-// "Recent events" card render each event as the exact shared `.audit-row` the Audit page and
-// dashboard show — one consistent activity design across the app. The assistant reads the monitor's
-// raw engine store directly (leaf independence — it never runs kgsm-api's shaping), so the mapping
-// has to live on this side too. An unmapped type falls back to `engine.<type>` (kgsm-api's own
-// GenericShape fallback), which the audit page's action map renders the same way it renders one
-// arriving from kgsm-api — so a future kgsm event still shows up, never guessed into a wrong
-// meaning. These rows carry no shaped severity, so each takes its action's own tone.
-const RAW_EVENT_ACTION = {
-  instance_started:         { action: "server.start",       summary: (i) => "started " + i },
-  instance_ready:           { action: "server.ready",       summary: (i) => i + " is ready to play" },
-  instance_stopped:         { action: "server.stop",        summary: (i) => "stopped " + i },
-  instance_restarted:       { action: "server.restart",     summary: (i) => "restarted " + i },
-  instance_uninstalled:     { action: "server.uninstall",   summary: (i) => "uninstalled " + i },
-  instance_version_updated: { action: "server.update",      summary: (i) => "updated " + i },
-  instance_installed:       { action: "server.install",     summary: (i) => "installed " + i },
-  instance_backup_created:  { action: "backup.create",      summary: (i) => "backed up " + i },
-  instance_backup_restored: { action: "backup.restore",     summary: (i) => "restored backup for " + i },
-  instance_crashed:         { action: "server.crash",       summary: (i) => i + " crashed — auto-restarting" },
-  instance_failed:          { action: "server.crash",       summary: (i) => i + " crashed — supervisor gave up" },
-  instance_ports_opened:    { action: "network.ports.open", summary: (i) => "opened ports for " + i },
-  instance_ports_closed:    { action: "network.ports.close",summary: (i) => "closed ports for " + i },
-  instance_upnp_opened:     { action: "network.upnp.open",  summary: (i) => "forwarded router ports for " + i },
-  instance_upnp_closed:     { action: "network.upnp.close", summary: (i) => "removed router forwards for " + i },
-  instance_upnp_reasserted: { action: "network.upnp.reassert", summary: (i) => "restored router forwards the router dropped for " + i },
-  instance_player_joined:   { action: "player.join",        summary: (i) => "a player joined " + i },
-  instance_player_left:     { action: "player.leave",       summary: (i) => "a player left " + i },
-  instance_config_changed:  { action: "config.set",         summary: (i) => "changed config for " + i },
-  instance_input_sent:      { action: "console.input",      summary: (i) => "sent a console command to " + i },
-};
 
 // Mirror of kgsm-api ParseActor so the same event resolves the same actor on both surfaces:
 // `provider:name` → discord=user, api=token, system=system, an unrecognized provider keeps the name
@@ -236,22 +177,23 @@ function parseAuditActor(flat) {
 }
 
 // One raw engine event (the monitor's GET /events row, relayed verbatim by the assistant as
-// { id, ts, type, instance, actor, origin }) → the standard `ev` audit-record shape the shared
-// AuditEventRow renders, shaped to match kgsm-api's /audit output for the same event. `id` is the
-// deterministic AuditId the monitor stores (== the id /audit returns), so it's a stable React key.
+// { id, ts, type, instance, actor, origin }) → the standard `ev` audit record the shared
+// AuditEventRow renders, so the chat card and the audit page cannot disagree about what an event
+// says. `id` is the deterministic AuditId the monitor stores (== the id /audit returns), so it's a
+// stable React key. The summary is the producer's own sentence when the row carries one; without
+// it the row states the event's name and the instance it happened to, and invents nothing further.
 function auditEventToRecord(e) {
   const instance = (e && e.instance) || null;
-  const shape = (e && RAW_EVENT_ACTION[e.type]) || null;
-  const action = shape ? shape.action : "engine." + String((e && e.type) || "event");
-  const summary = shape
-    ? shape.summary(instance || "a server")
-    : String((e && e.type) || "event").replace(/_/g, " ");
+  const action = engineAction(e && e.type);
+  const words = String((e && e.type) || "event").split(/[._]/).filter(Boolean).join(" ");
   return {
     id: (e && e.id) || (action + ":" + (e && e.ts)),
     ts: e && e.ts ? String(e.ts) : "",
     action,
     actor: parseAuditActor(e && e.actor),
-    summary,
+    summary: (e && e.summary) || (instance ? words + " \u00b7 " + instance : words),
+    severity: (e && e.severity) || null,
+    outcome: (e && e.outcome) || null,
     origin: (e && e.origin) || null,
     serverId: instance,
     meta: {},

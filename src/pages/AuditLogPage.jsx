@@ -5,7 +5,7 @@ import { Icon } from "../components/Icon.jsx";
 import { Pagination, useDebouncedValue } from "../components/Pagination.jsx";
 import { AuditSkeleton } from "../components/Skeletons.jsx";
 import { Toolbar, ToolbarCount, ToolbarFilters, ToolbarSearch, ToolbarSpacer } from "../components/Toolbar.jsx";
-import { ACTION_META, AUDIT_CATEGORIES, CATEGORY_LABEL, actionCategory, fmtRelative, fmtTime, parseTs } from "../lib/formatting.js";
+import { CATEGORY_LABEL, actionCategory, auditCategories, categoryLabel, fmtRelative, fmtTime, parseTs } from "../lib/formatting.js";
 import { useStore } from "../lib/store.js";
 import { auditEventHost, auditStore, hostsStore, serversStore } from "../lib/stores.js";
 
@@ -14,7 +14,7 @@ import { auditEventHost, auditStore, hostsStore, serversStore } from "../lib/sto
 // dashboard; this page is the canonical view with filters and search.
 
 // Re-export from the shared module so existing consumers don't break.
-export { ACTION_META, actionCategory, AUDIT_CATEGORIES, CATEGORY_LABEL, fmtRelative, fmtTime, parseTs };
+export { actionCategory, auditCategories, CATEGORY_LABEL, categoryLabel, fmtRelative, fmtTime, parseTs };
 
 function dayBucket(date, now = new Date()) {
   const d0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -203,7 +203,16 @@ function AuditLogPage({ initialSeverity, initialServer }) {
     else grouped.push({ bucket, events: [ev] });
   }
 
-  const categories = ["all", ...AUDIT_CATEGORIES];
+  // The category filter is pushed to the backend, so picking one narrows the loaded window to that
+  // category alone. The offered list is therefore the union of every category this page has seen,
+  // not a re-derivation from the rows in hand — which would leave the filter offering only the
+  // category already chosen and no way back out of it. A served vocabulary answers this outright
+  // and is what `auditCategories` prefers the moment the feed carries one.
+  const seenCategories = React.useRef(new Set());
+  const categories = React.useMemo(() => {
+    auditCategories(scoped).forEach(c => seenCategories.current.add(c));
+    return ["all", ...auditCategories(null, Array.from(seenCategories.current))];
+  }, [scoped]);
 
   // Per-option counts behind each filter dimension, computed off the host-scoped
   // event set so the popover shows how many events each choice would surface.
@@ -240,7 +249,7 @@ function AuditLogPage({ initialSeverity, initialServer }) {
         <ToolbarFilters
           fields={[
             { id: "category", label: "Category", value: category, onChange: setCat, default: "all",
-              options: categories.map(c => ({ value: c, label: c === "all" ? "All categories" : (CATEGORY_LABEL[c] || c), count: cnt(c === "all" ? auditCounts.total : auditCounts.category[c]) })) },
+              options: categories.map(c => ({ value: c, label: c === "all" ? "All categories" : categoryLabel(c), count: cnt(c === "all" ? auditCounts.total : auditCounts.category[c]) })) },
             { id: "node", label: "Node", value: node, onChange: setNode, default: "all",
               options: [...nodeOptions, { value: PANEL_WIDE, label: "Panel-wide" }], hidden: nodeOptions.length <= 2 },
             { id: "actor", label: "User", value: actor, onChange: setActor, default: "all",

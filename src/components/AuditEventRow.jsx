@@ -1,6 +1,6 @@
 import { AuditActor } from "./AuditActor.jsx";
 import { Icon } from "./Icon.jsx";
-import { actionMeta, auditTone, fmtRelative, fmtTime, parseTs } from "../lib/formatting.js";
+import { auditTone, eventIcon, fmtRelative, fmtTime, humanizeAction, parseTs } from "../lib/formatting.js";
 
 // AuditEventRow — the single presentational row for one audit event. Shared by
 // three surfaces so activity looks the same everywhere it appears: the full
@@ -24,9 +24,12 @@ import { actionMeta, auditTone, fmtRelative, fmtTime, parseTs } from "../lib/for
 // host, where "which node" is not a question the reader has.
 function AuditEventRow({ ev, now, hosts, avatarSize, showMeta = true, showHost = true, onClick,
                         resolveHost = (e) => (e && e.hostId) || null }) {
-  const meta = actionMeta(ev.action);
-  // The pill prints the dotted action, which is the searchable, filterable thing; the plain-English
-  // label is its tooltip. Its colour is the row tone, not the action's own — see auditTone.
+  // The pill prints the dotted action, which is the searchable, filterable thing; the same name
+  // spelled for a person is its tooltip. Glyph and colour both come from what the row itself
+  // carries — its name's shape and its producer's severity — so a name this build has never seen
+  // draws correctly.
+  const icon = eventIcon(ev.action);
+  const label = humanizeAction(ev.action);
   const tone = auditTone(ev);
   const date = parseTs(ev.ts);
   // Render the meta dictionary as compact "key=value" chips (full page only).
@@ -46,8 +49,8 @@ function AuditEventRow({ ev, now, hosts, avatarSize, showMeta = true, showHost =
           <span className="audit-row__summary">{ev.summary}</span>
         </div>
         <div className="audit-row__meta">
-          <span className={"audit-pill audit-pill--" + tone} title={meta.label}>
-            <Icon name={meta.icon} size={11} strokeWidth={2.2} className="audit-pill__icon" />
+          <span className={"audit-pill audit-pill--" + tone} title={label}>
+            <Icon name={icon} size={11} strokeWidth={2.2} className="audit-pill__icon" />
             {ev.action}
           </span>
           {showHost && (

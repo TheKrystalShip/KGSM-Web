@@ -658,13 +658,25 @@ try {
   assert(top && top.id === injectedId && top.id !== beforeTop && top.action === "server.start",
     "audit.append: a stream frame prepends a server.start row onto auditStore (wire shape passes through unadapted)");
 
-  // (b2) `server.rename` is a MAPPED action. An unmapped one renders with the neutral circle-dot,
-  // which is how a rename would come to look like every other unremarkable row in the feed.
+  // (b2) The two bindings that turn a row into pixels, keyed on what the row CARRIES: the shape of
+  // its dotted name and the severity its producer stamped. An event this build has never heard of
+  // falls to a shorter prefix and reads plain — the failure that stays cosmetic instead of lying.
   {
-    const { ACTION_META } = await vite.ssrLoadModule("/src/lib/formatting.js");
-    const renameMeta = ACTION_META["server.rename"];
-    assert(renameMeta && renameMeta.icon && renameMeta.icon !== "circle-dot" && renameMeta.label,
-      `audit: server.rename carries its own icon and label (${renameMeta && renameMeta.icon}) — not the unmapped fallback`);
+    const { auditTone, eventIcon, humanizeAction } = await vite.ssrLoadModule("/src/lib/formatting.js");
+    assert(eventIcon("server.rename") !== "circle-dot" && eventIcon("server.renamed") === eventIcon("server.rename"),
+      `audit: the icon trie reaches a rename in either tense (${eventIcon("server.rename")}) — never the root glyph`);
+    assert(eventIcon("network.ports.open") !== eventIcon("network.upnp.open"),
+      "audit: a host firewall rule and a router forward draw different glyphs");
+    assert(eventIcon("network.pinhole.opened") === eventIcon("network.something.else"),
+      "audit: an unrecognised segment falls back to its namespace rather than leaving a gap");
+    assert(eventIcon("nobody.declared.this") === "circle-dot" && auditTone({ severity: undefined }) === "info",
+      "audit: an event nobody declared renders plain and info — never invisible, never mis-coloured");
+    assert(auditTone({ severity: "danger", outcome: "success" }) === "danger"
+      && auditTone({ severity: "info", outcome: "success" }) === "success"
+      && auditTone({ severity: "info" }) === "info",
+      "audit: severity is final; outcome only separates a good routine fact from a neutral one");
+    assert(humanizeAction("server.update.failed") === "Server update failed",
+      "audit: the label is the producer's own name spelled for a person, from no table");
     const { AuditEventRow } = await vite.ssrLoadModule("/src/components/AuditEventRow.jsx");
     const node = w.document.createElement("div");
     const root = createRoot(node);

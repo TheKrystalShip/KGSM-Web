@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — an audit row is drawn from what it carries, not from what it is called (`1.171.0`)
+
+Every presentation decision about an audit event keys on a dimension the row carries. Its colour is
+the severity its producer stamped — `danger` and `warn` as they are, `info` lifted to green when the
+row reports a successful outcome, and `info` for a row that carries no severity at all. Severity is
+the producer's judgement: the scheduler knows its prune is routine and the engine knows an uninstall
+is not, and nothing here argues with either.
+
+Its glyph comes from the shape of the dotted name, walked as a prefix trie whose every node is a
+namespace rather than an event. A segment matches a node when it starts with that node's key, so one
+entry covers a verb however it is spelled — `uninstall`, `uninstalled` and `uninstall_failed` all
+reach the same branch. The longest key wins at each level and an unrecognised segment falls back to
+the namespace above it, so `network.pinhole.opened` draws the network globe and a name in no
+namespace at all draws a plain dot. A host firewall rule and a router forward keep their separate
+glyphs, because a host can hold one without the other.
+
+The pill's tooltip, the chat card's label and the metrics timeline's flags are the event's own name
+spelled for a person. The audit filter offers the categories the feed has actually produced, and
+prefers a served vocabulary the moment the API carries one. The chat "Recent events" card renders
+through the same two bindings as the audit page, so the assistant's surface cannot disagree with the
+timeline about what an event says or how much it matters.
+
+The consequence worth stating: an event this build has never heard of reads plain and correct rather
+than missing. Drift is cosmetic instead of misleading.
+
 ### Added — every audit action has a pill, and its colour reads the row (`1.170.0`)
 
 The audit feed's action map covers the whole vocabulary kgsm-api emits, plus the `engine.<type>`

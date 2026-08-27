@@ -218,10 +218,10 @@ function EvidenceChanges({ c, onOpenServer }) {
   );
 }
 
-// Shared dot color for get_audit_log / get_change_timeline rows — same 5-tone vocabulary as
-// EvidenceRootCause's TONE_DOT (danger/warn/update/info/success), driven by chatUtils'
-// EVENT_TYPE_META rather than a health-check verdict.
-const EVENT_TONE_DOT = { danger: "var(--danger)", warn: "var(--warning)", update: "var(--update)", info: "var(--info)", success: "var(--success)" };
+// Shared dot color for get_audit_log / get_change_timeline rows. The tone is the one the audit
+// page reads the same event in — what its producer stamped, on the danger/warn/info/success scale
+// — so the two surfaces cannot colour one event two ways.
+const EVENT_TONE_DOT = { danger: "var(--danger)", warn: "var(--warning)", info: "var(--info)", success: "var(--success)" };
 
 // The row list both get_audit_log and get_change_timeline render, plus the two HONEST
 // non-list states: the monitor couldn't be read (never narrated as "nothing happened"/
@@ -312,7 +312,7 @@ function EvidenceChangeTimeline({ c, onOpenServer }) {
 }
 
 function EvidenceRootCause({ c, onOpenServer }) {
-  const TONE_DOT = { danger: "var(--danger)", warn: "var(--warning)", update: "var(--update)", info: "var(--info)", success: "var(--success)" };
+  const TONE_DOT = { danger: "var(--danger)", warn: "var(--warning)", info: "var(--info)", success: "var(--success)" };
   const steps = Array.isArray(c.steps) ? c.steps : [];
   return (
     <EvidenceCardShell icon="git-merge" title={"Root cause \u00b7 " + c.serverName} sub={c.headline}
