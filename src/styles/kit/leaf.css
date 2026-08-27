@@ -389,3 +389,88 @@
     flex: 1 1 auto;
   }
 }
+
+/* --- The fleet's maintenance windows (scheduler leaf → Windows) ------------------------------- */
+/* Six columns of window facts on a grid template that does not fold: the board scrolls inside its
+   own frame at narrow widths rather than letting the row run off the card, which is invisible on
+   the page because `.app__main` scrolls with everything else. */
+
+.mw-board {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 900px) {
+  .mw-board .card-table { min-width: 800px; }
+}
+
+.mw-board__server,
+.mw-board__sched {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mw-board__name,
+.mw-board__words {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mw-board__tz {
+  font-size: 11px;
+  color: var(--fg-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The node's own words for why a window will not fire. Wraps, because a parse error names the
+   offending text and truncating it takes away the half that identifies it. */
+.mw-board__error {
+  font-size: 11px;
+  color: var(--danger-fg);
+  white-space: normal;
+}
+
+.mw-board__row--invalid {
+  background: color-mix(in srgb, var(--danger) 5%, transparent);
+}
+
+.mw-board__acts {
+  display: inline-flex;
+  gap: 2px;
+  justify-content: flex-end;
+}
+
+.mw-board__acts .lcf-iconbtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* The tasks a window runs, each carrying how its own last turn went — which is what makes "which
+   part failed" answerable from the board rather than from a tooltip. The tone modifiers are the
+   four outcomes; a task with no record keeps the plain tag. */
+.mw-tasklist {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mw-tasklist .thr-tag { margin-left: 0; }
+
+.mw-task--ok { color: var(--success-fg); background: var(--success-bg); }
+.mw-task--danger { color: var(--danger-fg); background: var(--danger-bg); }
+.mw-task--warn { color: var(--warning-fg); background: var(--warning-bg); }
+.mw-task--muted { color: var(--fg-3); background: var(--veil-1); }
+
+/* The span picker inside the postpone confirmation — the one control in that dialog, on the
+   leaf-tab field furniture the rest of this family uses. */
+.mw-dialog__span {
+  width: 100%;
+  margin-bottom: 4px;
+  text-align: left;
+}

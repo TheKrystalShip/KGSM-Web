@@ -253,6 +253,11 @@
   background: var(--danger-bg);
 }
 
+.cluster-chip--warn {
+  color: var(--warning-fg);
+  background: var(--warning-bg);
+}
+
 .cluster-chip--muted {
   color: var(--fg-3);
   background: var(--veil-1);

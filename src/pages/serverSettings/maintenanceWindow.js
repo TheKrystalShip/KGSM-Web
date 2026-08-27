@@ -1,10 +1,12 @@
-// The maintenance-window grammar as an editor reads it: one packed expression split into the fields a
-// person edits, and put back together again.
+// The maintenance-window vocabulary every surface onto a window shares: the grammar split into the
+// fields a person edits and put back together again, and the four words a run is recorded as ending in.
 //
 // Text only. Whether a window is well-formed and when it fires are the node's answers — the parser and
 // the clock the scheduler itself fires on live in kgsm-lib, and the API previews a candidate window
 // with them — so nothing here decides either. What is here is the split and the join, which an editor
-// needs because a person edits a cadence, a clock time and a weekday, not a string.
+// needs because a person edits a cadence, a clock time and a weekday, not a string; and the reading of
+// an outcome, which is here so the editor, the fleet board and the summary lane never word one
+// differently.
 
 // The order tasks run in, which is a property of what they are: an archive taken after an update
 // captures the new build instead of the rollback point. The node writes them back in this order too,
@@ -41,6 +43,25 @@ const CADENCES = [
   { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" },
 ];
+
+// How a run ended, in the four words the daemon records it with. `ok` and `failed` are the pair a
+// boolean would carry; the other two are the reason there is no boolean. `skipped` is a task that did
+// not apply to the instance as it stood — a measurement, recorded with its reason — and `aborted` is one
+// that never got its turn because an earlier task in the same window failed. Painting either as a
+// failure states an outcome the daemon did not record.
+const OUTCOMES = {
+  ok: { label: "ok", tone: "ok", icon: "circle-check" },
+  failed: { label: "failed", tone: "danger", icon: "circle-x" },
+  skipped: { label: "skipped", tone: "muted", icon: "circle-slash" },
+  aborted: { label: "aborted", tone: "warn", icon: "octagon-x" },
+};
+
+// The vocabulary entry for one recorded outcome. A word outside the four is the daemon saying something
+// this surface has no reading of, which is unrecorded rather than any of them.
+function outcomeOf(word) {
+  return OUTCOMES[String(word || "").toLowerCase()]
+    || { label: "unrecorded", tone: "muted", icon: "circle-help" };
+}
 
 let seq = 0;
 
@@ -155,5 +176,5 @@ function boundsOf(unit) {
 
 export {
   CADENCES, DOW, TASK_ORDER, UNITS,
-  boundsOf, describeWindow, draftFromExpression, expressionOf, newWindowDraft, orderTasks,
+  boundsOf, describeWindow, draftFromExpression, expressionOf, newWindowDraft, orderTasks, outcomeOf,
 };

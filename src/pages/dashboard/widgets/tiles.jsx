@@ -200,10 +200,10 @@ function TileOldestBackup() {
   const servers = useServers();
   const bak = kpi.backups(servers, useFleetOps().ops, now);
 
-  const nextRun = bak.sched.next ? fmtUntil(new Date(bak.sched.next.at), new Date(now)) : null;
+  const nextRun = bak.sched.nextBackup ? fmtUntil(new Date(bak.sched.nextBackup.at), new Date(now)) : null;
   const sub = bak.never.length
     ? (bak.never.length === 1 ? bak.never[0].name : `${bak.never.length} servers have none`)
-    : nextRun ? `next ${nextRun} · ${bak.sched.next.name}`
+    : nextRun ? `next ${nextRun} · ${bak.sched.nextBackup.name}`
       : bak.oldest ? bak.oldest.name
         : servers.length && bak.unscanned === servers.length ? "not scanned yet"
           : "no backups yet";

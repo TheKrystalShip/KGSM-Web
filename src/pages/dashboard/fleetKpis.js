@@ -122,9 +122,10 @@ function backups(servers, ops, now) {
   };
 }
 
-// Schedules that last ran badly — a silent failure class with no other surface here: a backup
-// schedule can fail every night and nothing else on the page would move, because the server itself
-// is perfectly healthy. Only an explicit false counts; a schedule that has never run is null.
+// Maintenance windows that last ran badly — a silent failure class with no other surface here: a
+// nightly backup can fail every night and nothing else on the page would move, because the server
+// itself is perfectly healthy. Only `failed` counts; a window that has never run carries no record,
+// and a task recorded `skipped` or `aborted` is not a fault.
 function schedules(ops, now) {
   const roll = scheduleRollup(ops, now);
   return {

@@ -38,6 +38,7 @@ import { ReactorOverview } from "./ReactorOverview.jsx";
 import { ReactorDecisions } from "./ReactorDecisions.jsx";
 import { ReactorRules } from "./ReactorRules.jsx";
 import { SchedulerOverview } from "./SchedulerOverview.jsx";
+import { SchedulerWindows } from "./SchedulerWindows.jsx";
 import { SpeechOverview } from "./SpeechOverview.jsx";
 import { WatchdogOverview } from "./WatchdogOverview.jsx";
 import { LeafActivity } from "./LeafActivity.jsx";
@@ -69,6 +70,12 @@ const LEAF_TABS = {
   // sample by sample, and the API only mirrors its verdicts into the alert feed.
   monitor: [
     { id: "thresholds", label: "Thresholds", icon: "gauge", render: (p) => <MonitorThresholds {...p} /> },
+  ],
+  // Windows belong to the scheduler for the same reason: the daemon is what holds each window's next
+  // fire and its record of the last run, and it is the only thing that can move one. What a window IS
+  // is written on the instance and edited on the server's own settings page.
+  scheduler: [
+    { id: "windows", label: "Windows", icon: "calendar-clock", render: (p) => <SchedulerWindows {...p} /> },
   ],
   // Decisions belong to the reactor for the same reason thresholds belong to the monitor: the reactor is
   // what reaches them, from its own ledger, and this is the review its plan gates propose and act mode

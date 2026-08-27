@@ -53,10 +53,10 @@ function FleetSummary() {
   const sched = kpi.schedules(ops, now);
   const svc = kpi.services(ops);
 
-  const nextRun = bak.sched.next ? fmtUntil(new Date(bak.sched.next.at), new Date(now)) : null;
+  const nextRun = bak.sched.nextBackup ? fmtUntil(new Date(bak.sched.nextBackup.at), new Date(now)) : null;
   const backupSub = bak.never.length
     ? (bak.never.length === 1 ? bak.never[0].name : `${bak.never.length} servers have none`)
-    : nextRun ? `next ${nextRun} · ${bak.sched.next.name}`
+    : nextRun ? `next ${nextRun} · ${bak.sched.nextBackup.name}`
       : bak.oldest ? bak.oldest.name
         : servers.length && bak.unscanned === servers.length ? "not scanned yet"
           : "no backups yet";

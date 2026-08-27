@@ -78,17 +78,23 @@ function driftRollup(byHost) {
   return { count: drifting.length, names: drifting, supervised, unknownNodes, notReadyNodes };
 }
 
-// ---------- Backup & restart schedules ----------
+// ---------- Maintenance windows ----------
 
-// When the next scheduled job fires anywhere on the cluster, and how many schedules last ran badly.
+// When the next maintenance window fires anywhere on the cluster, and how many last ran badly.
 //
-// A schedule that has never run is not a failure — `lastRunOk`/`lastBackupOk` are null until a run
-// happens, and only an explicit `false` counts. Treating null as failure would report every
-// freshly-configured schedule as broken.
+// A run ends in one of four words and only `failed` is a fault: `ok` is a pass, `skipped` is a task that
+// did not apply to the instance as it stood, and `aborted` is one an earlier failure in the same window
+// took the turn from. Raising either of the last two would report a fault the daemon did not record, and
+// a window that has never run carries no record at all — which is not a failure either.
+//
+// `nextBackup` is tracked beside `next` because the two answer different questions: the soonest window
+// on the cluster is what an operator plans around, and the soonest one that takes an ARCHIVE is what the
+// backup figure is entitled to name.
 function scheduleRollup(byHost, now) {
   let unknownNodes = 0;
   const failures = [];
-  let next = null;   // { at, name, kind }
+  let next = null;         // { at, name, kind }
+  let nextBackup = null;   // the same, restricted to windows carrying a backup
   let scheduled = 0;
 
   for (const rec of values(byHost)) {
@@ -96,23 +102,36 @@ function scheduleRollup(byHost, now) {
     if (!Array.isArray(rows)) { unknownNodes++; continue; }
     for (const r of rows) {
       if (!r || !r.name) continue;
-      if (r.lastBackupOk === false) failures.push({ name: r.name, kind: "backup", message: r.lastBackupMessage || null });
-      if (r.lastRunOk === false) failures.push({ name: r.name, kind: "restart", message: r.lastRunMessage || null });
+      for (const w of Array.isArray(r.windows) ? r.windows : []) {
+        if (!w || !w.id) continue;
+        const tasks = Array.isArray(w.tasks) ? w.tasks : [];
 
-      for (const [iso, kind] of [[r.nextBackupUtc, "backup"], [r.nextFireUtc, "restart"]]) {
-        if (!iso) continue;
-        const at = +new Date(iso);
+        if (w.lastRun && w.lastRun.outcome === "failed") {
+          // Which task failed is what makes "the window failed" actionable, so the tile names it rather
+          // than the window. A run recorded as failed with no failing task named keeps the hedge.
+          const culprit = ((w.lastRun.tasks || []).find(t => t && t.outcome === "failed")) || null;
+          failures.push({
+            name: r.name,
+            kind: culprit ? culprit.name : "maintenance",
+            message: (culprit && culprit.message) || null,
+          });
+        }
+
+        if (!w.nextFireUtc) continue;
+        const at = +new Date(w.nextFireUtc);
         if (!Number.isFinite(at)) continue;
         scheduled++;
         // A fire time already past is the scheduler's own boundary jitter, not a job to announce as
         // "next" — it is behind us, and pointing at it would leave the tile stuck reading "due".
         if (at < now) continue;
-        if (!next || at < next.at) next = { at, name: r.name, kind };
+        const entry = { at, name: r.name, kind: tasks.join(", ") || "no tasks" };
+        if (!next || at < next.at) next = entry;
+        if (tasks.includes("backup") && (!nextBackup || at < nextBackup.at)) nextBackup = entry;
       }
     }
   }
 
-  return { next, failures, scheduled, unknownNodes };
+  return { next, nextBackup, failures, scheduled, unknownNodes };
 }
 
 // ---------- Leaf health ----------

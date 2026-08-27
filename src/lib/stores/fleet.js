@@ -2,11 +2,11 @@
 //
 // The band's other eight tiles derive from stores the app already holds (the roster, the audit
 // feed, the host capability block). These four have no such source and are all slow-moving
-// facts — a week's uptime, a supervision table, a backup schedule, a systemd board — so they
+// facts — a week's uptime, a supervision table, a maintenance-window board, a systemd board — so they
 // are fetched together on one lazy loop rather than four eager ones.
 //
 // Every slice is independently fallible and independently honest. A node whose watchdog is not
-// running still reports its schedules; the slice that failed is `null`, which the tiles read as
+// running still reports its maintenance windows; the slice that failed is `null`, which the tiles read as
 // "not measured" and never as zero. That is the same degradation rule the leaf pages follow —
 // nothing here can turn one absent leaf into a fleet-wide blank.
 
@@ -20,7 +20,7 @@ import { hostsStore } from "./hosts.js";
 // dominate it and short enough to still describe the fleet as it is now.
 const AVAILABILITY_WINDOW = "7d";
 
-// These change on the order of minutes at fastest (a schedule fires, a leaf restarts, a server
+// These change on the order of minutes at fastest (a window fires, a leaf restarts, a server
 // crashes). Polling faster would cost four requests per node for a figure that had not moved.
 const REFRESH_MS = 60_000;
 

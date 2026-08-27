@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the fleet's maintenance windows are a board on the scheduler leaf (`1.169.0`)
+
+Scheduler → Windows is every maintenance window on the host in one table: the server it belongs to,
+the appointment in the words the editor writes it in, the tasks it runs, when it next fires, and how
+it last ran. A window the node cannot read keeps its row, carrying the parse error that names the
+offending text and reading INVALID where a next fire would be.
+
+How a run ended is four words, and each is rendered as what it is. `ok` and `failed` are the pair a
+boolean would carry; `skipped` is a task that did not apply to the instance as it stood and `aborted`
+is one an earlier failure in the same window took the turn from — neither is a fault, and neither is
+painted as one. Every task in a window carries the outcome of its own last turn, so which part failed
+is answerable from the row.
+
+Postpone, Skip and Run now sit in the row and move the target the daemon holds in memory: the fire
+after the one acted on lands where it always would have, kgsm config is untouched, and a restart of
+the daemon brings a deferred fire back. Each confirms first, naming the server, the appointment and
+the tasks, and a postponement picks its own span. Reading the board is operator; moving one of these
+appointments is admin on this node, and a session that is not gets the board with no actions on it.
+
+### Changed — the scheduler's Overview is the glance over its windows (`1.169.0`)
+
+The leaf's Overview reads windows: how many the host keeps and on how many instances, the next one
+due with the tasks it carries, how many will not fire, and how many last ran badly — over the merged
+"what fires next on this box" lane it exists for, and a lane naming every failed run and every window
+the daemon cannot read. The board itself is the Windows tab.
+
+The cluster figures follow the same shape. A schedule failure names the task that failed rather than
+the cadence it belonged to, and the backup tile's "next" is the soonest window that actually takes an
+archive rather than the soonest window of any kind.
+
 ### Added — a server's scheduled tasks are a list of maintenance windows (`1.168.0`)
 
 Server → Settings → Scheduled tasks edits the instance's maintenance windows: a list of cards plus

@@ -1127,6 +1127,11 @@
   color: var(--danger-fg);
 }
 
+.host-remove__icon--accent {
+  background: var(--krystal-teal-dim);
+  color: var(--krystal-teal);
+}
+
 .host-remove__icon--warn {
   background: var(--warning-bg);
   color: var(--warning-fg);

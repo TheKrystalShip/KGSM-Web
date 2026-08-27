@@ -53,9 +53,9 @@ const LEAF_ACTIVITY = {
   },
   scheduler: {
     match: (ev) => (ev.actor && ev.actor.name) === "scheduler",
-    meta: "Restarts and backups the scheduler ran on its own timers.",
+    meta: "Work the scheduler did inside a maintenance window, on its own clock.",
     emptyTitle: "Nothing in the recent window",
-    empty: "No scheduled job has fired recently. Check the board above for when the next one is due.",
+    empty: "No maintenance window has fired recently. Check the board above for when the next one is due.",
   },
   bot: {
     // The surface, not the actor: a Discord slash command is attributed to the person who typed it,

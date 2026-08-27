@@ -296,12 +296,27 @@ function fetchEngineInfo(hostId) {
     });
 }
 
-// The scheduler's whole board: every instance it supervises, its configured cadence, when it next fires,
-// and how the last run went. Relayed by the api exactly as the leaf reports it — no adapter, because the
-// leaf's nulls ARE the view shape ("not scheduled" and "hasn't run yet" are both honest gaps, and a
-// default here would invent a schedule nothing holds).
+// The scheduler's whole board: every instance it reads, each maintenance window written on it, when each
+// next fires, and how each last ran. Relayed by the api exactly as the leaf reports it — no adapter,
+// because the leaf's nulls ARE the view shape (a null next fire on an invalid window and a null last run
+// on one that has not come round are both honest gaps, and a default here would state a schedule nothing
+// holds).
 function fetchLeafSchedules(hostId) {
   return fetchLeafOverview(hostId, "scheduler", "schedules").then(r => (r && r.data) || null);
+}
+
+// Move one window's next run: `postpone` (with minutes), `skip`, or `run-now`. The window is named by
+// its schedule expression, which is its identity — an instance holds several appointments and the
+// daemon refuses an instruction naming none rather than picking one.
+//
+// None of the three edits a schedule. Each moves a target the daemon holds in memory, so the fire after
+// the one acted on lands where it always would have and a restart of the daemon brings the deferred one
+// back. The node answers 400 carrying the daemon's own words when it says no, which reaches the caller
+// as a rejection rather than a success to be inspected.
+function controlLeafWindow(hostId, verb, body) {
+  return api.host(hostId).post(
+    "/hosts/" + encodeURIComponent(hostId) + "/services/scheduler/windows/" + encodeURIComponent(verb),
+    body);
 }
 
 // The watchdog's supervision table plus its own readiness. Kept whole rather than reduced to the rows:
@@ -362,6 +377,6 @@ export {
   logsStore, logSourcesStore, leafLogsStore, servicesStore,
   subscribeHostLogs, subscribeLeafLogs, leafLogsKey, subscribeHostServices, setLeafProvisioned,
   fetchLeafConfig, fetchLeafCommands, applyLeafConfig, fetchLeafMetricsHistory, fetchEngineInfo,
-  fetchLeafSchedules, fetchLeafSupervision, fetchLeafMonitorStats, fetchLeafBotStatus,
+  fetchLeafSchedules, controlLeafWindow, fetchLeafSupervision, fetchLeafMonitorStats, fetchLeafBotStatus,
   fetchLeafSpeechStatus, fetchLeafReactorStatus, fetchLeafReactorDecisions,
 };

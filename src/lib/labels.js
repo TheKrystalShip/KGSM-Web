@@ -68,6 +68,7 @@ const TAB_LABEL_FALLBACK = {
   conversations: "Conversations",
   users: "Users",
   thresholds: "Thresholds",
+  windows: "Windows",
   commands: "Commands",
 };
 

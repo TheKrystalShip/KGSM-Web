@@ -11,7 +11,7 @@ export { filesKey, filesStore } from "./files.js";
 export { serverHostId, auditEventHost, auditInScope, auditStore, AUDIT_CAP } from "./audit.js";
 export { libraryStore } from "./library.js";
 export { blueprintFileStore } from "./blueprintFile.js";
-export { logsStore, logSourcesStore, leafLogsStore, leafLogsKey, servicesStore, subscribeHostLogs, subscribeLeafLogs, subscribeHostServices, setLeafProvisioned, fetchLeafConfig, fetchLeafCommands, applyLeafConfig, fetchLeafMetricsHistory, fetchEngineInfo, fetchLeafSchedules, fetchLeafSupervision, fetchLeafMonitorStats, fetchLeafBotStatus, fetchLeafSpeechStatus, fetchLeafReactorStatus, fetchLeafReactorDecisions } from "./diagnostics.js";
+export { logsStore, logSourcesStore, leafLogsStore, leafLogsKey, servicesStore, subscribeHostLogs, subscribeLeafLogs, subscribeHostServices, setLeafProvisioned, fetchLeafConfig, fetchLeafCommands, applyLeafConfig, fetchLeafMetricsHistory, fetchEngineInfo, fetchLeafSchedules, controlLeafWindow, fetchLeafSupervision, fetchLeafMonitorStats, fetchLeafBotStatus, fetchLeafSpeechStatus, fetchLeafReactorStatus, fetchLeafReactorDecisions } from "./diagnostics.js";
 export { fetchAssistantStats, fetchAssistantReviewUsers, fetchAssistantConversations, fetchAssistantTranscript } from "./assistantReview.js";
 export { favoritesStore, useIsFavorite, pingStore, startPingLoop, stopPingLoop } from "./ui.js";
 export { selectionStore, useIsSelected, useSelectionIds } from "./selection.js";
