@@ -3,13 +3,13 @@ import { Icon } from "../components/Icon.jsx";
 import { SettingsRow, SettingsSection, Toggle } from "../components/settings-primitives.jsx";
 import { serverCapUsable } from "../lib/capabilities.js";
 import { fetchSettings, patchSettings, deleteServer } from "../lib/stores.js";
+import { draftFromExpression, expressionOf } from "./serverSettings/maintenanceWindow.js";
 import { StartupSection, ScheduleSection, ResourcesSection } from "./serverSettings/SettingsSections.jsx";
 import { PlacementSection } from "./serverSettings/PlacementSection.jsx";
 import { IdentitySection } from "./serverSettings/IdentitySection.jsx";
 
-// Settings panel — for things that don't belong in raw config files.
-// Autostart, scheduled restarts, crash recovery, update policy, resource caps,
-// player notifications.
+// Settings panel — for things that don't belong in raw config files: autostart, crash recovery,
+// maintenance windows, update policy, resource caps.
 
 function ServerSettings({ server, onDeleted }) {
   // watchdog capability check (unchanged — used by the watchdog-gated sections)
@@ -21,25 +21,20 @@ function ServerSettings({ server, onDeleted }) {
   const [loadState, setLoadState] = React.useState("loading"); // "loading" | "ready" | "error"
   const [loadError, setLoadError] = React.useState(null);
 
-  // ---- Form state (only Phase 0 live fields) ----
+  // ---- Form state ----
   const [autoUpdate, setAutoUpdate] = React.useState(null); // null = not loaded yet
   const [autostart, setAutostart] = React.useState(null); // null = not loaded or watchdog absent
   const [crashRestart, setCrashRestart] = React.useState(true);
   const [crashMaxRestarts, setCrashMaxRestarts] = React.useState(5);
   const [cpuPriority, setCpuPriority] = React.useState(null); // null = not loaded
   const [memoryCapMb, setMemoryCapMb] = React.useState(null); // null = not loaded (0 = uncapped is valid)
-  const [scheduledRestart, setScheduledRestart] = React.useState(null); // null = not loaded
-  const [restartTime, setRestartTime] = React.useState(null); // "HH:MM"
-  const [restartDay, setRestartDay] = React.useState(null); // sun..sat
   const [timezone, setTimezone] = React.useState(null); // IANA string, "" = host-local
-  const [nextFireUtc, setNextFireUtc] = React.useState(null); // read-only; null = scheduler absent/unknown
-  const [backupSchedule, setBackupSchedule] = React.useState(null); // null = not loaded
-  const [backupTime, setBackupTime] = React.useState(null); // "HH:MM"
-  const [backupDay, setBackupDay] = React.useState(null); // sun..sat
-  const [nextBackupUtc, setNextBackupUtc] = React.useState(null); // read-only; null = scheduler absent/unknown
   const [backupRetention, setBackupRetention] = React.useState(5);
-  const [lastBackupUtc, setLastBackupUtc] = React.useState(null); // read-only; from scheduler status
-  const [lastBackupOk, setLastBackupOk] = React.useState(null); // read-only; null = unknown
+  // The windows being edited, and the node's own reading of the ones that are saved. The draft is a
+  // list of fields; `savedWindows` keeps each saved window's leaf-computed next fire and verdict, which
+  // the editor shows for a window nobody has touched and stops using the moment its schedule moves.
+  const [windows, setWindows] = React.useState([]);
+  const [savedWindows, setSavedWindows] = React.useState([]);
 
   // ---- Save / Reset state ----
   const [saving, setSaving] = React.useState(false);
@@ -48,6 +43,15 @@ function ServerSettings({ server, onDeleted }) {
   // ---- Delete state ----
   const [deletePhase, setDeletePhase] = React.useState("idle"); // "idle" | "confirm" | "deleting"
   const [deleteError, setDeleteError] = React.useState(null);
+
+  // Take the node's window list as both the draft and what the draft is compared against. Split into
+  // fields for editing, kept verbatim for the join — a window read back out of the node is the one
+  // authority for its next fire and its verdict.
+  const adoptWindows = React.useCallback((list) => {
+    const rows = Array.isArray(list) ? list : [];
+    setSavedWindows(rows);
+    setWindows(rows.map((w) => draftFromExpression(w.expression)));
+  }, []);
 
   // Load on mount
   React.useEffect(() => {
@@ -61,18 +65,9 @@ function ServerSettings({ server, onDeleted }) {
         setCrashMaxRestarts(data.crashMaxRestarts ?? 5);
         setCpuPriority(data.cpuPriority ?? null);
         setMemoryCapMb(data.memoryCapMb ?? null);
-        setScheduledRestart(data.scheduledRestart ?? "off");
-        setRestartTime(data.restartTime ?? "04:00");
-        setRestartDay(data.restartDay ?? "sun");
         setTimezone(data.timezone ?? "");
-        setNextFireUtc(data.nextFireUtc ?? null);
-        setBackupSchedule(data.backupSchedule ?? "off");
-        setBackupTime(data.backupTime ?? "05:00");
-        setBackupDay(data.backupDay ?? "sun");
-        setNextBackupUtc(data.nextBackupUtc ?? null);
         setBackupRetention(data.backupRetention ?? 5);
-        setLastBackupUtc(data.lastBackupUtc ?? null);
-        setLastBackupOk(data.lastBackupOk ?? null);
+        adoptWindows(data.maintenanceWindows);
         setLoadState("ready");
       },
       (err) => {
@@ -89,8 +84,11 @@ function ServerSettings({ server, onDeleted }) {
     setSaveMsg(null);
     patchSettings(server.hostId, server.id, {
       autoUpdate, autostart, crashRestart, crashMaxRestarts, cpuPriority, memoryCapMb,
-      scheduledRestart, restartTime, restartDay, timezone,
-      backupSchedule, backupTime, backupDay, backupRetention: Number(backupRetention),
+      // Wholesale replace: the list IS the instance's maintenance, so sending it is the only way to
+      // express deleting a window. The node reads each expression with the ecosystem's one parser and
+      // refuses the whole list rather than half-applying it.
+      maintenanceWindows: windows.map(expressionOf),
+      timezone, backupRetention: Number(backupRetention),
       origin: "ui",
     }).then(
       (data) => {
@@ -100,18 +98,9 @@ function ServerSettings({ server, onDeleted }) {
           if (data.settings.crashMaxRestarts !== undefined) setCrashMaxRestarts(data.settings.crashMaxRestarts ?? 5);
           if (data.settings.cpuPriority !== undefined) setCpuPriority(data.settings.cpuPriority);
           if (data.settings.memoryCapMb !== undefined) setMemoryCapMb(data.settings.memoryCapMb);
-          if (data.settings.scheduledRestart !== undefined) setScheduledRestart(data.settings.scheduledRestart ?? "off");
-          if (data.settings.restartTime !== undefined) setRestartTime(data.settings.restartTime ?? "04:00");
-          if (data.settings.restartDay !== undefined) setRestartDay(data.settings.restartDay ?? "sun");
           if (data.settings.timezone !== undefined) setTimezone(data.settings.timezone ?? "");
-          if (data.settings.nextFireUtc !== undefined) setNextFireUtc(data.settings.nextFireUtc ?? null);
-          if (data.settings.backupSchedule !== undefined) setBackupSchedule(data.settings.backupSchedule ?? "off");
-          if (data.settings.backupTime !== undefined) setBackupTime(data.settings.backupTime ?? "05:00");
-          if (data.settings.backupDay !== undefined) setBackupDay(data.settings.backupDay ?? "sun");
-          if (data.settings.nextBackupUtc !== undefined) setNextBackupUtc(data.settings.nextBackupUtc ?? null);
           if (data.settings.backupRetention !== undefined) setBackupRetention(data.settings.backupRetention ?? 5);
-          if (data.settings.lastBackupUtc !== undefined) setLastBackupUtc(data.settings.lastBackupUtc ?? null);
-          if (data.settings.lastBackupOk !== undefined) setLastBackupOk(data.settings.lastBackupOk ?? null);
+          if (data.settings.maintenanceWindows !== undefined) adoptWindows(data.settings.maintenanceWindows);
         }
         setSaving(false);
         setSaveMsg({ ok: true, text: "Saved" });
@@ -131,8 +120,7 @@ function ServerSettings({ server, onDeleted }) {
     // Reset: clear auto_update override by sending null
     patchSettings(server.hostId, server.id, {
       autoUpdate: null, autostart: null, crashRestart: null, crashMaxRestarts: null, cpuPriority: null, memoryCapMb: null,
-      scheduledRestart: null, restartTime: null, restartDay: null, timezone: null,
-      backupSchedule: null, backupTime: null, backupDay: null, backupRetention: null,
+      maintenanceWindows: null, timezone: null, backupRetention: null,
       origin: "ui",
     }).then(
       (data) => {
@@ -143,18 +131,9 @@ function ServerSettings({ server, onDeleted }) {
           if (data.settings.crashMaxRestarts !== undefined) setCrashMaxRestarts(data.settings.crashMaxRestarts ?? 5);
           if (data.settings.cpuPriority !== undefined) setCpuPriority(data.settings.cpuPriority ?? null);
           if (data.settings.memoryCapMb !== undefined) setMemoryCapMb(data.settings.memoryCapMb ?? null);
-          if (data.settings.scheduledRestart !== undefined) setScheduledRestart(data.settings.scheduledRestart ?? "off");
-          if (data.settings.restartTime !== undefined) setRestartTime(data.settings.restartTime ?? "04:00");
-          if (data.settings.restartDay !== undefined) setRestartDay(data.settings.restartDay ?? "sun");
           if (data.settings.timezone !== undefined) setTimezone(data.settings.timezone ?? "");
-          if (data.settings.nextFireUtc !== undefined) setNextFireUtc(data.settings.nextFireUtc ?? null);
-          if (data.settings.backupSchedule !== undefined) setBackupSchedule(data.settings.backupSchedule ?? "off");
-          if (data.settings.backupTime !== undefined) setBackupTime(data.settings.backupTime ?? "05:00");
-          if (data.settings.backupDay !== undefined) setBackupDay(data.settings.backupDay ?? "sun");
-          if (data.settings.nextBackupUtc !== undefined) setNextBackupUtc(data.settings.nextBackupUtc ?? null);
           if (data.settings.backupRetention !== undefined) setBackupRetention(data.settings.backupRetention ?? 5);
-          if (data.settings.lastBackupUtc !== undefined) setLastBackupUtc(data.settings.lastBackupUtc ?? null);
-          if (data.settings.lastBackupOk !== undefined) setLastBackupOk(data.settings.lastBackupOk ?? null);
+          if (data.settings.maintenanceWindows !== undefined) adoptWindows(data.settings.maintenanceWindows);
         }
         setSaving(false);
         setSaveMsg({ ok: true, text: "Reset to defaults" });
@@ -223,26 +202,20 @@ function ServerSettings({ server, onDeleted }) {
           moment it is confirmed, so it belongs to neither the form's dirty state nor its Save button. */}
       <IdentitySection server={server} />
 
-      {/* Startup & recovery — Phase 1 */}
+      {/* Startup & recovery */}
       <StartupSection watchdogDown={watchdogDown} watchdogLed={watchdogLed}
         autostart={autostart} setAutostart={setAutostart}
         crashRestart={crashRestart} setCrashRestart={setCrashRestart}
         crashMaxRestarts={crashMaxRestarts} setCrashMaxRestarts={setCrashMaxRestarts} />
 
-      {/* Scheduled tasks — Phase 3 (scheduler-leaf gated) */}
+      {/* Scheduled tasks — the instance's maintenance windows, gated on the scheduler leaf */}
       <ScheduleSection schedulerDown={schedulerDown} schedulerLed={schedulerLed}
-        scheduledRestart={scheduledRestart} setScheduledRestart={setScheduledRestart}
-        restartTime={restartTime} setRestartTime={setRestartTime}
-        restartDay={restartDay} setRestartDay={setRestartDay}
+        hostId={server.hostId} serverId={server.id} isContainer={server.runtime === "container"}
+        windows={windows} setWindows={setWindows} savedWindows={savedWindows}
         timezone={timezone} setTimezone={setTimezone}
-        backupSchedule={backupSchedule} setBackupSchedule={setBackupSchedule}
-        backupTime={backupTime} setBackupTime={setBackupTime}
-        backupDay={backupDay} setBackupDay={setBackupDay}
-        nextBackupUtc={nextBackupUtc}
-        backupRetention={backupRetention} setBackupRetention={setBackupRetention}
-        lastBackupUtc={lastBackupUtc} lastBackupOk={lastBackupOk} nextFireUtc={nextFireUtc} />
+        backupRetention={backupRetention} setBackupRetention={setBackupRetention} />
 
-      {/* Updates — LIVE in Phase 0 */}
+      {/* Updates */}
       <SettingsSection icon="download" title="Updates">
         <SettingsRow icon="download" title="Auto-update"
           sub="Apply the latest version on next restart (when available).">
@@ -250,7 +223,7 @@ function ServerSettings({ server, onDeleted }) {
         </SettingsRow>
       </SettingsSection>
 
-      {/* Resources — LIVE in Phase 2 */}
+      {/* Resources */}
       <ResourcesSection watchdogDown={watchdogDown} watchdogLed={watchdogLed}
         cpuPriority={cpuPriority} setCpuPriority={setCpuPriority}
         memoryCapMb={memoryCapMb} setMemoryCapMb={setMemoryCapMb} />

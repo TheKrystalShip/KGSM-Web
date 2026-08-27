@@ -318,3 +318,74 @@
 @media (max-width: 620px) {
   .thr-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* --- Maintenance windows (server → Settings → Scheduled tasks) -------------------------------- */
+/* One window's controls, on the shared leaf-tab field furniture (.thr-field and its label). They
+   wrap rather than sitting in a fixed track, because a cadence dropdown and a two-digit day of the
+   month are not the same width and a uniform column puts one of them in the wrong box. */
+
+.mw-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+
+.mw-fields > .thr-field { flex: 0 1 auto; }
+
+/* Each control asks for the width its longest option needs and shrinks from there. */
+.mw-field--kind { flex-basis: 190px; }
+.mw-field--cadence { flex-basis: 150px; }
+.mw-field--day { flex-basis: 150px; }
+.mw-field--num { flex-basis: 92px; }
+.mw-field--raw { flex: 1 1 260px; }
+/* A time field is already sized to its own clock, so it takes no basis of its own. */
+.mw-field--time { flex: 0 0 auto; }
+/* The tasks take a line of their own: three chips beside four dropdowns wrap into a ragged second
+   row of a shape that changes with the cadence. */
+.mw-field--tasks { flex: 1 1 100%; }
+
+.mw-tasks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Adding a window sits in the card's own list, on the rows' left edge. */
+.mw-add {
+  display: flex;
+  padding: 10px 14px 12px;
+}
+
+@media (max-width: 768px) {
+  /* The card's instance-level rows stack, so the label owns the first line and the field owns the
+     second — a text input holding its own width beside a wrapping title leaves the title one word per
+     line. A window row is exempt: its control is one icon button, and its fields are already in the
+     body where the cluster wraps them. */
+  .mw-card .chat-brief__item:not(.mw-row) {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .mw-card .chat-brief__item:not(.mw-row) .chat-brief__item-title,
+  .mw-card .chat-brief__item:not(.mw-row) .chat-brief__titletext {
+    white-space: normal;
+  }
+
+  /* Indented under the label text — 28px of icon plus the row's 10px gap — and the indent comes OUT
+     of the width. A full-width slot carrying a left margin runs its own right edge past the row it
+     is in, which is invisible on the page because the card scrolls with everything else. */
+  .mw-card .chat-brief__item:not(.mw-row) .settings-row__controls {
+    width: calc(100% - 38px);
+    margin-left: 38px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+
+  /* A text field takes the line it was given; a number field is a handful of digits and keeps its
+     own width whatever room it is offered. */
+  .mw-card .chat-brief__item:not(.mw-row) .settings-row__controls > .settings-input:not(.settings-input--num) {
+    flex: 1 1 auto;
+  }
+}

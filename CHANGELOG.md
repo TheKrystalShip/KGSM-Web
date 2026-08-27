@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — a server's scheduled tasks are a list of maintenance windows (`1.168.0`)
+
+Server → Settings → Scheduled tasks edits the instance's maintenance windows: a list of cards plus
+Add window, each card one appointment and the ordered set of tasks that runs when it comes round.
+A window is written either as a time of day (daily, weekly on a named day, or a day of the month) or
+as an interval, and carries any of back up, update and restart as toggle chips. The order they run
+in is fixed and there is no control for it.
+
+Every window says when it fires next, and the answer is the node's: the scheduler leaf's own reading
+for a window it has already swept, and the node's preview endpoint — the same parser and the same
+clock the daemon fires on — for one that is unsaved, edited, or newer than the last sweep. Nothing
+here computes a schedule. A window the node will not read is shown as invalid with the parse error
+that names the offending text, still editable and still removable, rather than dropped from the list.
+
+On a container instance update and restart are refused, because the watchdog performs them and it
+supervises native instances only; the chips render disabled and the card names the rule.
+
+The list is one field in the settings PATCH and replaces the instance's windows wholesale, which is
+what makes deleting one expressible. The timezone appointments are read in, and how many backups a
+scheduled prune keeps, stay instance-level rows below the list.
+
 ### Added — the cluster's nodes are in the sidebar (`1.167.0`)
 
 Every node the panel drives sits under the Cluster entry, in the same shortcut idiom the favourites

@@ -45,6 +45,15 @@
   padding: 0 8px;
 }
 
+/* A number field is a handful of digits. The 180px floor the text inputs need would leave it floating
+   in a row of whitespace, and the row's control slot does not shrink — so an unbounded one pushes its
+   own right edge out of the card. */
+.settings-input--num {
+  min-width: 0;
+  width: 92px;
+  text-align: right;
+}
+
 /* Two controls reading as one answer ("between X and Y"), kept on one baseline. */
 .settings-inline {
   display: flex;

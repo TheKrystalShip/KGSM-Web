@@ -480,12 +480,23 @@ function installServer(cfg) {
   return api.host(hostId).post("/servers", body);
 }
 
-// ---- Settings (Phase 0) -------------------------------------------------
+// ---- Settings ------------------------------------------------------------
 function fetchSettings(hostId, serverId) {
   return api.host(hostId).get("/servers/" + serverId + "/settings");
 }
 function patchSettings(hostId, serverId, patch) {
   return api.host(hostId).patch("/servers/" + serverId + "/settings", patch);
+}
+// What a candidate maintenance window would do, before anybody saves it: whether the node can read it,
+// and the instants it would fire on. Pure on the node — nothing is written and the scheduler is not
+// told anything. The arithmetic is deliberately not done here: the node computes it with the same
+// clock the scheduler fires on, so an editor and a daemon cannot disagree about a window across a
+// daylight-saving boundary.
+function previewMaintenanceWindow(hostId, serverId, expression, timezone, count) {
+  const body = { expression };
+  if (timezone) body.timezone = timezone;
+  if (count) body.count = count;
+  return api.host(hostId).post("/servers/" + serverId + "/settings/maintenance/preview", body);
 }
 // The operator-authored server note. Writing goes through the dedicated endpoint (not the config
 // PATCH, which refuses the note's keys) so the backend owns the encoding and the attribution stamp.
@@ -548,5 +559,5 @@ function deleteServer(hostId, serverId, origin) {
 export {
   __setJobTiming, serversStore, jobsStore, resolveGameNames,
   commandServer, sendConsoleInput, moderatePlayer, awaitJob, installServer,
-  fetchSettings, patchSettings, deleteServer, moveServer, saveServerNote, setServerDisplayName,
+  fetchSettings, patchSettings, previewMaintenanceWindow, deleteServer, moveServer, saveServerNote, setServerDisplayName,
 };
