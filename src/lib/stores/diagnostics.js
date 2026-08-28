@@ -422,6 +422,35 @@ function fetchLeafReactorDecisions(hostId, days) {
   return fetchLeafOverview(hostId, "reactor", "decisions" + q);
 }
 
+// What this host is OFFERING, and what recently became of its offers. One call, because reading the two
+// halves separately would show them a moment apart — an offer that lapsed between the calls would appear
+// in neither.
+//
+// ⚠ Every open offer carries a `handle`, and the handle is the capability rather than a name for one:
+// anything holding it can ask for the action. That is why the call is operator-tier, and why nothing
+// here should put one in a URL, a log line or a shared link.
+function fetchLeafReactorProposals(hostId, days) {
+  const q = days > 0 ? "?days=" + days : "";
+  return fetchLeafOverview(hostId, "reactor", "proposals" + q);
+}
+
+// Answer an offer. `confirm` authorises the action; anything else declines it.
+//
+// ⚠ Who is answering is NOT sent from here. The api takes it from the authenticated session, because a
+// caller-supplied name would let anybody sign anybody else's confirmation.
+//
+// ⚠ A rejected promise is not "nothing happened". The leaf claims an offer before it performs, so a
+// timeout is a slow action rather than a refused one — re-read the list rather than retrying.
+function answerLeafReactorProposal(hostId, handle, confirm) {
+  if (!hostId) return Promise.reject(new Error("answerLeafReactorProposal: hostId required"));
+  if (!handle) return Promise.reject(new Error("answerLeafReactorProposal: handle required"));
+  // Explicitly null rather than omitted: the transport distinguishes "no body" from "undefined", and
+  // the only thing this request carries is which handle and which verb — both of them in the path.
+  return api.host(hostId).post(
+    "/hosts/" + hostId + "/services/reactor/proposals/" + encodeURIComponent(handle)
+    + (confirm ? "/confirm" : "/dismiss"), null);
+}
+
 function applyLeafConfig(hostId, leaf, body) {
   if (!hostId || !leaf) return Promise.reject(new Error("applyLeafConfig: hostId required"));
   return api.host(hostId).put("/hosts/" + hostId + "/services/" + leaf + "/config", body || {}).then(adaptLeafConfigApply);
@@ -435,4 +464,5 @@ export {
   fetchLeafSpeechStatus, fetchLeafReactorStatus, fetchLeafReactorDecisions,
   fetchLeafReactorCatalog, fetchLeafReactorTriggers, fetchLeafReactorRules,
   previewLeafReactorRule, saveLeafReactorRules,
+  fetchLeafReactorProposals, answerLeafReactorProposal,
 };

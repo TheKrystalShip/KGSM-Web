@@ -28,9 +28,15 @@ export function SubTabs({ tabs, active, onChange }) {
       <label className="subtabs-mobile" aria-label="Section">
         <Icon name={current.icon} size={16} />
         <span className="subtabs-mobile__label">{current.label}</span>
+        {/* The badge's noun is the tab's own, because a badge counts whatever that tab holds — alerts
+            on one page and unanswered offers on another, and "2 alerts" over a list of offers would
+            name something that is not there. */}
         <select value={active} onChange={e => onChange(e.target.value)}>
           {tabs.map(t => (
-            <option key={t.id} value={t.id}>{t.label}{t.badge ? " · " + t.badge + " alert" + (t.badge === 1 ? "" : "s") : ""}</option>
+            <option key={t.id} value={t.id}>
+              {t.label}
+              {t.badge ? " · " + t.badge + " " + (t.badgeNoun || "alert") + (t.badge === 1 ? "" : "s") : ""}
+            </option>
           ))}
         </select>
         <Icon name="chevron-down" size={16} />

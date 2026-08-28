@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — answering what the reactor offers (1.174.0)
+
+A Proposals tab on the reactor leaf, badged with how many offers are waiting. An offer is a rule that
+fired in propose mode: it found a condition, described what it would do, and did nothing. Answering one
+is the only place in the panel where a person authorises an action that nothing asked them for.
+
+**It is drawn entirely from the panel's own furniture** — `.alert-card` and `alert-btn` for the offer,
+`KPI` for the endings, `CardTable` for the history, and the same `useConfirmAction` every destructive
+lifecycle verb here arms through. An offer has an alert's shape (a severity, a title, a sentence, a
+couple of answers), so it takes an alert's rendering: one affordance, drawn once, and every theme is
+inherited rather than tracked.
+
+⚠ **What it does not borrow is the mechanism, and the two look identical.** An alert card's buttons
+issue an ordinary command and the gate is re-derived at render. An offer is the opposite — the action is
+*staged*, and confirming redeems a handle so the leaf re-derives the condition first. A server that came
+back up overnight answers *stale* instead of being restored over, which is what lets an offer wait a
+shift rather than five minutes. Wired as an alert, pressing it would fire a fresh command and lose
+exactly that.
+
+The four endings are counted apart rather than folded into answered-or-not, because each says something
+different about the rule that staged it, and each tile carries the line that says what its count
+*means*. ⚠ The stale ending is labelled **Stale** in every compact place it is shown rather than the
+wire's own `no_longer_applicable`: the long form does not fit a summary tile at any width the band uses,
+and a label that wraps drops its number below its neighbours'.
+
+Confirm arms before it fires and disarms itself if left alone; dismiss does not arm. Every confirm
+authorises a real action on this host, and a single click would make authorising indistinguishable from
+clearing a notification.
+
+⚠ **Nothing sends who is confirming.** The api takes it from the authenticated session, because a
+caller-supplied name would let anybody sign anybody else's confirmation — the request carries no body at
+all. ⚠ **A handle is the capability**, so nothing here puts one in a link, a title attribute or anything
+else that leaves the page.
+
+The tab badge's noun is the tab's own: a badge counts whatever that page holds, and "2 alerts" over a
+list of offers would name something that is not there.
+
+Verified in a real browser against a live offer — `scripts/visual-harness/reactor-proposals.mjs` covers
+the badge, the card's action and reason, the arming guard and its self-disarm, that the confirm issues
+exactly one bodyless POST at the handle it was staged under, and that every ending label fits one line
+at a phone's two columns and a desktop's six. It mutates nothing: both redemption paths are intercepted
+at the fetch seam. Shot in Chromium and Firefox at both widths with no overflow and no disagreement, and
+across light, `win95`, `lcars` and a colour-vision palette — which is what borrowing the kit rather than
+writing new CSS buys.
+
 ### Fixed — a rule gets a rule's face (`1.173.1`)
 
 An audit row whose actor is a reactor rule draws the not-a-person surface rather than an account

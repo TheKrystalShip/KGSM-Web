@@ -23,7 +23,7 @@ import { Icon } from "../../components/Icon.jsx";
 import { SubTabs } from "../../components/SubTabs.jsx";
 import { useStore } from "../../lib/store.js";
 import { useKeyedResource } from "../../lib/keyedResource.js";
-import { fetchLeafCommands, hostsStore, servicesStore, subscribeHostServices } from "../../lib/stores.js";
+import { fetchLeafCommands, fetchLeafReactorProposals, hostsStore, servicesStore, subscribeHostServices } from "../../lib/stores.js";
 import { leafIcon, leafStatus } from "../../lib/leaves.js";
 import { ROUTE_TABS } from "../../lib/labels.js";
 import { AssistantOverview } from "./AssistantOverview.jsx";
@@ -36,6 +36,7 @@ import { FirewallOverview } from "./FirewallOverview.jsx";
 import { MonitorOverview } from "./MonitorOverview.jsx";
 import { ReactorOverview } from "./ReactorOverview.jsx";
 import { ReactorDecisions } from "./ReactorDecisions.jsx";
+import { ReactorProposals } from "./ReactorProposals.jsx";
 import { ReactorRules } from "./ReactorRules.jsx";
 import { SchedulerOverview } from "./SchedulerOverview.jsx";
 import { SchedulerWindows } from "./SchedulerWindows.jsx";
@@ -83,9 +84,13 @@ const LEAF_TABS = {
   // window, rather than glanced at.
   // Rules before Decisions: the rules are what the decisions are decisions OF, and a reader arriving at
   // this leaf for the first time needs the catalog before the log makes sense.
+  // Proposals last of the three and badged, because it is the only one that is ever WAITING on
+  // somebody: rules and decisions are read when a person chooses to, and an unanswered offer expires
+  // whether or not anybody came looking.
   reactor: [
     { id: "rules", label: "Rules", icon: "scale", render: (p) => <ReactorRules {...p} /> },
     { id: "decisions", label: "Decisions", icon: "gavel", render: (p) => <ReactorDecisions {...p} /> },
+    { id: "proposals", label: "Proposals", icon: "hand", render: (p) => <ReactorProposals {...p} /> },
   ],
 };
 
@@ -138,6 +143,24 @@ function LeafPage({ hostId, leafId, tab, onSelectTab, onReviewConversation, onAu
     return () => { cancelled = true; };
   }, [hostId, leafId]);
 
+  // How many offers are waiting for an answer, so the tab can say so without being opened. Its own
+  // read rather than a store: it is one number, wanted on one page, and it has to be re-asked after
+  // an offer is answered — which the tab body does by remounting on every visit.
+  //
+  // ⚠ A failure leaves it null and the badge absent. Rendering a zero would say "nothing is waiting"
+  // on a host that could not be asked, which is the one answer this must never give.
+  const [openOffers, setOpenOffers] = React.useState(null);
+  React.useEffect(() => {
+    setOpenOffers(null);
+    if (!hostId || leafId !== "reactor") return undefined;
+    let cancelled = false;
+    fetchLeafReactorProposals(hostId).then(
+      (board) => { if (!cancelled) setOpenOffers(Array.isArray(board?.open) ? board.open.length : null); },
+      () => { if (!cancelled) setOpenOffers(null); },
+    );
+    return () => { cancelled = true; };
+  }, [hostId, leafId, tab]);
+
   const extraTabs = [
     ...(LEAF_TABS[leafId] || []),
     // Only once a manifest is actually in hand — a tab that appears and then turns out to be empty
@@ -155,7 +178,10 @@ function LeafPage({ hostId, leafId, tab, onSelectTab, onReviewConversation, onAu
   const shell = leafId === "kgsm" ? [ROUTE_TABS.leaf[0]] : ROUTE_TABS.leaf;
   const tabs = [
     shell[0],
-    ...extraTabs.map(t => ({ id: t.id, label: t.label, icon: t.icon })),
+    ...extraTabs.map(t => ({
+      id: t.id, label: t.label, icon: t.icon,
+      ...(t.id === "proposals" && openOffers ? { badge: openOffers, badgeTone: "warn", badgeNoun: "offer" } : {}),
+    })),
     ...shell.slice(1),
   ];
   const active = tabs.some(t => t.id === tab) ? tab : "overview";

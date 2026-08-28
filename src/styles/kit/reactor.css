@@ -221,3 +221,26 @@
   padding: var(--s-1);
   line-height: 0;
 }
+
+/* An offer's meta line carries more than an alert's — the rule, who wrote it, and how long is left —
+ * so it wraps as whole items rather than squeezing five of them into a phone's width and breaking
+ * each one mid-phrase. */
+.reactor-offer .alert-card__meta {
+  flex-wrap: wrap;
+}
+
+/* A table cell carrying two lines. The shared table ellipsises a single text node, so an inner block
+ * would overflow past it and clip mid-word with nothing to show the text was cut — each line has to
+ * truncate itself. */
+.reactor-cell {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reactor-cell--sub {
+  color: var(--fg-3);
+  font-size: var(--text-xs);
+}
+
