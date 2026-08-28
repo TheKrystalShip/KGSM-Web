@@ -17,7 +17,7 @@ import { toPcm16k, MAX_SECONDS } from "../lib/voicePcm.js";
 //   VoiceNoteBubble     — playback in the thread: play/scrub waveform + the
 //                         transcript the assistant replied to.
 //
-// ⚠ WHO TRANSCRIBES: the host, whenever it can. A `transcribe` function passed
+// WHO TRANSCRIBES: the host, whenever it can. A `transcribe` function passed
 // to the hook means this host runs kgsm-speech, and the recording is sent there
 // — the same whisper, primed with the same server names, that hears a request
 // spoken into a Discord channel. That is what makes "restart factorio" land the

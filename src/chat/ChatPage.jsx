@@ -234,7 +234,7 @@ function ChatPage({
       last = Date.now();
       loadServerHistory();
 
-      // ⚠ And let go of a turn POST that was open when this surface was backgrounded. A frozen page's
+      // And let go of a turn POST that was open when this surface was backgrounded. A frozen page's
       // fetch is dead whether or not its promise ever settles, and while this code believes it is open
       // three things stay wrong at once: `busy` never clears, the transcript refetch is gated off
       // behind it, and the event stream's frames keep being skipped as this surface's own. The result
@@ -778,7 +778,7 @@ function ChatPage({
   // Stop the conversation's turn, whoever started it. A call rather than an abort, because a surface
   // that is only watching holds no connection to end — and ending it must end it for everyone, which a
   // local abort could never do. Aborting our own POST as well just detaches this surface early.
-  // ⚠ Turning it ON is the user gesture a browser needs before it will play anything, so the audio
+  // Turning it ON is the user gesture a browser needs before it will play anything, so the audio
   // context is created and resumed HERE. Armed on the frame instead it would be created seconds later
   // with no gesture behind it, and stay suspended — silence, with nothing to say why.
   const toggleSpeak = async () => {

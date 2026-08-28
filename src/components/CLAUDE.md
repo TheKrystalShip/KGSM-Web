@@ -44,7 +44,7 @@ into `App.jsx`.
   the chip and the rows read `isDegraded` for "answering, but this session cannot drive it", which is
   what keeps the count and the dots agreeing.
 
-  ⚠ `.sidebar__nav` is the one part of the aside allowed to scroll. The foot is pinned by
+  `.sidebar__nav` is the one part of the aside allowed to scroll. The foot is pinned by
   `margin-top: auto` and would otherwise be pushed past the bottom edge, where nothing can reach it.
 
 ## The `pin` slot — how a card gets onto the dashboard
@@ -63,7 +63,7 @@ ignorant of widgets entirely — they render whatever they are handed.
 pin itself and no shell has to check. It is a **toggle**: filled means this exact `(type, params)` is
 on the dashboard, and pressing it removes it.
 
-⚠ **CANON: a component does not branch on where it is mounted.** A card renders and behaves
+**CANON: a component does not branch on where it is mounted.** A card renders and behaves
 identically on its own page and pinned to the dashboard — a Minecraft console is the same console in
 both places. Its data is a function of its PARAMS (which server, which leaf) and never of its
 placement: stores are keyed by the target, not by the surface reading it. `WidgetContext` exists for
@@ -84,7 +84,7 @@ the nearest card: `WidgetGrid` measures each row's spare tail and offers it as a
 the cells, when the dragged widget is narrow enough to fit. A gap's insert index is the first cell of
 the next row — the array slot whose occupant would sit in that space.
 
-⚠ The catalog of widget types is registered by **`App.jsx`**, eagerly. `DashboardPage` is lazy, so
+The catalog of widget types is registered by **`App.jsx`**, eagerly. `DashboardPage` is lazy, so
 registering from there leaves the registry empty everywhere else and every pin silently draws
 nothing until the dashboard has been opened once.
 
@@ -101,7 +101,7 @@ same way, and the audit row comes from the same place. The palette is a second *
 capability, never a second implementation of it. That is also what makes it cheap: it is an index and
 a keyboard over things that already work.
 
-⚠ **Permission is applied when entries are BUILT, not at render.** An entry a role may not act on is
+**Permission is applied when entries are BUILT, not at render.** An entry a role may not act on is
 never constructed, so it cannot be matched, ranked, arrowed onto or run. Navigation asks `can`,
 anything scoped to one node asks `canOn` — "aggregate for reach, scoped for action", as everywhere.
 
@@ -133,7 +133,7 @@ a subtitle, and **a count of zero means no entry** rather than a row leading to 
 
 **Ranking learns, within a cap.** `palette/recents.js` holds a frecency table — a saturating use
 count decayed by a one-week half-life — and `rank` takes it as an optional `boostOf` so `score.js`
-keeps importing nothing. ⚠ The cap is the safety property: the boost can reorder entries whose text
+keeps importing nothing. The cap is the safety property: the boost can reorder entries whose text
 scores are close and outweigh any `weight` a source declares, but it cannot lift a weak match past a
 strong one, because a match at the start of a title is worth several times more on its own. Habit
 breaks ties; it never overrules what was typed. The snapshot is taken **once per open** — running
@@ -146,14 +146,14 @@ and the sentence when one cannot run, comes from **`moderationOffers`** in `Play
 counterpart to `verbGuard`, and for the same reason: a palette saying "Kick" where the roster's menu
 says "the server isn't running" would be two answers to one question.
 
-⚠ **The roster is the one thing the palette FETCHES.** Everything else is derived from stores already
+**The roster is the one thing the palette FETCHES.** Everything else is derived from stores already
 in memory. It reads through the keyed `playersStore`, so the Players tab and the palette share one
 hydrate, and only when the scoped server is **online** — which is the moderation gate itself, so it
 never reads a roster whose every row would be disabled. (Gating on the player *count* instead was
 wrong for the case that most needs this: unbanning is what you do when nobody is connected.)
 
 **A query that matches nothing offers the assistant, as a row.** Not a fall-through: it has to be
-selected and confirmed, and a typo simply sits there unchosen. ⚠ It does **not** send — the seed
+selected and confirmed, and a typo simply sits there unchosen. It does **not** send — the seed
 lands in the composer and focuses it, so the last word is a person pressing Enter on their own text,
 the same rule a voice note follows. It appears only when there is nothing else and only where an
 assistant can actually be reached; offering to ask a leaf this host has no route to is a row that
@@ -252,12 +252,12 @@ never a predicted time. Every button on the server locks while one is queued: th
 The phase is derived once by `lib/hooks/useJobPhase.js` and spread into each button, so the tile, the
 hero and an alert card's action cannot disagree about it.
 
-⚠ Two variants are too narrow for the sentence, measured in a browser: the tile's quick row is three
+Two variants are too narrow for the sentence, measured in a browser: the tile's quick row is three
 equal grid columns (~82px of label each) and the hero's button is a fixed 136px. Both drop the verb
 — which the button already says, by its icon and its slot in the row — rather than let an ellipsis
 eat the position, which is the one thing only the label can carry. The tooltip keeps the sentence.
 
-⚠ A refused verb renders **disabled with its reason** wherever the control has a fixed home — the
+A refused verb renders **disabled with its reason** wherever the control has a fixed home — the
 hero's chip row, the tile's quick row, an alert card's suggested action. kgsm-api's `CommandGate` 409s
 an update on a running server, so the button says "Server must be stopped before updating" before the
 click; hiding it there would leave an operator hunting for a control that was on that surface
@@ -320,7 +320,7 @@ predicted, what is armed, and what the nodes actually said.
   fired a bulk action. `host.jobs.queued`/`host.jobs.running` answer the per-node question and are
   bound for that reason.
 
-⚠ **The two screens are different on purpose.** Everything before the press is a prediction this
+**The two screens are different on purpose.** Everything before the press is a prediction this
 client made so it could explain itself; everything after it is read from the nodes' answers, which may
 contradict it — each node's `refused[]` is the authority for its own servers, and a node that never
 answered is reported **undispatched**, never counted as a failure.
@@ -355,12 +355,12 @@ fleet; this records what was asked for and how it went. The panel deliberately
 offers **no link** to the audit log: none of these rows are in it, so a "see more"
 would promise a continuation of this list that isn't there.
 
-⚠ Keep **Notifications** distinct from **Alerts**: Alerts are AlertEngine
+Keep **Notifications** distinct from **Alerts**: Alerts are AlertEngine
 conditions about the fleet, server-side and the same for everyone; Notifications
 are yours and this browser's. The foot placement and the `bell` vs `triangle-alert`
 icons are what hold them apart.
 
-⚠ And distinct from the **Runs** board (`batch/RunsBoard.jsx`), which is server-side truth about the
+And distinct from the **Runs** board (`batch/RunsBoard.jsx`), which is server-side truth about the
 fleet — work the nodes are executing, hydrated from every one of them, the same for everybody and
 outliving this tab. This one is per-browser and is what *you* did in it. Runs lives on the dashboard
 as a pinned widget, not in the foot beside this: two trays a foot apart would read as one list, and a
@@ -377,7 +377,7 @@ run somebody else started would pass for something you did yourself.
 - **Metrics / charts:** `KPI`, `StatTiles`, `TimeSeriesChart`, `DashLayout`.
 - **Editor / logs:** `CodeEditor` (Monaco), `LogConsole`, `VoiceNote`.
 
-⚠ **`VoiceNote`: the host transcribes, whenever it can.** `useVoiceRecorder({ transcribe })` takes the
+**`VoiceNote`: the host transcribes, whenever it can.** `useVoiceRecorder({ transcribe })` takes the
 host's recogniser, and given one it is the only transcriber used — the browser's own
 `SpeechRecognition` is the fallback for a host with no speech leaf. Two recognisers is two spellings
 of every server name, and Chrome's ships the audio to Google, which is a surprising thing for a

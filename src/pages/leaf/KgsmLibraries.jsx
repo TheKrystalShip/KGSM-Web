@@ -96,7 +96,7 @@ function KgsmLibraries({ host }) {
     );
   };
 
-  // Emptying it first, then deregistering. ⚠ This runs for as long as the copy takes — minutes per
+  // Emptying it first, then deregistering. This runs for as long as the copy takes — minutes per
   // server — and nothing brackets it, so there is no progress to show and the row simply waits.
   const submitDrain = (lib) => {
     if (!drainTo) return;

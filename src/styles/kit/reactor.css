@@ -166,7 +166,7 @@
 /* The coloured rail down the left IS the outcome, which is why a step needs no other badge to be
  * scannable. Order is the semantics here, so the lines read as a sequence rather than as a set. */
 .rule-line {
-  /* ⚠ Stated, not inherited. A step is a <button> where it can be edited and a <div> where it is
+  /* Stated, not inherited. A step is a <button> where it can be edited and a <div> where it is
    * only read, and the UA gives a button border-box while a div keeps content-box — so without this
    * the read-only ladder is wider than its card by exactly its padding and border, on a phone,
    * where there is no room to absorb it. */

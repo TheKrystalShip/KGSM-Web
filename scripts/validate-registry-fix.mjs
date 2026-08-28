@@ -46,5 +46,5 @@ try {
 } finally {
   await vite.close(); restore();
 }
-console.log(`\n${fail === 0 ? "✅ registry corruption fixed + self-heals" : `❌ ${fail} failed`}`);
+console.log(`\n${fail === 0 ? "✓ registry corruption fixed + self-heals" : `✗ ${fail} failed`}`);
 process.exit(fail ? 1 : 0);

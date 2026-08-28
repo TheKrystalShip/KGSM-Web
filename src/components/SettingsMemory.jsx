@@ -18,7 +18,7 @@ import { fmtRelative, fmtTime, parseTs } from "../lib/formatting.js";
 // key the standalone surface always uses. `connected` says whether that leaf is reachable right now,
 // so the card can say why nothing loaded rather than just showing an empty list.
 //
-// ⚠ **A memory belongs to one leaf, and the panel drives a cluster.** The defaults below describe the
+// **A memory belongs to one leaf, and the panel drives a cluster.** The defaults below describe the
 // standalone surface, which has exactly one assistant and never has to say which — everything that
 // makes this card cluster-aware is a prop the panel passes:
 //
@@ -115,7 +115,7 @@ function SettingsMemory({ hostId, connected = true, hostName = null, candidates 
           <SettingsRow icon="plug" title="No assistant on this cluster"
             sub="No host here runs one, so nothing has been written down about you." />
         )}
-        {/* Targeted but out of reach. ⚠ Not "nothing is remembered" — that is a claim about the
+        {/* Targeted but out of reach. Not "nothing is remembered" — that is a claim about the
             memory, and the only honest thing available is that it cannot be read right now. */}
         {hostId && !connected && (
           <SettingsRow icon="server-off" tone="warn"

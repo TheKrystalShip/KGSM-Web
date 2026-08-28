@@ -9,7 +9,7 @@
 // last click. So the weight is a use count that saturates, multiplied by a decay — half its value a
 // week later — and the product is what ranks.
 //
-// ⚠ THE BOOST IS CAPPED, and the cap is the whole safety property. At `MAX_BOOST` it can reorder
+// THE BOOST IS CAPPED, and the cap is the whole safety property. At `MAX_BOOST` it can reorder
 // entries whose text scores are close and can outweigh any `weight` a source declares (those span
 // 5–120), but it cannot lift a weak match past a strong one: a match at the start of a title is
 // worth +400 on its own (score.js). Habit breaks ties; it never overrules what was typed.

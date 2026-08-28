@@ -12,7 +12,7 @@ import { createStore } from "../store.js";
 // It pairs with `useKeyedResource`: keying is what lets two targets coexist, and that is what stops
 // N mounts of the same target hydrating N times.
 //
-// ⚠ TAIL-THEN-FOLLOW, and the ORDER IS A RACE. `acquire` calls hydrate() and follow() back to back
+// TAIL-THEN-FOLLOW, and the ORDER IS A RACE. `acquire` calls hydrate() and follow() back to back
 // and neither waits, so live frames start arriving while the REST read is still in flight. A frame
 // applied before the roster lands would be overwritten by it — somebody would join, and then
 // silently un-join when the hydrate finished. So frames are BUFFERED until the read completes and

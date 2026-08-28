@@ -542,7 +542,7 @@ function setServerDisplayName(hostId, serverId, label) {
 
 // Move an instance's files onto another registered disk. The node answers 202 + a job, and that job —
 // which arrives on the servers stream like any other — is what the row renders "Moving…" from for the
-// whole copy. ⚠ It has to be: the engine starts the server once on its new path to confirm it runs
+// whole copy. It has to be: the engine starts the server once on its new path to confirm it runs
 // there, so run-state alone would flicker online and back mid-move.
 //
 // There is no skip-space-check. The node measures what the instance actually occupies before it

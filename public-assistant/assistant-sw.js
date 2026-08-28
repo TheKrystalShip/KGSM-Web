@@ -4,7 +4,7 @@
 // with a functional `fetch` handler, and give an offline-launchable app shell — without ever
 // touching the live data path.
 //
-// ⚠ IT DIFFERS FROM THE PANEL'S IN THE ONE WAY THAT MATTERS, and the difference is not stylistic.
+// IT DIFFERS FROM THE PANEL'S IN THE ONE WAY THAT MATTERS, and the difference is not stylistic.
 // The panel is served by kgsm-api, whose API lives under /api/ and /auth/, so a DENYLIST of those
 // two prefixes is exhaustive. This surface is served BY THE LEAF IT TALKS TO, and the leaf's routes
 // are UNPREFIXED AT THE ROOT — /turn, /confirm, /conversations, /tools, /health, /auth/*, /admin/*.
@@ -118,11 +118,11 @@ self.addEventListener("fetch", (event) => {
 // does so once you have stopped looking at the chat, so a notification arriving means nobody is
 // watching this decision anywhere.
 //
-// ⚠ Every payload here is a CAPABILITY. `confirm` and `cancel` are single-use handles that act
+// Every payload here is a CAPABILITY. `confirm` and `cancel` are single-use handles that act
 // without a session — which is the only way a worker can act at all — so they are never logged,
 // never put in a URL, and never survive the notification they arrived on.
 //
-// ⚠ The clock is the whole design constraint. A staged action lives five minutes, so these buttons
+// The clock is the whole design constraint. A staged action lives five minutes, so these buttons
 // go stale on their own and tapping a stale one is an ORDINARY outcome, not an error: it gets a
 // plain sentence, the same as a successful one would.
 
@@ -140,7 +140,7 @@ self.addEventListener("push", (event) => {
   // could do — an "Confirm" on a finished backup is an offer to run it twice.
   const decidable = !!(payload.confirm || payload.cancel);
 
-  // ⚠ `userVisibleOnly` is not advisory: Chrome revokes a subscription that receives pushes without
+  // `userVisibleOnly` is not advisory: Chrome revokes a subscription that receives pushes without
   // showing anything. There is always a notification here, even for a payload we could not parse.
   event.waitUntil(self.registration.showNotification(title, {
     body,
@@ -155,7 +155,7 @@ self.addEventListener("push", (event) => {
     icon: "/icons/assistant-icon-192.png",
     // No `badge`: it wants a monochrome glyph this surface does not ship, and pointing it at the
     // colour icon renders a grey square on Android.
-    // ⚠ Some platforms render no buttons at all (iOS today). The tap-through must therefore be a
+    // Some platforms render no buttons at all (iOS today). The tap-through must therefore be a
     // complete answer on its own, and it is: it opens the chat, where the same action is waiting.
     actions: decidable
       ? [{ action: "confirm", title: "Confirm" }, { action: "cancel", title: "Cancel" }]
@@ -189,7 +189,7 @@ self.addEventListener("notificationclick", (event) => {
 /**
  * Spend a handle and say what happened.
  *
- * ⚠ What comes back is "approved and started", NOT the result. A confirmed action runs to completion
+ * What comes back is "approved and started", NOT the result. A confirmed action runs to completion
  * — a backup is minutes — and this worker has a short, unstated budget before the browser terminates
  * it, so a route that waited for the result would return to nothing at all: the tap would appear to
  * do nothing while the work ran. The leaf sends the real verdict as its own push when it settles.
@@ -211,7 +211,7 @@ async function redeem(handle, action) {
     message = body.message
       || (res.ok ? "Done." : "That notification is no longer valid.");
   } catch {
-    // ⚠ Never report an unreachable host as a completed action. A failed fetch means we do not know
+    // Never report an unreachable host as a completed action. A failed fetch means we do not know
     // whether anything ran, and the action is still waiting if it did not.
     message = "Couldn't reach the assistant — the action is still waiting if it hasn't expired.";
   }

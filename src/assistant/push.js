@@ -13,7 +13,7 @@ import { SELF } from "./self.js";
 // carries it — the panel's dock talks to the leaf cross-origin, and its own worker is already
 // subscribed to kgsm-api's key, which a subscription cannot be shared with.
 
-// ⚠ SELF, not the origin. The id is a key into the session store — `setOriginResolver` is what turns
+// SELF, not the origin. The id is a key into the session store — `setOriginResolver` is what turns
 // it into an address — so any other value resolves to the right URL carrying no bearer, and the 401
 // that follows is indistinguishable from the leaf being down.
 function leaf() {
@@ -48,7 +48,7 @@ async function status() {
     }
   } catch (e) {
     // A leaf that will not answer is not a browser that cannot subscribe, so what the browser can do
-    // is still reported. ⚠ The REASON travels with it rather than collapsing to "couldn't reach":
+    // is still reported. The REASON travels with it rather than collapsing to "couldn't reach":
     // a lapsed session and a host that is actually down produce the same silence here, and telling
     // somebody to check the network when they need to sign in again is a wrong answer, not a vague
     // one. The leaf answers 401 on an expired bearer, which is a fact worth passing on.
@@ -72,7 +72,7 @@ async function status() {
 /**
  * Subscribe this browser and register it with the leaf.
  *
- * ⚠ Must be called from a real user gesture: a permission prompt that was not asked for is denied,
+ * Must be called from a real user gesture: a permission prompt that was not asked for is denied,
  * and a denied permission is close to unrecoverable.
  */
 async function subscribe() {

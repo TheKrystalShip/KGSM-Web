@@ -9,7 +9,7 @@
 
 import { registerWidget } from "../../lib/widgets/registry.js";
 
-// ⚠ A `type` string is PERSISTED in every layout that uses it. Renaming one orphans those widgets
+// A `type` string is PERSISTED in every layout that uses it. Renaming one orphans those widgets
 // into "no longer available" tiles on other people's dashboards. Treat a shipped type as immutable.
 
 // The twelve figures as one block. Superseded by the individual tiles below and no longer offered in

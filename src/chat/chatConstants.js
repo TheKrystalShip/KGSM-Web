@@ -53,7 +53,7 @@ const CHAT_PRIVACY_NOTICE =
 
 // What a conversation with nothing said in it is called.
 //
-// ⚠ The leaf names every conversation it holds, including this one — `title` on a listing row is never
+// The leaf names every conversation it holds, including this one — `title` on a listing row is never
 // null (`kgsm-llm/docs/wire-contract.md`, "A conversation is named by the leaf"). This constant is NOT
 // a second opinion about that; it covers the one conversation the leaf has no opinion on yet: the row
 // this browser mints between pressing New chat and `/new` answering, and the same row on a leaf too old

@@ -115,7 +115,7 @@ cp .env.example .env.local
 # VITE_WS_BASE is optional (derived from VITE_API_BASE if unset)
 ```
 
-⚠ each connected host's `kgsm-api` must allow the SPA origin via
+each connected host's `kgsm-api` must allow the SPA origin via
 `KGSM_API_CORS_ORIGINS`. The seams are `src/lib/apiClient.js`
 (`get/post/patch` + `fanOut` + the SSE streams, with adapters in
 `src/lib/adapters.js`) and `src/lib/connect.js` (the connect probe); call sites
@@ -172,7 +172,7 @@ it names is missing from `dist-assistant/`.
   the pixel: `scripts/make-assistant-icons.mjs` renders the lucide `bot` in `--krystal-teal` on
   `--krystal-teal-dim` over `--canvas`, the glyph 26/56 of the frame and its stroke the `1.7` every
   `<Icon>` uses. One drawing serves the favicon (SVG, plus a 32px PNG fallback), the
-  `any`/`maskable`/apple-touch icons and the 13 iOS launch images. ⚠ The script cannot read a CSS
+  `any`/`maskable`/apple-touch icons and the 13 iOS launch images. The script cannot read a CSS
   custom property, so those colours and that geometry are **copied** from `styles/tokens.css` and
   `kit/chat.css` — change the element and you must change the script. Run it by hand after changing
   the artwork; it needs `rsvg-convert` and no build invokes it.

@@ -123,7 +123,7 @@ import { hostsStore } from "./stores.js";
   // Called after every record write: start the countdown on entering `expired`, and stop
   // it only when the session actually comes back.
   //
-  // ⚠ `bootstrapping` deliberately does NOT stop it. An attempt in flight is not a
+  // `bootstrapping` deliberately does NOT stop it. An attempt in flight is not a
   // recovery — and every retry passes through that status on its way back to `expired`,
   // so treating it as one restarts the countdown from zero each time. A revoked session
   // is retried by the SSE stream's own reconnect backoff, which tops out at 12s and never

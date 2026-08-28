@@ -5,7 +5,7 @@
    already rendered .login-shell/.login-card, so node-select, sign-in and register
    are one family by construction rather than by resemblance.
 
-   ⚠ THE FORM FURNITURE HERE FOLLOWS THE SITE, NOT ITS OWN SCHEME. This screen had
+   THE FORM FURNITURE HERE FOLLOWS THE SITE, NOT ITS OWN SCHEME. This screen had
    drifted: it filled inputs with --surface-2 where every other input in the app
    uses --surface-3 (which tokens.css names "input fill" in so many words), focused
    to full-strength --krystal-teal where the rest focus to --border-accent, and its
@@ -216,7 +216,7 @@
   margin-bottom: 5px;
 }
 
-/* ⚠ `box-sizing` is stated, not inherited. This app has no global reset — it declares
+/* `box-sizing` is stated, not inherited. This app has no global reset — it declares
    border-box per rule (see the note in consumer.css) — and a `width: 100%` control with
    horizontal padding is content-box by default, so it renders 26px wider than its card
    and hangs over the edge. The password variant adds another 30px for the reveal button

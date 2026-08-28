@@ -966,7 +966,7 @@ try {
     assert(grew, "performance: a REAL monitor metrics.tick grew the live window (subscribe → WS → render)");
     await nav("#/cluster");
   } else {
-    console.log("  ⚠ skip performance (i3): no running server on this backend to prove live ticks");
+    console.log("  skip performance (i3): no running server on this backend to prove live ticks");
   }
 
   // ---- Phase 5: command + install write paths (slice 6) -------------------
@@ -3514,7 +3514,7 @@ try {
 
     await nav("#/cluster");
   } else {
-    console.log("  ⚠ skip players roster (no server on this backend)");
+    console.log("  skip players roster (no server on this backend)");
   }
 
   // ---- the cluster invariant: N nodes, nothing selected --------------------

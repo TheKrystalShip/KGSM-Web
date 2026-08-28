@@ -19,7 +19,7 @@ import { Modal } from "../components/Modal.jsx";
 // visit. Dismissing counts as done — re-showing a modal somebody has closed, on every load, teaches
 // them to close it faster rather than to read it. Clearing site data brings it back.
 //
-// ⚠ The key is VERSIONED. Bump it to re-show the tour after the mechanics change; the old key is
+// The key is VERSIONED. Bump it to re-show the tour after the mechanics change; the old key is
 // then simply a different key, and nobody has it.
 const SEEN_KEY = "krystal:welcome:v1";
 

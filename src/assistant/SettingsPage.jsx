@@ -76,7 +76,7 @@ function SettingsPage({ tab, onTabChange, onBack }) {
 // browser, on this origin, with keys it minted itself. Signing in on a second phone notifies neither
 // until that one is registered too.
 //
-// ⚠ What this deliberately does NOT offer is a list of events. The assistant announces the one thing
+// What this deliberately does NOT offer is a list of events. The assistant announces the one thing
 // that is its own; a crash or a finished update is the Control Panel's, on its own origin with its
 // own key, and offering them here would be one person notified twice from two apps.
 function Notifications() {
@@ -94,7 +94,7 @@ function Notifications() {
     setBusy(true);
     setError("");
     try {
-      // ⚠ Called straight off the click. The permission prompt has to come from a real gesture, and
+      // Called straight off the click. The permission prompt has to come from a real gesture, and
       // an `await` before it is what turns a prompt into a silent denial on some browsers.
       if (next) await push.subscribe();
       else await push.unsubscribe();

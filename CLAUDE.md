@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **standalone assistant** served by the kgsm-assistant leaf. Two Vite builds over one source tree,
 sharing `src/chat/` — the conversation is the same code in both, because a divergence between the
 dock and the standalone page would be a bug, not a variant. Everything that differs is a prop.
-⚠ The standalone surface must not reach the panel's data layer; `npm run check:assistant` enforces
+The standalone surface must not reach the panel's data layer; `npm run check:assistant` enforces
 it (see `src/CLAUDE.md`). The Control Panel is a standard
 Vite + React 18 (JSX) single-page app. It is a **runtime multi-host client**: it reads a localStorage
 registry of `kgsm-api` hosts and talks to them over `fetch` + SSE. The
@@ -120,7 +120,7 @@ resolves one against a flex-derived height where Firefox follows the spec and co
 the element. `shoot.mjs --engine both --measure '<css>,<css>'` measures the selectors in
 each engine, prints what they disagree about, and **exits 2** when they do. Use it for
 anything resting on a percentage height, a flex/grid track, sticky/fixed positioning, or
-`100vh`/`dvh`. ⚠ Firefox contexts take no `isMobile`/`hasTouch`/`deviceScaleFactor`
+`100vh`/`dvh`. Firefox contexts take no `isMobile`/`hasTouch`/`deviceScaleFactor`
 (Playwright rejects them), so a Firefox "mobile" run is the viewport only — check
 touch- and DPR-dependent behaviour in Chromium.
 
@@ -239,7 +239,7 @@ break boot. Read the comments before "tidying" an import.
   **`components/AuthGate.jsx` is everything in front of the app** — the node screen, the
   one sign-in/register card, and the wait for approval — and `App.jsx` renders it *instead
   of* the shell, so none of the shell's hooks and none of the data layer run for somebody
-  who has not signed in. ⚠ A **pending** account cannot be carried by `sessionStore`: that
+  who has not signed in. A **pending** account cannot be carried by `sessionStore`: that
   store is keyed by backend host id, and the only way to learn one is `GET /hosts`, which
   is viewer-gated. The gate holds their session itself (`lib/authFlow.js`, sessionStorage,
   keyed by origin) and polls `GET /me` — bare-authorized precisely so a tierless caller can
@@ -249,7 +249,7 @@ break boot. Read the comments before "tidying" an import.
 - **`SettingsIdentities.jsx` — connected accounts, per host.** Which provider accounts are attached
   to the caller's own KGSM account, and attaching or detaching one. Both writes confirm the password
   first (`POST /auth/reauth`), asked BEFORE starting rather than after being refused; a fresh sign-in
-  already counts, so the common path is never prompted. ⚠ **The link flow is same-origin**: the start
+  already counts, so the common path is never prompted. **The link flow is same-origin**: the start
   is an XHR (a bearer does not survive a top-level navigation) whose one-time ticket cookie the
   callback comes back with, and a cross-origin fetch does not store one. The callback returns to the
   configured frontend URL with `#linked=<provider>` or `#link_error=<code>`, which
@@ -272,7 +272,7 @@ break boot. Read the comments before "tidying" an import.
   until the user picks. The return leg lands here carrying an **`assistant_login=<hostId>` marker
   in the query**; that marker is load-bearing, because both logins come back to this origin with
   the same `access`/`refresh`/`error` fragment keys and without it the panel hands a leaf token to
-  kgsm-api and gets a 401. ⚠ **One redirect per host per tab**, so a refusing leaf cannot loop the
+  kgsm-api and gets a 401. **One redirect per host per tab**, so a refusing leaf cannot loop the
   browser.
 - **`capabilities.js` — per-host services** (metrics / assistant / watchdog), each
   with `provisioned` (offered?) × `status` (live health). **The assistant is
@@ -327,7 +327,7 @@ holds evidence for, a node that could not be read. The distinction is whether th
 change if the data changed. *"1 node couldn't be read (DevTest)"* is data. *"A run keeps going
 whether or not this tab is open"* is documentation, and belongs in `CLAUDE.md` or the CHANGELOG.
 
-⚠ Assert the **absence**, not the presence. A no-prose rule is invisible to lint and to a build, and
+Assert the **absence**, not the presence. A no-prose rule is invisible to lint and to a build, and
 the next edit that adds a helpful sentence will pass every gate. `scripts/smoke-live.mjs` and the
 browser harnesses check the rendered component for explanatory phrasing and fail on it.
 

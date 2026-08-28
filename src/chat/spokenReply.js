@@ -6,12 +6,12 @@
 // one to finish is a sentence that arrives on time, and one played the instant it lands talks over
 // the answer.
 //
-// ⚠ AUTOPLAY: a browser refuses audio until the page has been interacted with, and an AudioContext
+// AUTOPLAY: a browser refuses audio until the page has been interacted with, and an AudioContext
 // created before that starts `suspended`. Sending a message IS an interaction, so the context is
 // created and resumed on the send that asked to be spoken — not at import, and not on the frame,
 // which arrives seconds later with no gesture behind it.
 //
-// ⚠ It decodes rather than streams. Each frame is a self-contained file, so there is no decoder state
+// It decodes rather than streams. Each frame is a self-contained file, so there is no decoder state
 // between sentences and a dropped one costs exactly itself.
 
 // The one context per surface. Created lazily because constructing one before a gesture is what

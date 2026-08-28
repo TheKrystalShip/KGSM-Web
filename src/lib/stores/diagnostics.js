@@ -370,7 +370,7 @@ function fetchLeafReactorCatalog(hostId) {
 // The events a rule may wake on, read off what this host's ledger has actually observed — each with
 // its producer, how many were seen, and the weekly rate.
 //
-// ⚠ The rate is what makes it usable. A rule built on something that fires two hundred times a week
+// The rate is what makes it usable. A rule built on something that fires two hundred times a week
 // is a different proposition from one built on something that fires twice, and a person should see
 // that before they build it rather than after. `days` is the leaf's to bound, like the review's.
 function fetchLeafReactorTriggers(hostId, days) {
@@ -381,7 +381,7 @@ function fetchLeafReactorTriggers(hostId, days) {
 // What a proposed rule WOULD decide about this host right now — the verdict per subject and the exact
 // sentence it would record, with the figures filled in from the live world.
 //
-// ⚠ A read that carries a body. The leaf stores nothing, dispatches nothing and writes no decision, which
+// A read that carries a body. The leaf stores nothing, dispatches nothing and writes no decision, which
 // is why this is an operator-tier call rather than an admin one: previewing a rule is not having one.
 function previewLeafReactorRule(hostId, rule, subject) {
   if (!hostId) return Promise.reject(new Error("previewLeafReactorRule: hostId required"));
@@ -393,7 +393,7 @@ function previewLeafReactorRule(hostId, rule, subject) {
 // Store one rule. The leaf validates it against what the running build can honour, keeps it only if it
 // passes, and applies it without anything restarting.
 //
-// ⚠ A refusal arrives as a REJECTED promise carrying `problems`, because nothing was written. A rule
+// A refusal arrives as a REJECTED promise carrying `problems`, because nothing was written. A rule
 // that cannot be honoured never reaches the directory, so there is no half-saved state to reconcile —
 // the caller shows the reasons beside what the person is still looking at.
 function saveLeafReactorRule(hostId, rule) {
@@ -405,7 +405,7 @@ function saveLeafReactorRule(hostId, rule) {
 
 // Remove a rule's file outright.
 //
-// ⚠ Deleting is not retiring, and the panel retires. A retired rule keeps its file so the decisions it
+// Deleting is not retiring, and the panel retires. A retired rule keeps its file so the decisions it
 // already made still name a rule that can be described — an id is the actor on every one of them. This
 // is for a rule that was never meant to exist.
 function deleteLeafReactorRule(hostId, ruleId) {
@@ -428,7 +428,7 @@ function fetchLeafReactorDecisions(hostId, days) {
 // halves separately would show them a moment apart — an offer that lapsed between the calls would appear
 // in neither.
 //
-// ⚠ Every open offer carries a `handle`, and the handle is the capability rather than a name for one:
+// Every open offer carries a `handle`, and the handle is the capability rather than a name for one:
 // anything holding it can ask for the action. That is why the call is operator-tier, and why nothing
 // here should put one in a URL, a log line or a shared link.
 function fetchLeafReactorProposals(hostId, days) {
@@ -438,10 +438,10 @@ function fetchLeafReactorProposals(hostId, days) {
 
 // Answer an offer. `confirm` authorises the action; anything else declines it.
 //
-// ⚠ Who is answering is NOT sent from here. The api takes it from the authenticated session, because a
+// Who is answering is NOT sent from here. The api takes it from the authenticated session, because a
 // caller-supplied name would let anybody sign anybody else's confirmation.
 //
-// ⚠ A rejected promise is not "nothing happened". The leaf claims an offer before it performs, so a
+// A rejected promise is not "nothing happened". The leaf claims an offer before it performs, so a
 // timeout is a slow action rather than a refused one — re-read the list rather than retrying.
 function answerLeafReactorProposal(hostId, handle, confirm) {
   if (!hostId) return Promise.reject(new Error("answerLeafReactorProposal: hostId required"));

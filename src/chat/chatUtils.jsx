@@ -627,7 +627,7 @@ function reduceTurnFrame(messages, ev) {
 // One proposal card, built the same way whether the frame arrived live on the turn that staged it or
 // was restated by a conversation load while it was still waiting.
 //
-// ⚠ Built in ONE place on purpose. A restated proposal that rendered even slightly differently from a
+// Built in ONE place on purpose. A restated proposal that rendered even slightly differently from a
 // live one would be a second answer to "what is this action", and the surface most likely to see the
 // restated form is the one arriving via the notification — the surface with the least context.
 function proposalMessage(ev) {

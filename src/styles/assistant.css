@@ -6,7 +6,7 @@
    the list differs — so the two surfaces cannot drift apart aesthetically: a
    change to chat.css or a token lands in both.
 
-   ⚠ Order is load-bearing here exactly as it is in kit.css, and the sequence
+   Order is load-bearing here exactly as it is in kit.css, and the sequence
    below mirrors it entry for entry. A media query adds NO specificity, so a
    partial listed after responsive.css beats responsive.css's own phone rules for
    anything it styles — which is a phone-only bug on this surface alone, invisible

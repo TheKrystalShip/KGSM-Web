@@ -314,7 +314,7 @@ import("./stores.js").then((m) => {
   // /auth/session/refresh with the REFRESH token as the bearer (NOT the access
   // token the seam would inject) → { token, tier }. No Discord round-trip. Past
   // the refresh token's absolute cap the backend 401s → the caller treats it as
-  // genuinely expired. ⚠ The endpoint is ROOT-routed (/auth/session/refresh), NOT
+  // genuinely expired. The endpoint is ROOT-routed (/auth/session/refresh), NOT
   // under /api/v1 — so pass the bare origin as the base override.
   function refreshSession(hostId, refreshToken) {
     return liveFetch("POST", "/auth/session/refresh", null, hostId, refreshToken || null, apiOriginOf(hostId));
@@ -762,7 +762,7 @@ import("./stores.js").then((m) => {
   // root-routed like the session and account endpoints). Self-service throughout: an account
   // carries the tier, and only its holder changes what proves it.
   //
-  // ⚠ The link flow is SAME-ORIGIN. `startDiscord` sets a one-time HttpOnly ticket cookie the
+  // The link flow is SAME-ORIGIN. `startDiscord` sets a one-time HttpOnly ticket cookie the
   // callback comes back with, and a cross-origin fetch does not store one — the deployed panel is
   // served by the API it talks to, which is what makes this work. Against a separately-served dev
   // API the start succeeds and the callback then honestly reports `invalid_state`.

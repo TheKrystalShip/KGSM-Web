@@ -33,7 +33,7 @@ assistantSession.setOriginResolver((hostId) => {
   return (cap.info && cap.info.url) || null;
 });
 
-// ⚠ sessionStore is reached by a LAZY import, not a static one. It imports hostsStore from
+// sessionStore is reached by a LAZY import, not a static one. It imports hostsStore from
 // `../stores.js`, which is this folder's barrel, which imports this file — a static import
 // here would close that cycle and break boot. Same landmine as apiClient's deferred
 // imports; see `../CLAUDE.md`. Nothing depends on the bootstrap having started before the
@@ -58,7 +58,7 @@ function startDataLayer() {
     // a run started before this browser existed is exactly what the tray is for, and its badge has
     // to be right before anybody thinks to look at it.
     batchesStore.refresh().catch(swallow);
-    // ⚠ Preferences hydrate AFTER the host roster, not beside it. The home node is addressed by its
+    // Preferences hydrate AFTER the host roster, not beside it. The home node is addressed by its
     // BACKEND id, and a seeded connection holds none until `GET /hosts` reconciles it — so hydrating
     // in parallel finds no node, concludes the account has no stored preferences, and the dashboard
     // seeds a default over the layout that was actually there. Reconciliation is what this waits on;

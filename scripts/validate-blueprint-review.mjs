@@ -175,5 +175,5 @@ try {
   await vite.close();
 }
 
-console.log(`\n${fail === 0 ? "✅ blueprint review checkpoint reduces + finalizes correctly" : `❌ ${fail} check(s) failed`}`);
+console.log(`\n${fail === 0 ? "✓ blueprint review checkpoint reduces + finalizes correctly" : `✗ ${fail} check(s) failed`}`);
 process.exit(fail === 0 ? 0 : 1);

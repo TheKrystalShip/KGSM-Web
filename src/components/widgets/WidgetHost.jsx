@@ -23,7 +23,7 @@ import { useStore } from "../../lib/store.js";
 
 // ---- WidgetContext -------------------------------------------------------
 //
-// ⚠ CANON: A COMPONENT DOES NOT BRANCH ON WHERE IT IS MOUNTED.
+// CANON: A COMPONENT DOES NOT BRANCH ON WHERE IT IS MOUNTED.
 //
 // A card renders and behaves identically on its own page and pinned to the dashboard. Its data is a
 // function of its PARAMS — which server, which leaf — and never of its placement: a store is keyed

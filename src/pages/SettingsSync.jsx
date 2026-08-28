@@ -11,7 +11,7 @@ import { prefsStore } from "../lib/stores/prefs.js";
 // It sits on Devices because that is the tab about this browser and your others, and the switch is
 // precisely a statement about the relationship between them.
 //
-// ⚠ The copy has to be exact about what enabling does, because it is not a merge. The device that
+// The copy has to be exact about what enabling does, because it is not a merge. The device that
 // turns it on becomes the source and **overwrites the others** — which is the only rule that
 // converges without asking somebody to reconcile two dashboards by hand, and the only one that would
 // be a nasty surprise if the button just said "Sync".

@@ -4,7 +4,7 @@ Audit of the contract between the Control Panel SPA (`kgsm-web`) and the per-hos
 aggregator API (`kgsm-api`), and the plan to connect them. Neither side is
 authoritative today — this is the reconciliation record. Generated 2026-06-20.
 
-> **⚠ Realtime is fetch-based SSE.** `GET /api/v1/stream` serves `text/event-stream`
+> **Realtime is fetch-based SSE.** `GET /api/v1/stream` serves `text/event-stream`
 > (topics via `?topics=` at connect, bearer in the `Authorization` header, one primary
 > stream per host + per-view dynamic streams, reactive rotate-on-401); protocol
 > authority: `kgsm-api/src/Api/Realtime/CLAUDE.md`. The dated slice logs below describe
@@ -61,7 +61,7 @@ host). **Decision owed** (see §7).
 | Concern | Frontend today | Backend | Action |
 |---|---|---|---|
 | Base URL | `VITE_API_BASE` exists in `.env.example` but is **read nowhere in `src/`**; mock always serves fixtures | listens at `/api/v1` | Build a real transport that reads `VITE_API_BASE` (+ `/api/v1`); keep mock as the no-base fallback |
-| Realtime URL | ✅ `streamUrlOf(host, topics)` derived from the host base; fetch-based SSE client (`liveStream.js`) behind `api.stream` | `GET /api/v1/stream` (`text/event-stream`, topics via `?topics=`), bearer via `Authorization` header | DONE + **migrated WS→SSE 2026-07-02** (single host; multi-host fan-out = slice 8) |
+| Realtime URL | ✓ `streamUrlOf(host, topics)` derived from the host base; fetch-based SSE client (`liveStream.js`) behind `api.stream` | `GET /api/v1/stream` (`text/event-stream`, topics via `?topics=`), bearer via `Authorization` header | DONE + **migrated WS→SSE 2026-07-02** (single host; multi-host fan-out = slice 8) |
 | JSON casing | fixtures mix **snake_case** (`update_available`, `last_backup`, `user_id`, `per_core`, `boot_time`, `sample_age_s`, `open_ports`, `usage_pct`…) | **camelCase** everywhere (`PropertyNamingPolicy=CamelCase`) | Adapter normalizes; do **not** rename fixtures piecemeal — map at the seam |
 | Errors | mock rejects with `{code:'ECONNREFUSED'}` ad-hoc | `{error:{code,message,details?}}`, stable `code` strings | Transport unwraps the envelope into the FE's error shape |
 | Auth transport | per-host bearer injected by `api.host(id)` | `Authorization: Bearer <jwt>`; secure-by-default (everything needs a bearer) | Inject real bearer; use `KGSM_API_AUTH_DISABLED` on the backend to prove the data path *before* wiring OAuth |
@@ -91,28 +91,28 @@ treatment):
 
 ## 3. Endpoint matrix (FE call → BE endpoint)
 
-All BE routes are under `/api/v1`. ✅ aligned · ⚠️ remap needed · ❌ gap.
+All BE routes are under `/api/v1`. ✓ aligned · ! remap needed · ✗ gap.
 
 | FE call (`apiClient.js`) | Backend endpoint | Status | Notes |
 |---|---|---|---|
-| `GET /servers` | `GET /api/v1/servers` (Viewer) | ⚠️ | path prefix + **schema differs heavily** (§5) |
-| `POST /servers/{id}/commands {verb,origin}` | `POST /api/v1/servers/{id}/commands {verb,origin?}` (Operator) | ✅ **DONE (slice 6)** | wired via `commandServer` with `origin:"ui"`; status + job ride the `servers`/`jobs` WS. `update` is a verb (Tier-1 ops); the chip lights only when the update-check probe found a newer version, and the server reads `Updating…` for the whole run |
-| `GET /hosts` | `GET /api/v1/hosts` (Viewer) | ⚠️ | returns array-of-one per host; schema differs (§5); fan-out is FE-side |
-| `GET /library` | `GET /api/v1/library?q=&category=` (Viewer) | ⚠️ | **path agrees** (not `/catalog`); schema differs (§5) |
-| `GET /audit` | `GET /api/v1/audit?cursor=&limit=&severity=&serverId=&actor=&since=&category=` (Viewer) | ✅ **DONE (audit paging + filters slice)** | `adaptAudit` preserves the `{data,nextCursor}` envelope; the store **walks the keyset cursor** (1000-row cap) so events older than the first page are reachable (the real bug — LIVE fetched ONE page) + `loadMore()`; page discloses incompleteness + "Load older events", omits counts in LIVE. **Structured filters PUSH DOWN** (severity incl. `attention`→`warn,danger`, serverId, actor, range→`since`, category→action-prefix) so the cursor walks the FILTERED log; free-text search stays client-side. **kgsm-api extended:** multi-value severity + `since` + `category` params + a `Ts`→ticks value-converter (SQLite can't translate `DateTimeOffset >=`) |
-| `GET /auth/discord/callback?host=&prompt=` | `GET /auth/discord/callback?code=&state=` (anon) | ⚠️ | **different flow** — FE has a simplified per-host callback; BE is real OAuth code/state. Also `GET /auth/discord/start`. Returns `{verdict,tier,token,refresh,userId}` (FE expects `user_id`, has no `refresh` handling) |
-| `POST /auth/session/refresh {host}` | `POST /auth/session/refresh` + `Bearer <refresh-jwt>` → `{token}` (anon) | ⚠️ | FE sends `{host}` body; BE wants the refresh token as bearer |
-| `GET /servers/{id}` (defined, unused) | `GET /api/v1/servers/{id}` (Viewer) | ✅ | both exist; detail adds `network` block |
-| `PATCH /alerts/{id}` (defined, **unused**) | — (alerts read-only) | ✅ | FE never calls it; fine |
-| `POST /api/v1/hosts/{id}/assistant/chat` (raw fetch, **outside seam**, Ollama-shaped) | `POST {leaf}/turn {prompt,think?,tools?,conversationId?}` (SSE, on the assistant leaf's own origin) | ✅ **DONE (slice 9a + 9b + 9c)** | rewritten onto `api.host(id).turn()` (SSE through the seam); streams `text.delta`/`tool.start`/`tool.result`/`error`/`done` → existing chat roles. **9b:** `command.proposed`→fork (a) (Confirm → `confirmCommand` = `POST /servers/{id}/commands {verb,origin:"assistant"}`)→SPA-composed `command.verified` from the job outcome. **9c (per-chat context):** the body now carries the local `conversationId` (the chat's `uid()`), forwarded by the API as `X-Relay-Conversation-Id` so the assistant keys memory `web:<userId>:<conversationId>` — each "New chat" is a fresh context window (was a single per-user thread that leaked across chats) |
-| — (history was localStorage-only) | `GET {leaf}/conversations` → `[{id,title,createdAt,lastActivityAt,turnCount,think,autorun}]` (Viewer) | ✅ **DONE (slice 9d — reverse path)** | the caller's own past chats, server-side (so a fresh browser/device shows history, not just localStorage). API relays the assistant's list verbatim, scoped to the verified Discord id (`web:<userId>` — never client-supplied). `ChatPage` folds these into its conversation list (`mergeServerConversations`); join is by `id` == the chat's `uid()`. Each row carries the conversation's **effective** `think`/`autorun` (resolved at the leaf against its configured default), which is what the composer's two toggles read: the merge lets them overwrite a cached value where title and host only fill a gap, and the list is re-read whenever the surface returns to the foreground, so a chat opened on the panel and picked up in the installed app shows the switches the next turn will run on |
-| — | `GET {leaf}/conversations/{id}` → `{id,entries:[{kind:turn\|checkpoint,createdAt,turn?,checkpointSummary?}]}` (Viewer) | ✅ **DONE (slice 9d)** | one chat's full transcript, oldest-first (turns + non-destructive compaction checkpoints). Turn DTO reuses the §5·a vocabulary (`prompt`/`final`/`think`/`thinking`/`tools[{tool,arguments,summary,result}]`/`usage`/`outcome`), so `ChatPage.scaffoldHistory` rebuilds the thread through the SAME render path a live turn uses — no second schema. Loaded lazily when a server-only chat is opened |
-| — (a turn belonged to the POST that asked for it) | `POST {leaf}/events/attach {conversationId}` → `204`; `DELETE {leaf}/turns/{turnId}` → `204`; frames `turn.attach` / `turn.queue` (Viewer) | ✅ **DONE** | a turn is a SHARED SESSION at the leaf: every surface attached to that conversation receives the same verbatim frames, and any of them can stop it. `POST /turn` (SSE) is itself the first attach, so its wire shape is unchanged and kgsm-api's peer relay is untouched. `ChatPage` derives `busy` from the conversation rather than the surface; `scaffoldLiveTurn` renders a turn from a `turn.attach` snapshot (replacing, never merging); the sender skips the stream's copy of its own frames while its POST is open. One turn at a time per conversation — a second prompt queues (cap 3, then `409 queue_full`) and shows as a chip with a discard |
-| — (no push channel; surfaces diverged until one refetched) | `GET {leaf}/events` → SSE `hello` / `conversation.switches` / `conversation.feedback` / `conversation.started` / `conversation.deleted` / `conversation.activity` (Viewer) | ✅ **DONE** | the caller's OWN conversation changes, pushed from the leaf so a chat open in two places agrees with itself. Held by `src/chat/useConversationStream.js` (reconnect with capped backoff; every reconnection re-reads the listing, since nothing is buffered while a stream is down). `conversation.switches` and `conversation.feedback` travel by value — the rest name a conversation and are answered by re-reading, so the transcript keeps ONE way to be obtained. A switch frame states where BOTH switches stand and the client diffs to know which moved, writing that line into the transcript on every surface; a verdict is applied by turn id, which addresses one bubble wherever it is rendered. The stream names itself in `hello`; `assistantClient` sends that id back as `X-Assistant-Origin` on every call and drops events stamped with it, so a surface never re-applies its own change |
-| — (delete was localStorage-only → resurrected) | `DELETE {leaf}/conversations/{id}` → `204` (Viewer) | ✅ **DONE (slice 9d — soft-delete)** | **soft**-delete: the assistant appends a tombstone that hides the chat from `GET /conversations` while keeping the full transcript in the append-only history (the self-improvement corpus is never destroyed). Scoped to the verified Discord id (own-conversation only). `ChatPage.deleteChat` fires this for the chat's owning host so a deleted chat doesn't reappear from server history on the next "Chat history" open; idempotent + best-effort (a later turn on the same id un-hides it) |
-| — (FE doesn't call) | `GET /api/v1/me` → `{user,tier,scopes}` | ➕ | FE currently derives tier from the callback; could/should use `/me` |
-| `GET /alerts` (slice 3) | `GET /api/v1/alerts?status=&since=` → `{data:[Alert]}` | ✅ | `alertsStore.refresh()` hydrates firing + 24h resolved on LIVE boot (was fixtures+stream only) |
-| `DiscordPage` (was 100% mock) | `GET/PATCH /api/v1/integrations/discord`, `POST …/test` (Admin) | ✅ **DONE (integrations slice)** | DiscordPage LIVE branch wired via `api.host(id)`: GET renders the server's 6-event catalog + masked webhook hint; toggles = sparse `{events:[{id,enabled}]}` PATCH; Save = `buildIntegrationPatch` (webhook only if user-typed); real `/test`. **Slack** provider (also built) not surfaced (FE has no Slack UI) |
+| `GET /servers` | `GET /api/v1/servers` (Viewer) | ! | path prefix + **schema differs heavily** (§5) |
+| `POST /servers/{id}/commands {verb,origin}` | `POST /api/v1/servers/{id}/commands {verb,origin?}` (Operator) | ✓ **DONE (slice 6)** | wired via `commandServer` with `origin:"ui"`; status + job ride the `servers`/`jobs` WS. `update` is a verb (Tier-1 ops); the chip lights only when the update-check probe found a newer version, and the server reads `Updating…` for the whole run |
+| `GET /hosts` | `GET /api/v1/hosts` (Viewer) | ! | returns array-of-one per host; schema differs (§5); fan-out is FE-side |
+| `GET /library` | `GET /api/v1/library?q=&category=` (Viewer) | ! | **path agrees** (not `/catalog`); schema differs (§5) |
+| `GET /audit` | `GET /api/v1/audit?cursor=&limit=&severity=&serverId=&actor=&since=&category=` (Viewer) | ✓ **DONE (audit paging + filters slice)** | `adaptAudit` preserves the `{data,nextCursor}` envelope; the store **walks the keyset cursor** (1000-row cap) so events older than the first page are reachable (the real bug — LIVE fetched ONE page) + `loadMore()`; page discloses incompleteness + "Load older events", omits counts in LIVE. **Structured filters PUSH DOWN** (severity incl. `attention`→`warn,danger`, serverId, actor, range→`since`, category→action-prefix) so the cursor walks the FILTERED log; free-text search stays client-side. **kgsm-api extended:** multi-value severity + `since` + `category` params + a `Ts`→ticks value-converter (SQLite can't translate `DateTimeOffset >=`) |
+| `GET /auth/discord/callback?host=&prompt=` | `GET /auth/discord/callback?code=&state=` (anon) | ! | **different flow** — FE has a simplified per-host callback; BE is real OAuth code/state. Also `GET /auth/discord/start`. Returns `{verdict,tier,token,refresh,userId}` (FE expects `user_id`, has no `refresh` handling) |
+| `POST /auth/session/refresh {host}` | `POST /auth/session/refresh` + `Bearer <refresh-jwt>` → `{token}` (anon) | ! | FE sends `{host}` body; BE wants the refresh token as bearer |
+| `GET /servers/{id}` (defined, unused) | `GET /api/v1/servers/{id}` (Viewer) | ✓ | both exist; detail adds `network` block |
+| `PATCH /alerts/{id}` (defined, **unused**) | — (alerts read-only) | ✓ | FE never calls it; fine |
+| `POST /api/v1/hosts/{id}/assistant/chat` (raw fetch, **outside seam**, Ollama-shaped) | `POST {leaf}/turn {prompt,think?,tools?,conversationId?}` (SSE, on the assistant leaf's own origin) | ✓ **DONE (slice 9a + 9b + 9c)** | rewritten onto `api.host(id).turn()` (SSE through the seam); streams `text.delta`/`tool.start`/`tool.result`/`error`/`done` → existing chat roles. **9b:** `command.proposed`→fork (a) (Confirm → `confirmCommand` = `POST /servers/{id}/commands {verb,origin:"assistant"}`)→SPA-composed `command.verified` from the job outcome. **9c (per-chat context):** the body now carries the local `conversationId` (the chat's `uid()`), forwarded by the API as `X-Relay-Conversation-Id` so the assistant keys memory `web:<userId>:<conversationId>` — each "New chat" is a fresh context window (was a single per-user thread that leaked across chats) |
+| — (history was localStorage-only) | `GET {leaf}/conversations` → `[{id,title,createdAt,lastActivityAt,turnCount,think,autorun}]` (Viewer) | ✓ **DONE (slice 9d — reverse path)** | the caller's own past chats, server-side (so a fresh browser/device shows history, not just localStorage). API relays the assistant's list verbatim, scoped to the verified Discord id (`web:<userId>` — never client-supplied). `ChatPage` folds these into its conversation list (`mergeServerConversations`); join is by `id` == the chat's `uid()`. Each row carries the conversation's **effective** `think`/`autorun` (resolved at the leaf against its configured default), which is what the composer's two toggles read: the merge lets them overwrite a cached value where title and host only fill a gap, and the list is re-read whenever the surface returns to the foreground, so a chat opened on the panel and picked up in the installed app shows the switches the next turn will run on |
+| — | `GET {leaf}/conversations/{id}` → `{id,entries:[{kind:turn\|checkpoint,createdAt,turn?,checkpointSummary?}]}` (Viewer) | ✓ **DONE (slice 9d)** | one chat's full transcript, oldest-first (turns + non-destructive compaction checkpoints). Turn DTO reuses the §5·a vocabulary (`prompt`/`final`/`think`/`thinking`/`tools[{tool,arguments,summary,result}]`/`usage`/`outcome`), so `ChatPage.scaffoldHistory` rebuilds the thread through the SAME render path a live turn uses — no second schema. Loaded lazily when a server-only chat is opened |
+| — (a turn belonged to the POST that asked for it) | `POST {leaf}/events/attach {conversationId}` → `204`; `DELETE {leaf}/turns/{turnId}` → `204`; frames `turn.attach` / `turn.queue` (Viewer) | ✓ **DONE** | a turn is a SHARED SESSION at the leaf: every surface attached to that conversation receives the same verbatim frames, and any of them can stop it. `POST /turn` (SSE) is itself the first attach, so its wire shape is unchanged and kgsm-api's peer relay is untouched. `ChatPage` derives `busy` from the conversation rather than the surface; `scaffoldLiveTurn` renders a turn from a `turn.attach` snapshot (replacing, never merging); the sender skips the stream's copy of its own frames while its POST is open. One turn at a time per conversation — a second prompt queues (cap 3, then `409 queue_full`) and shows as a chip with a discard |
+| — (no push channel; surfaces diverged until one refetched) | `GET {leaf}/events` → SSE `hello` / `conversation.switches` / `conversation.feedback` / `conversation.started` / `conversation.deleted` / `conversation.activity` (Viewer) | ✓ **DONE** | the caller's OWN conversation changes, pushed from the leaf so a chat open in two places agrees with itself. Held by `src/chat/useConversationStream.js` (reconnect with capped backoff; every reconnection re-reads the listing, since nothing is buffered while a stream is down). `conversation.switches` and `conversation.feedback` travel by value — the rest name a conversation and are answered by re-reading, so the transcript keeps ONE way to be obtained. A switch frame states where BOTH switches stand and the client diffs to know which moved, writing that line into the transcript on every surface; a verdict is applied by turn id, which addresses one bubble wherever it is rendered. The stream names itself in `hello`; `assistantClient` sends that id back as `X-Assistant-Origin` on every call and drops events stamped with it, so a surface never re-applies its own change |
+| — (delete was localStorage-only → resurrected) | `DELETE {leaf}/conversations/{id}` → `204` (Viewer) | ✓ **DONE (slice 9d — soft-delete)** | **soft**-delete: the assistant appends a tombstone that hides the chat from `GET /conversations` while keeping the full transcript in the append-only history (the self-improvement corpus is never destroyed). Scoped to the verified Discord id (own-conversation only). `ChatPage.deleteChat` fires this for the chat's owning host so a deleted chat doesn't reappear from server history on the next "Chat history" open; idempotent + best-effort (a later turn on the same id un-hides it) |
+| — (FE doesn't call) | `GET /api/v1/me` → `{user,tier,scopes}` | + | FE currently derives tier from the callback; could/should use `/me` |
+| `GET /alerts` (slice 3) | `GET /api/v1/alerts?status=&since=` → `{data:[Alert]}` | ✓ | `alertsStore.refresh()` hydrates firing + 24h resolved on LIVE boot (was fixtures+stream only) |
+| `DiscordPage` (was 100% mock) | `GET/PATCH /api/v1/integrations/discord`, `POST …/test` (Admin) | ✓ **DONE (integrations slice)** | DiscordPage LIVE branch wired via `api.host(id)`: GET renders the server's 6-event catalog + masked webhook hint; toggles = sparse `{events:[{id,enabled}]}` PATCH; Save = `buildIntegrationPatch` (webhook only if user-typed); real `/test`. **Slack** provider (also built) not surfaced (FE has no Slack UI) |
 
 **The assistant is a second backend, not a `kgsm-api` surface.** `{leaf}` above is the assistant's own
 public origin, which the SPA reads from the host's assistant capability (`info.url`) and calls directly
@@ -138,26 +138,26 @@ identical in mock + live. Drives `realtimeStore` only (REST reachability stays o
 
 | FE topic → type | BE topic → type | Status |
 |---|---|---|
-| `servers` → `server.patch` | `servers` → `server.patch` | ✅ `adaptServer` on the frame; **upsert by id** (patch existing OR add a new roster member) |
-| `servers` → `server.removed {id}` | `servers` → `server.removed {id}` | ✅ tombstone drops the instance |
-| `jobs` → `job`/`job.patch` | `jobs` → `job.patch` | ✅ `adaptJob` collapses every terminal state (`succeeded\|failed\|cancelled`) to `done` — whether anything more will happen — and keeps the terminal word itself as `outcome`, which is what tells a cancellation from a success. The frame's `hostId` (the node whose socket delivered it) is carried onto the stored job; the DTO has no such field |
-| `console` → `console.line` | `servers/{id}/console` → `console.line` | ✅ per-server topic; `ConsolePanel` hydrates a REST window then follows it. The bare `console` topic in `GLOBAL_TOPICS` carries nothing — the feed is per-server |
-| `alerts` → `alert.raise`/`alert.resolve`/`alert.retract` | same three | ✅ `alert.raise` runs through `adaptAlert` (derived icon); resolve/retract passthrough |
-| `batches` → `batch.patch` | `batches` → `batch.patch` | ✅ the frame carries a whole `BatchView`, so a client that reconnects mid-run learns the shape of one from the next member that moves. `stores/batches.js` merges it under the node whose socket delivered it; the runs board groups by `runId` |
-| `audit` → `audit.append` | `audit` → `audit.append` | ✅ live-prepend to `auditStore` (e2e-verified via a real kgsm emit) |
-| `me` → `me.patch` | `me` → `me.patch` | ✅ `{tier, status}` — the node's own re-statement of what THIS account holds, delivered only to that account's connections, so the client filters nothing. `adaptMePatch` maps it with `/me`'s vocabulary and `sessionStore.applyMePatch` writes it as the authority (a demotion is not refused as a downgrade). The node re-gates the connection in place, so the client never reconnects on one |
-| `hosts/{id}/metrics` → `host.metrics` | `hosts/{id}/metrics` → `host.metrics` | ✅ **DONE (slice 7 follow-on, 2026-06-21)** — deep-dive subscribes while open; `adaptHostMetrics` reshapes the tick; `hostsStore.mergeMetrics` merges clobber-safe (keeps capabilities + firewall open_ports) + stamps receipt-time freshness; disposer unsubscribes (idles the pump) + clears the stamp |
-| — (deferred) | `servers/{id}/metrics` → `metrics.tick` | ⏸ per-instance metrics — same shape; wire when the per-server tiles need live numbers |
+| `servers` → `server.patch` | `servers` → `server.patch` | ✓ `adaptServer` on the frame; **upsert by id** (patch existing OR add a new roster member) |
+| `servers` → `server.removed {id}` | `servers` → `server.removed {id}` | ✓ tombstone drops the instance |
+| `jobs` → `job`/`job.patch` | `jobs` → `job.patch` | ✓ `adaptJob` collapses every terminal state (`succeeded\ |failed\|cancelled`) to `done` — whether anything more will happen — and keeps the terminal word itself as `outcome`, which is what tells a cancellation from a success. The frame's `hostId` (the node whose socket delivered it) is carried onto the stored job; the DTO has no such field |
+| `console` → `console.line` | `servers/{id}/console` → `console.line` | ✓ per-server topic; `ConsolePanel` hydrates a REST window then follows it. The bare `console` topic in `GLOBAL_TOPICS` carries nothing — the feed is per-server |
+| `alerts` → `alert.raise`/`alert.resolve`/`alert.retract` | same three | ✓ `alert.raise` runs through `adaptAlert` (derived icon); resolve/retract passthrough |
+| `batches` → `batch.patch` | `batches` → `batch.patch` | ✓ the frame carries a whole `BatchView`, so a client that reconnects mid-run learns the shape of one from the next member that moves. `stores/batches.js` merges it under the node whose socket delivered it; the runs board groups by `runId` |
+| `audit` → `audit.append` | `audit` → `audit.append` | ✓ live-prepend to `auditStore` (e2e-verified via a real kgsm emit) |
+| `me` → `me.patch` | `me` → `me.patch` | ✓ `{tier, status}` — the node's own re-statement of what THIS account holds, delivered only to that account's connections, so the client filters nothing. `adaptMePatch` maps it with `/me`'s vocabulary and `sessionStore.applyMePatch` writes it as the authority (a demotion is not refused as a downgrade). The node re-gates the connection in place, so the client never reconnects on one |
+| `hosts/{id}/metrics` → `host.metrics` | `hosts/{id}/metrics` → `host.metrics` | ✓ **DONE (slice 7 follow-on, 2026-06-21)** — deep-dive subscribes while open; `adaptHostMetrics` reshapes the tick; `hostsStore.mergeMetrics` merges clobber-safe (keeps capabilities + firewall open_ports) + stamps receipt-time freshness; disposer unsubscribes (idles the pump) + clears the stamp |
+| — (deferred) | `servers/{id}/metrics` → `metrics.tick` | per-instance metrics — same shape; wire when the per-server tiles need live numbers |
 
-> ⚠ **Metrics-slice landmine:** the `server.patch` handler merges the FULL adapted
+> **Metrics-slice landmine:** the `server.patch` handler merges the FULL adapted
 > element, and `adaptServer(...).metrics === null` when a patch omits metrics. Once
 > `metrics.tick` lands, a `server.patch` would then **clobber** cpu/ram set by a metric
 > tick. The metrics slice must make `server.patch` not null out metric fields (e.g. omit
 > metrics from the patch merge, or merge metrics only when present). Harmless today
 > (metrics deferred, test host down).
-| — (deferred) | `hosts/{id}/capabilities` → `capabilities.patch` | ⏸ capability flips — wire with metrics |
+| — (deferred) | `hosts/{id}/capabilities` → `capabilities.patch` | capability flips — wire with metrics |
 
-| — (deferred) | `servers/{id}/network` → `network.patch` | ⏸ **slice 6 deferred-with-cause** — no FE consumer renders a per-server ports card yet (`network.required` is read only by the still-mock assistant); wiring it would be dead code + needs the §4 clobber fix (a `server.patch` nulls `network`). Build the card / land the assistant slice first |
+| — (deferred) | `servers/{id}/network` → `network.patch` | **slice 6 deferred-with-cause** — no FE consumer renders a per-server ports card yet (`network.required` is read only by the still-mock assistant); wiring it would be dead code + needs the §4 clobber fix (a `server.patch` nulls `network`). Build the card / land the assistant slice first |
 
 ## 5. Schema diffs (the bulk of the work)
 
@@ -186,17 +186,17 @@ B = backend could add.** Honest-unknown is the default for every missing value.
 | `tier`, `authDenied` | (from auth layer, not `/hosts`) | **A**: keep FE's per-host session source |
 | `cpu:{…}`, `ram:{…detailed}`, `per_core`, `load_avg`, `temp_c` | `cpuPct`, `mem:{used,total}`, `disks:[{mount,used,total}]` | **A**+**F**: BE is coarser — render what exists, honest-unknown the rest (no per-core/temp today) |
 | `processes`, `sensors`, `network.interfaces` | — | **F**: no source → hide those diagnostics panels |
-| `capabilities:{metrics,assistant,watchdog}` | same (richer: `provisioned/status/since/message/info`) | ✅ **A**: align field names (`sample_age_s` etc. → BE `info.intervalMs`) |
+| `capabilities:{metrics,assistant,watchdog}` | same (richer: `provisioned/status/since/message/info`) | ✓ **A**: align field names (`sample_age_s` etc. → BE `info.intervalMs`) |
 | `network.open_ports` | host detail `network.openPorts:[{port,proto,app,server}]` | **A** |
 
 ### Audit — moderate
 | FE | BE | Resolution |
 |---|---|---|
-| response = bare array | `{data:[…], nextCursor}` | ✅ **DONE**: `adaptAudit`→`{rows,nextCursor}`; store walks the cursor + `loadMore()`; structured filters push down (severity/serverId/actor/since/category); page discloses incompleteness |
-| `actor:{name,provider}` | `actor:{kind,name,provider}` | ✅ **DONE**: `AuditActor` uses `actor.kind` for system check; `kind` passed through |
-| `action` enum (incl. `file.*`, `settings.*`, `discord.*`, `host.*`, `player.allow.*`) | closed vocab (`server.*`, `backup.*`, `network.ports.*`, `network.upnp.*`, `player.join/leave`, `auth.*`) | ✅ **already satisfied**: `AuditLogPage.jsx` `ACTION_META[…] \|\| {label:ev.action, icon:"circle-dot"}` renders an unknown action with a generic icon (forward-compat); some FE actions still have no BE source |
-| `origin` (top-level) | `origin` (top-level nullable) | ✅ **DONE**: source chip reads `ev.origin` (was incorrectly `ev.meta.source`); included in search index |
-| `severity`, `target`, `summary`, `meta`, `serverId`, `hostId` | same | ✅ |
+| response = bare array | `{data:[…], nextCursor}` | ✓ **DONE**: `adaptAudit`→`{rows,nextCursor}`; store walks the cursor + `loadMore()`; structured filters push down (severity/serverId/actor/since/category); page discloses incompleteness |
+| `actor:{name,provider}` | `actor:{kind,name,provider}` | ✓ **DONE**: `AuditActor` uses `actor.kind` for system check; `kind` passed through |
+| `action` enum (incl. `file.*`, `settings.*`, `discord.*`, `host.*`, `player.allow.*`) | closed vocab (`server.*`, `backup.*`, `network.ports.*`, `network.upnp.*`, `player.join/leave`, `auth.*`) | ✓ **already satisfied**: `AuditLogPage.jsx` `ACTION_META[…] \ |\| {label:ev.action, icon:"circle-dot"}` renders an unknown action with a generic icon (forward-compat); some FE actions still have no BE source |
+| `origin` (top-level) | `origin` (top-level nullable) | ✓ **DONE**: source chip reads `ev.origin` (was incorrectly `ev.meta.source`); included in search index |
+| `severity`, `target`, `summary`, `meta`, `serverId`, `hostId` | same | ✓ |
 
 ### Alert — close (prototype-proven)
 | FE | BE | Resolution |
@@ -204,7 +204,7 @@ B = backend could add.** Honest-unknown is the default for every missing value.
 | `icon` | — | **A**: derive icon from `severity`/`source` |
 | `severity: danger/warn` | `severity: info/warn/danger` | **A**: handle `info` |
 | `anchor:{surface,hostId,serverId,tab,ref}` | `anchor:{surface,hostId,tab,ref}` (no `serverId`) | **A**: use top-level `serverId` |
-| `source`, `status`, `raisedAt`, `escalated`, `attempts`, `resolution{by,source,reason,actionId}`, `resolvedAt` | same | ✅ |
+| `source`, `status`, `raisedAt`, `escalated`, `attempts`, `resolution{by,source,reason,actionId}`, `resolvedAt` | same | ✓ |
 | `prompt`, `autoResolves` (mock-only) | — | **F**: mock-only, drop |
 
 ### Library — moderate
@@ -212,7 +212,7 @@ B = backend could add.** Honest-unknown is the default for every missing value.
 |---|---|---|
 | `category`, `players` (display string), `addedAt`, `hosts[]` | — | **F**: honest-unknown / drop (no source); `players` ≈ `specs.maxPlayers` (null today) |
 | `art`, `cover` | `cover` (reserved null), `rawgSlug` (reserved null) | **A**/**F**: FE keeps `art` gradient fallback; cover art deferred BE-side |
-| `id`, `name` | `id`, `name` | ✅ |
+| `id`, `name` | `id`, `name` | ✓ |
 | — | `type`, `steamAppId`, `clientSteamAppId`, `isSteamAccountRequired`, `ports:[{start,end,proto}]`, `specs` | **B→F**: surface type badge, ports, specs |
 
 ### Auth callback — flow + field
@@ -222,7 +222,7 @@ B = backend could add.** Honest-unknown is the default for every missing value.
 
 ## 6. True gaps & rewrites (not simple remaps)
 1. **Console** — no backend topic at all (deferred). `ConsolePanel` must degrade to "unavailable," not be wired.
-2. **Assistant chat** — ✅ **slice 9a + 9b done.** Was a raw Ollama-shaped `fetch` to the wrong route; now `api.host(id).turn()` (SSE through the seam) streaming the §5·a frames. **9b** adds the command-confirm half: `command.proposed`→fork (a) (Confirm runs the M3 command path with `origin:"assistant"`)→SPA-composed `command.verified` from the job outcome.
+2. **Assistant chat** — **slice 9a + 9b done.** Was a raw Ollama-shaped `fetch` to the wrong route; now `api.host(id).turn()` (SSE through the seam) streaming the §5·a frames. **9b** adds the command-confirm half: `command.proposed`→fork (a) (Confirm runs the M3 command path with `origin:"assistant"`)→SPA-composed `command.verified` from the job outcome.
 3. **Host discovery / registry** — no base-URL capture in the FE (see §1, §7).
 3b. **OAuth token handoff — BUILT (slice 4b; one manual browser login owed).** The
     callback now 302s to `KGSM_API_AUTH_FRONTEND_URL` with the session in the URL
@@ -414,7 +414,7 @@ Prove the pipe on a read-only slice first (backend `KGSM_API_AUTH_DISABLED=1`), 
 > both — verified **non-destructively** via a fetch-capture returning a synthetic `202 {job}`, so no real
 > start/install runs on the host — + the update-chip-disabled render), green ×3 runs against a live `hotrod`
 > (kgsm-api auth-disabled + a host-only monitor on a `/tmp` socket, no root); `build` + mock smokes green.
-> ⚠ one **pre-existing slice-7 smoke flake** observed on the FIRST run right after backend startup (not
+> one **pre-existing slice-7 smoke flake** observed on the FIRST run right after backend startup (not
 > from this change): the host-deep-dive `noFab` regex (`0 cores|load 0\.0|CPU 0%`) tripped. **Mechanism
 > UNconfirmed** — could NOT reproduce in 8+ subsequent runs; the measured host load was 0.25–0.32 and
 > cpuPct ~2–14% (never near 0), so it is NOT a real low reading. The failing render was *shorter* (~25k vs
@@ -605,9 +605,9 @@ Prove the pipe on a read-only slice first (backend `KGSM_API_AUTH_DISABLED=1`), 
    synthetic-inject for the other three remaps in `smoke:live`.
 6. **Commands + ports + install/uninstall** — `commands {verb,origin}`, `open_ports`,
    `POST/DELETE /servers`; reconcile job/`network.patch` streams.
-7. **Assistant** — ✅ **9a + 9b done** (streaming turn through the seam + the command-confirm half: `command.proposed`→fork (a)→SPA-composed `command.verified`).
+7. **Assistant** — **9a + 9b done** (streaming turn through the seam + the command-confirm half: `command.proposed`→fork (a)→SPA-composed `command.verified`).
 8. **Multi-host fan-out** — host registry (D1), per-host sessions/sockets, cluster rollup. Remaining **cluster federation** work (the "add one, see all" + one-login-across-the-cluster build that completes this slice) is tracked in **`kgsm-api/PLAN-peers.md`**. The Cluster page is built: `api.peers`/`clusterStore`/`ClusterPanel` render the real `/peers` roster, and "Cluster" is the canon name for the fleet view. Both SPA-facing API deps are built: the viewer node list (`GET /peers/roster`, client seam wired) and the vouch initiator (`POST /auth/cluster-session/request`). Still to wire: cluster SSO (lazy vouch-on-401 — per-host auth is single-host today) and the roster→registry mirror.
-9. **Integrations + settings** — ✅ **Discord DONE** (DiscordPage → `/integrations/discord` GET/PATCH/test, admin-gated, live round-trip-validated). Remaining: **Slack** provider UI + the rest of Settings (`/settings` not built upstream).
+9. **Integrations + settings** — **Discord DONE** (DiscordPage → `/integrations/discord` GET/PATCH/test, admin-gated, live round-trip-validated). Remaining: **Slack** provider UI + the rest of Settings (`/settings` not built upstream).
 10. **Degrade** — console unavailable; capability-driven panel hiding; honest-unknown everywhere.
 
 ---
@@ -694,13 +694,13 @@ kgsm-api DTOs (`src/Api/Contracts/*.cs`) + the monitor contract
 | `actor{name,provider}` | `actor{kind,name,provider}` | **A** | pass `kind` |
 | `action` (broad enum) | closed vocab | **A** | tolerate unknown → generic icon |
 | `severity/target/summary/meta/serverId/hostId` | same | **A** | passthrough |
-| ✅ **live-verified (slice 3)**: dev DB recreated (§7b) → `/audit` 200; a real emitted `server.start` row flows through `adaptAudit` and renders | — | — | DONE |
+| ✓ **live-verified (slice 3)**: dev DB recreated (§7b) → `/audit` 200; a real emitted `server.start` row flows through `adaptAudit` and renders | — | — | DONE |
 
 ### Alert (`AlertsPage`, `NeedsAttention`, `ContextualAlerts`) — **DONE (slice 3)**
 | FE | BE | Bucket | Action |
 |---|---|---|---|
-| read from store only (no GET) | `GET /alerts?status=&since=` `{data}` | **A** | ✅ `alertsStore.refresh()` hydrates firing + 24h resolved |
-| `icon` | — | **A** | ✅ derive from `source` (then `severity`) in `adaptAlerts` |
+| read from store only (no GET) | `GET /alerts?status=&since=` `{data}` | **A** | ✓ `alertsStore.refresh()` hydrates firing + 24h resolved |
+| `icon` | — | **A** | ✓ derive from `source` (then `severity`) in `adaptAlerts` |
 | `severity` danger/warn | `info/warn/danger` | **A** | handle `info` |
 | `anchor.serverId` | top-level `serverId` | **A** | read top-level |
 | `source/status/raisedAt/escalated/attempts/resolution/resolvedAt` | same | **A** | passthrough |
@@ -729,13 +729,13 @@ kgsm-api DTOs (`src/Api/Contracts/*.cs`) + the monitor contract
 |---|---|---|---|
 | `PerformanceTab` / `TimeSeriesChart` | metrics **history** | **C** (big) | BE emits point-in-time (`metrics.tick`, `Server.metrics`) only. Options: FE accumulates the live stream into a session-local ring (B-ish, no cold history), or BE/monitor add a history store (C). |
 | `PlayersTab` | player roster + per-player ping/playtime | **C** | presence mid-build (`player.join/leave` audit exist; no roster/count). |
-| `ConsolePanel`/`LogConsole` | `GET /servers/{id}/console?tail&before` + `/console/download` + the per-server topic | ✅ **DONE** | window hydrate + live follow; `before` takes the byte cursor the response reports, so reading back reaches the start of the run; download streams the whole run. Native-only — a container's console belongs to Docker. |
+| `ConsolePanel`/`LogConsole` | `GET /servers/{id}/console?tail&before` + `/console/download` + the per-server topic | ✓ **DONE** | window hydrate + live follow; `before` takes the byte cursor the response reports, so reading back reaches the start of the run; download streams the whole run. Native-only — a container's console belongs to Docker. |
 | `BackupsList` | backup list + restore command | **C** | only `backup.*` audit; no list/command API. |
-| `ServerNotice` (server note) | `GET/PUT/DELETE /servers/{id}/note` + `note` on the `Server` DTO | ✅ **DONE** | operator-gated write, viewer read; note rides the list DTO + `server.patch` so the dashboard tile needs no detail fetch; byline from the backend's attribution, blank when it recorded none. |
-| `FileBrowser` | `GET/PUT /servers/{id}/files…` | ✅ **DONE** | Tier 3 #12: lazy working-dir tree + raw read + etag save, operator-gated. `put` seam added. binary/too-large/symlink/jail handled honestly. |
+| `ServerNotice` (server note) | `GET/PUT/DELETE /servers/{id}/note` + `note` on the `Server` DTO | ✓ **DONE** | operator-gated write, viewer read; note rides the list DTO + `server.patch` so the dashboard tile needs no detail fetch; byline from the backend's attribution, blank when it recorded none. |
+| `FileBrowser` | `GET/PUT /servers/{id}/files…` | ✓ **DONE** | Tier 3 #12: lazy working-dir tree + raw read + etag save, operator-gated. `put` seam added. binary/too-large/symlink/jail handled honestly. |
 | `ServerSettings`/`SettingsPage` | config/file read+write API | **C** | no `/settings` endpoint (config is `/servers/{id}/config`; settings panel still WIP). |
-| `ChatPage` (assistant) | `POST /assistant/turn` SSE | ✅ **9a done** | rewritten onto `api.host(id).turn()` SSE through the seam (streaming half). 9b = command.proposed→verify. |
-| `DiscordPage`/integrations | `/integrations` (built) | ✅ **DONE** | DiscordPage LIVE branch wired to `/integrations/discord` (GET catalog+masked hint / sparse PATCH / real test), admin-gated, round-trip-validated. Slack UI = follow-on. |
+| `ChatPage` (assistant) | `POST /assistant/turn` SSE | ✓ **9a done** | rewritten onto `api.host(id).turn()` SSE through the seam (streaming half). 9b = command.proposed→verify. |
+| `DiscordPage`/integrations | `/integrations` (built) | ✓ **DONE** | DiscordPage LIVE branch wired to `/integrations/discord` (GET catalog+masked hint / sparse PATCH / real test), admin-gated, round-trip-validated. Slack UI = follow-on. |
 
 ## 10. Per-surface rollup (what unblocks each screen)
 

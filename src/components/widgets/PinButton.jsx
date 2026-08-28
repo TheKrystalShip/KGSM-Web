@@ -23,7 +23,7 @@ import { getWidget } from "../../lib/widgets/registry.js";
 // the host already draws its own remove button while arranging. Doing it HERE rather than in each
 // card shell is what keeps the shells from having to know widgets exist.
 //
-// ⚠ The card shells take the pin as a NODE (`pin={<PinButton …/>}`), not as a descriptor, and that
+// The card shells take the pin as a NODE (`pin={<PinButton …/>}`), not as a descriptor, and that
 // is deliberate: `BriefCard` is reachable from the standalone assistant's bundle, and this module
 // reaches `persona` through the dashboard store. A `pin={{type, params}}` prop would force
 // `BriefCard` to import this, which fails `npm run check:assistant`. The node form keeps the shells

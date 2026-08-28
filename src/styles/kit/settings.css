@@ -754,7 +754,7 @@
   margin: 0 auto;
   /* Centred and sized, rather than filling a desktop the way the file browser's pop-out does: that
      one is a tree over a whole file, this is a couple of fields and a note.
-     ⚠ The height is DEFINITE on purpose. Monaco renders a `height: 100%` section, which resolves
+     The height is DEFINITE on purpose. Monaco renders a `height: 100%` section, which resolves
      against nothing in an auto-height ancestor and collapses to zero — the app's other editor mounts
      each state a definite track for the same reason. */
   align-self: center;

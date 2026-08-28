@@ -24,7 +24,7 @@ import { allWidgets } from "../../lib/widgets/registry.js";
 // It is also what keeps the thing cheap: every source below is a store the SPA already holds and
 // every gate is one that already exists. Nothing here fetches.
 //
-// ⚠ Permission is applied HERE, not at render. An entry a role may not act on is never built, so it
+// Permission is applied HERE, not at render. An entry a role may not act on is never built, so it
 // cannot be matched, ranked, arrowed onto or run. "Aggregate for reach, scoped for action"
 // (persona.js) applies as everywhere: navigation asks `can`, anything touching one node asks
 // `canOn`.

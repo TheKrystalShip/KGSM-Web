@@ -1,7 +1,7 @@
 /* toast.css — the live outcome cards (components/Toasts.jsx) and the history
    popover they fall into (components/NotificationsPanel.jsx).
 
-   One domain, one partial. ⚠ This file is imported by BOTH barrels (kit.css and
+   One domain, one partial. This file is imported by BOTH barrels (kit.css and
    assistant.css): the toast host mounts on the standalone assistant too, and a
    partial missing from that barrel renders unstyled with nothing failing. */
 

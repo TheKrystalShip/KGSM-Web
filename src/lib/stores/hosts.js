@@ -192,7 +192,7 @@ async function fetchServerEvents(serverId, hostId, sinceIso) {
 // carries fields a merge would have to invent for every other host. The one surface that needs the
 // detail holds it itself.
 //
-// ⚠ The response is ALREADY adapted — `apiClient`'s response table maps `/hosts/{id}` through
+// The response is ALREADY adapted — `apiClient`'s response table maps `/hosts/{id}` through
 // `adaptHost` on the way out (see `adaptResponse`). Adapting it a second time here silently destroys
 // the very fields this call exists for: the second pass reads `label` and `identity` off a shape that
 // no longer has them, so the host's name falls back to its id and its build, runtime, OS and region all
@@ -230,7 +230,7 @@ function renameLibrary(hostId, from, to) {
 // library is deregistered once the last has landed. Every one of them has to be stopped first — the
 // node lists the running ones and moves nothing rather than stopping servers on somebody's behalf.
 //
-// ⚠ This request blocks for the whole copy, which is minutes per server. Nothing in the engine
+// This request blocks for the whole copy, which is minutes per server. Nothing in the engine
 // brackets a drain, so there is no per-server progress to follow and the caller waits it out.
 function removeLibrary(hostId, name, drainTo) {
   const qs = "?origin=ui" + (drainTo ? "&drain=" + encodeURIComponent(drainTo) : "");

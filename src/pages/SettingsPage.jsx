@@ -52,7 +52,7 @@ function SettingsPage({ user, onLogout, tab, onTabChange }) {
   // The leaf your chat is currently pointed at — memory lives on that leaf, addressed the same way
   // a turn is, direct to the assistant rather than through kgsm-api's peer relay.
   //
-  // ⚠ Which leaf is not incidental here: this page is one page over a whole cluster, and a memory
+  // Which leaf is not incidental here: this page is one page over a whole cluster, and a memory
   // belongs to one assistant. The card is given the host's NAME so it can say whose memory it is
   // showing, and the count of assistant-capable hosts so it can tell "nobody runs one" apart from
   // "several do and the dock is deliberately holding its target unset until you pick". Opening the

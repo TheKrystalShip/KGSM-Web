@@ -26,7 +26,7 @@
 // be wrong the moment that list is capped — and it IS capped, which is why `total` is on the wire
 // beside it.
 //
-// ── ⚠ It reports; it does not recommend ────────────────────────────────────────────────────────────
+// ── It reports; it does not recommend ────────────────────────────────────────────────────────────
 //
 // No window, ceiling or threshold is suggested on this page, because none is suggested on the wire.
 // The leaf refuses to propose values on the grounds that arithmetic plus a printed figure reads as an
@@ -51,7 +51,7 @@ import {
 // performance tab's RangeSelector — the panel already has one segmented range control and a second one
 // styled from scratch would be the same affordance drawn two ways.
 //
-// ⚠ The leaf clamps whatever it is sent to its own ledger retention, so a 30 on a host retaining 14 days
+// The leaf clamps whatever it is sent to its own ledger retention, so a 30 on a host retaining 14 days
 // answers 14 and says so in `windowDays`. That is the true reading and the page shows what came back.
 const WINDOWS = [
   { key: 7, label: "7 days" },
@@ -113,7 +113,7 @@ function ReactorDecisions({ hostId, leafId }) {
   // dependency (every call site passes an inline arrow, which would re-fetch forever) — so a window
   // change has to ask for the reload itself.
   //
-  // ⚠ Guarded on the PREVIOUS window rather than on "is this the first render". StrictMode runs an
+  // Guarded on the PREVIOUS window rather than on "is this the first render". StrictMode runs an
   // effect twice on mount, and a first-render flag is already spent by the second run — which then
   // reloads a page that had just loaded, costing an extra read of the ledger on every mount. Comparing
   // the value is idempotent, so the second run correctly does nothing.
@@ -208,7 +208,7 @@ function ReactorDecisions({ hostId, leafId }) {
                 window is derived from.">
           {repeats.length === 0 ? (
             <LeafBriefEmpty title="No rule fired twice about one subject">
-              ⚠ A suppression window derived from this window would be derived from nothing. The
+              A suppression window derived from this window would be derived from nothing. The
               configured windows stay placeholders until a repeat has actually been measured here.
             </LeafBriefEmpty>
           ) : (

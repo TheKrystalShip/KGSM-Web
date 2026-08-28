@@ -14,7 +14,7 @@
 // `lastSweepAt` precisely so those come apart here, and the page never collapses them into one calm
 // green tile.
 //
-// ── ⚠ Every counter is since the reactor's process started ────────────────────────────────────────
+// ── Every counter is since the reactor's process started ────────────────────────────────────────
 //
 // Not since the beginning. A restart resets them, so each one says "since start" in its own sub-line —
 // a zero on this page after a deploy is a restart, never evidence of a quiet host. The leaf names the
@@ -143,7 +143,7 @@ function ReactorOverview({ hostId, leafId }) {
         + "not being asked at all.",
     });
   }
-  // ⚠ Two different reasons for a null sweep, and only one of them clears on its own. A reactor with no
+  // Two different reasons for a null sweep, and only one of them clears on its own. A reactor with no
   // rules live never sweeps at all — the engine has nothing to evaluate and stops before its first pass —
   // so telling somebody to wait a sweep interval would be telling them to wait forever.
   if (enabled && lastSweep == null && rules.length === 0) {

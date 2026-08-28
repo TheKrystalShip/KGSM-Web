@@ -82,7 +82,7 @@ realtime: liveStream.js (fetch-SSE) ──adaptStreamMessage──▶ same store
 what the app reads (synchronously, on the first render — the dashboard decides what to mount from
 it), and the node is where the value is kept so it outlives the browser and can follow the person.
 A write lands locally and returns; the PUT is best-effort and a failure loses nothing.
-⚠ **Seeding a default is a WRITE, so nothing may seed before the node has answered** — doing so
+**Seeding a default is a WRITE, so nothing may seed before the node has answered** — doing so
 publishes a default over the stored value. `dashboardStore.hydrate` encodes the ordering, and
 `boot.js` hydrates preferences only after `hostsStore.refresh` has reconciled the connection's
 backend id, since the home node is addressed by that id.

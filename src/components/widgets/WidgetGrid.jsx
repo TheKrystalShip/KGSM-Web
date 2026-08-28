@@ -24,7 +24,7 @@ import { getWidget } from "../../lib/widgets/registry.js";
 // from the snapshot, commit once on release. Native HTML5 drag-and-drop fires dragenter/dragleave
 // erratically over a grid and cannot animate.
 //
-// ⚠ TWO THINGS THE SNAPSHOT MODEL DEMANDS, both of which are silent when missed:
+// TWO THINGS THE SNAPSHOT MODEL DEMANDS, both of which are silent when missed:
 //
 // The geometry is in VIEWPORT coordinates, and the surface these scroll inside is `.app__main`
 // (`overflow-y: auto` at 100vh — the page does NOT scroll on `window`, so `window.scrollY` is always
@@ -335,7 +335,7 @@ function WidgetGrid({ layout, editing, onMove, onResize, onRemove }) {
     // 4 became a stored 6 that rendered back at 6, and the resize did nothing at all.
     const stored = Math.max(1, st.w | 0);
 
-    // ⚠ Hand the element back in the state React believes it to be in, rather than clearing it.
+    // Hand the element back in the state React believes it to be in, rather than clearing it.
     // The preview above wrote straight to the DOM, which React knows nothing about; React diffs
     // against its own previous render, so a gesture ending on the span it started from produces an
     // identical render, React writes nothing, and a cleared style stays cleared — leaving the cell

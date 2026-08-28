@@ -427,7 +427,7 @@
 }
 
 /* ---- Controls -------------------------------------------------------------- */
-/* ⚠ `box-sizing` is stated, not inherited — this app has no global reset. Without it a `width: 100%`
+/* `box-sizing` is stated, not inherited — this app has no global reset. Without it a `width: 100%`
    control adds its padding and border on TOP of the column it was told to fill and hangs 22px off
    the right of the card, at every width and in both engines. Nothing fails: the row still lays out
    and the only symptom is a box with its right edge gone.

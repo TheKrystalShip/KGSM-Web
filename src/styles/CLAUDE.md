@@ -62,7 +62,7 @@ pairing has to be stated per theme. `--on-accent` and `--on-success` *default
 through* those two tokens, so a theme that tuned them keeps its tuning; most
 themes re-value at least one of the six.
 
-⚠ A per-theme `--on-*` is **not** a palette retouch, and does not conflict with
+A per-theme `--on-*` is **not** a palette retouch, and does not conflict with
 "an upstream scheme ships unretouched" below. Choosing black rather than white
 type to lay *on* Solarized's red does not change Solarized's red. What is measured
 is the pair, never the palette.

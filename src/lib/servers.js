@@ -112,7 +112,7 @@ function fleetHeadroom(allHosts) {
 // unknown — a blueprint declaring no recommendation gets no verdict rather than one computed against
 // a guess.
 //
-// ⚠ This is a COMPARISON of two measured numbers, never a promise. Free memory moves the moment
+// This is a COMPARISON of two measured numbers, never a promise. Free memory moves the moment
 // anything else starts, so the loud case says "tight" rather than "won't fit", and no card ever
 // refuses to deploy on the strength of it.
 const FIT_TIGHT_RATIO = 0.85;

@@ -152,7 +152,7 @@ function toDocument(rule) {
 
 // Every placeholder THIS step can carry, grouped by where it comes from.
 //
-// ⚠ Derived rather than listed. `{alias#}` only resolves in a step that compares that measurement,
+// Derived rather than listed. `{alias#}` only resolves in a step that compares that measurement,
 // and `{alias@key}` only exists for an argument the rule bound — so a fixed list would offer tokens
 // that render nothing and hide the ones somebody just created. The intrinsics come from the leaf's
 // own catalog, which is what keeps this from drifting from the build.

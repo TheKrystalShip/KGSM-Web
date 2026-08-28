@@ -288,7 +288,7 @@
      --on-accent and --on-success default THROUGH the two tokens that already carried this job, so
      a theme that tuned --btn-accent-fg / --btn-success-fg keeps that tuning and needs no new line.
 
-     ⚠ This is not a palette retouch. A theme named after an upstream scheme still ships that
+     This is not a palette retouch. A theme named after an upstream scheme still ships that
      scheme's colours unretouched (see styles/CLAUDE.md) — choosing black rather than white type to
      lay ON Solarized's red does not change Solarized's red. What is measured here is the pair.
      Re-measure with scripts/visual-harness/semantic-contrast.mjs after touching any of it. */

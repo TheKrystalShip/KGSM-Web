@@ -7,7 +7,7 @@
 // arrives as a parameter, exactly the way `assistantSession.setOriginResolver` takes its address
 // lookup, and this module imports NOTHING.
 //
-// ⚠ That last part is structural, not tidiness. `npm run check:assistant` walks the standalone
+// That last part is structural, not tidiness. `npm run check:assistant` walks the standalone
 // import graph and fails on the panel's roots; a shared module that reached `apiClient` would drag
 // the whole cluster model into a surface that has no nodes.
 //
@@ -27,7 +27,7 @@
  *   "denied"        — permission was refused; we cannot re-prompt
  *   "ready"         — can subscribe (permission granted, or still unasked)
  *
- * ⚠ "needs-install" is its own state rather than folded into "unsupported" because on iOS the
+ * "needs-install" is its own state rather than folded into "unsupported" because on iOS the
  * feature is not missing, it is one step away — and telling somebody it is unsupported when the fix
  * is "add to Home Screen" is telling them something false.
  */
@@ -55,7 +55,7 @@ function support() {
 /**
  * The registered service worker, or null when there is none.
  *
- * ⚠ `navigator.serviceWorker.ready` NEVER SETTLES when nothing is registered — it does not reject,
+ * `navigator.serviceWorker.ready` NEVER SETTLES when nothing is registered — it does not reject,
  * it hangs forever waiting for a registration that is not coming. Awaiting it directly leaves every
  * caller pending, and a settings screen sits on "Checking…" for the life of the page. Dev builds
  * register no worker at all and a failed registration in production looks identical, so this asks
@@ -104,7 +104,7 @@ async function acquire(publicKey) {
       : "Notification permission wasn't granted.");
   }
 
-  // ⚠ A subscription made against a DIFFERENT application server key cannot be reused: the browser
+  // A subscription made against a DIFFERENT application server key cannot be reused: the browser
   // bakes the key in at subscribe time and re-subscribing with another throws. Drop it and make a
   // new one, rather than registering something this host could never sign for.
   let sub = await reg.pushManager.getSubscription();
@@ -124,7 +124,7 @@ async function acquire(publicKey) {
 /**
  * Give up this browser's subscription, telling the backend first.
  *
- * ⚠ The order matters. If the browser-side unsubscribe succeeded and the backend call then failed,
+ * The order matters. If the browser-side unsubscribe succeeded and the backend call then failed,
  * the host would keep pushing to a dead endpoint until it collected enough 410s to retire it.
  *
  * @param {(endpoint: string) => Promise<void>} unregister

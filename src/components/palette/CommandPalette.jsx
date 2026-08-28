@@ -117,7 +117,7 @@ function Palette({ onClose, onInstall }) {
   const listRef = React.useRef(null);
   const inputRef = React.useRef(null);
 
-  // ⚠ THE ONE THING HERE THAT FETCHES. Every other entry is derived from a store already in memory;
+  // THE ONE THING HERE THAT FETCHES. Every other entry is derived from a store already in memory;
   // a roster is not, because the server DTO carries a player COUNT and no names. So scoping a server
   // reads one, shared through the keyed store so the Players tab and this never read it twice.
   //
@@ -180,7 +180,7 @@ function Palette({ onClose, onInstall }) {
   // as a ROW rather than as a silent fall-through is the whole difference: it has to be selected and
   // confirmed, it says what it will do, and a typo simply sits there unchosen.
   //
-  // ⚠ It does NOT send. The seed lands in the composer and focuses it (ChatPage's
+  // It does NOT send. The seed lands in the composer and focuses it (ChatPage's
   // `startBriefingChat`), so the last word is still a person pressing Enter on their own text — the
   // same rule a voice note follows, and the reason neither one can put words in somebody's mouth.
   //

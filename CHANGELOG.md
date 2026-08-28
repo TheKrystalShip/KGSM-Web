@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — no emoji in prose or output
+
+Docs, comments and command output carry no emoji. The information lives in the words, and a status
+that has to be read by a machine or a reader with a plain terminal reads the same either way. Marks
+that are typography rather than pictures — `✓`, `✗`, arrows, `§` — stay, and a glyph a chat surface
+sends to a person is that surface's output rather than prose, so it is untouched.
+
 ### Changed — the reactor's rules page is three screens over one vocabulary (1.176.0)
 
 A rule is six questions and a hard one, and the page now asks them in that order in three places. The
@@ -41,7 +48,7 @@ Its meta strip says how long the condition has been standing, which is a differe
 the offer has left. An offer made at three in the morning is read at seven, and the reason it carries
 was frozen when it was staged.
 
-⚠ Nothing is drawn where the leaf did not date the condition. A rule judging a standing fact has no
+Nothing is drawn where the leaf did not date the condition. A rule judging a standing fact has no
 opening to name, and "0m" in its place would read as a fault that had just started.
 
 ### Added — answering what the reactor offers (1.174.0)
@@ -56,7 +63,7 @@ lifecycle verb here arms through. An offer has an alert's shape (a severity, a t
 couple of answers), so it takes an alert's rendering: one affordance, drawn once, and every theme is
 inherited rather than tracked.
 
-⚠ **What it does not borrow is the mechanism, and the two look identical.** An alert card's buttons
+**What it does not borrow is the mechanism, and the two look identical.** An alert card's buttons
 issue an ordinary command and the gate is re-derived at render. An offer is the opposite — the action is
 *staged*, and confirming redeems a handle so the leaf re-derives the condition first. A server that came
 back up overnight answers *stale* instead of being restored over, which is what lets an offer wait a
@@ -65,7 +72,7 @@ exactly that.
 
 The four endings are counted apart rather than folded into answered-or-not, because each says something
 different about the rule that staged it, and each tile carries the line that says what its count
-*means*. ⚠ The stale ending is labelled **Stale** in every compact place it is shown rather than the
+*means*. The stale ending is labelled **Stale** in every compact place it is shown rather than the
 wire's own `no_longer_applicable`: the long form does not fit a summary tile at any width the band uses,
 and a label that wraps drops its number below its neighbours'.
 
@@ -73,9 +80,9 @@ Confirm arms before it fires and disarms itself if left alone; dismiss does not 
 authorises a real action on this host, and a single click would make authorising indistinguishable from
 clearing a notification.
 
-⚠ **Nothing sends who is confirming.** The api takes it from the authenticated session, because a
+**Nothing sends who is confirming.** The api takes it from the authenticated session, because a
 caller-supplied name would let anybody sign anybody else's confirmation — the request carries no body at
-all. ⚠ **A handle is the capability**, so nothing here puts one in a link, a title attribute or anything
+all. **A handle is the capability**, so nothing here puts one in a link, a title attribute or anything
 else that leaves the page.
 
 The tab badge's noun is the tab's own: a badge counts whatever that page holds, and "2 alerts" over a
@@ -113,7 +120,7 @@ built on something that happens twice.
 the exact sentence it would record, figures filled in from the live world. Nothing is stored and
 nothing is dispatched — it is what turns "this looks right" into knowing whether it fires on anything.
 
-⚠ **What is stored and what is running are different questions, and both are on the page.** A rule the
+**What is stored and what is running are different questions, and both are on the page.** A rule the
 leaf refuses is in the file and in neither of the leaf's lists, so the stored set is what is edited and
 the leaf's own complaint is shown against the rule it is about. A save that lands with one bad rule in
 it is a save: the rest runs, and the problem says what to fix.
@@ -182,7 +189,7 @@ the installed app's Android activity, where any value there outranks the phone's
 setting; with the member absent the activity is left unspecified and the system's lock decides which
 way the Control Panel and the standalone assistant are held.
 
-⚠ Android caches an installed PWA's manifest in the WebAPK. The change reaches an app already on a
+Android caches an installed PWA's manifest in the WebAPK. The change reaches an app already on a
 home screen when Chrome next refreshes it (up to a day, online); reinstalling it takes effect at once.
 
 ### Added — the fleet's maintenance windows are a board on the scheduler leaf (`1.169.0`)
@@ -571,7 +578,7 @@ one is not offered, since the node refuses placement into a root it cannot get t
 why it cannot run rather than sitting there dead: a running server, an unmounted disk, or nowhere
 else on the node to go.
 
-⚠ **A move renders "Moving…" for the whole copy, and it has to.** The node starts the server once on
+**A move renders "Moving…" for the whole copy, and it has to.** The node starts the server once on
 its new path to confirm it runs there, so run-state genuinely reads online and then offline partway
 through — a row following run-state alone would flicker. The job the node reports owns the row's
 status until it settles, exactly as an install and the two backup verbs do, and every lifecycle
@@ -1219,7 +1226,7 @@ An uninstalled Library card's foot states the verdict: **Room for this**, **Tigh
 than on every card — it is a fact about a machine, and printing it per card repeats one number across
 the whole grid.
 
-⚠ It is a comparison of two measured figures, never a promise: free memory moves the moment anything
+It is a comparison of two measured figures, never a promise: free memory moves the moment anything
 else starts. Hence "Tight fit" rather than "Won't fit", and no card ever refuses to deploy. A blueprint
 that declares no recommended memory gets no verdict at all rather than one computed against a guess.
 
@@ -1247,7 +1254,7 @@ Five of these are windowed, and that is the point: the capacity strip below alre
 node's CPU, RAM, disk and round trip, so nothing in the band restates an instantaneous machine
 reading. What the strip never shows is time.
 
-⚠ **A tile whose source is missing keeps its slot** and renders "—" with an honest sub-line. In a
+**A tile whose source is missing keeps its slot** and renders "—" with an honest sub-line. In a
 fixed grid a self-hiding tile reflows the whole band, and an absent measurement is worth saying.
 
 ### Removed — the Ping tile
@@ -1262,15 +1269,15 @@ and diagnostics all read it, and it is started once from `stores/boot.js`.
 holds; `lib/fleetOps.js` rolls up four per-node payloads that `stores/fleet.js` fetches on the
 dashboard's own lazy loop.
 
-⚠ **The audit store holds a capped page**, so a window can outrun the rows loaded. Every function
+**The audit store holds a capped page**, so a window can outrun the rows loaded. Every function
 reports the span it actually saw and the tiles qualify themselves ("partial feed", "in the loaded
 feed") rather than presenting a short count as a full one.
 
-⚠ **The peak-players figure is reconstructed backwards** from the live total. Forwards would need a
+**The peak-players figure is reconstructed backwards** from the live total. Forwards would need a
 starting count nobody recorded, and assuming zero would report every peak as the number of joins
 since the log began.
 
-⚠ **A session whose join fell outside the window is skipped, not clamped.** Clamping would
+**A session whose join fell outside the window is skipped, not clamped.** Clamping would
 manufacture exactly as much playtime as the window happens to be long; the tile counts those
 separately as "started earlier".
 
@@ -1327,7 +1334,7 @@ persists them under — so nothing new renders charts.
 An entity with no GPU gets **no card**, not an empty one. Most leaves never reach the card and a game
 server has no GPU dimension at all.
 
-⚠ **Gaps in the GPU compute chart are idleness, not missing data.** Utilisation is sampled over a
+**Gaps in the GPU compute chart are idleness, not missing data.** Utilisation is sampled over a
 window and a backend that did no work in one reports nothing for that bucket, so the series is
 genuinely shorter than the memory series beside it. The nulls are passed through untouched and the
 chart opens a gap; coercing them to 0 would draw an idle model as measured-and-busy-at-zero.
@@ -1349,7 +1356,7 @@ whose newest sample is absent gets no current-value dot rather than one parked o
 break reuses the same segmentation downtime already uses, with one difference that matters: a time
 gap breaks every series alike, an absent value breaks only the series carrying it.
 
-⚠ **A series formatter is only ever handed a number.** A card supplies its own `fmt` (`v =>
+**A series formatter is only ever handed a number.** A card supplies its own `fmt` (`v =>
 v.toFixed(0) + "% core"`), and the tooltip called it on whatever sat under the cursor — hovering an
 absent sample threw and took the whole card to its error boundary.
 
@@ -1369,7 +1376,7 @@ in the reactor, and it reports the most authority it will honour; the modes abov
 disabled with the reason. A panel that hard-coded "this build only observes" would go on refusing
 `act` after the build that acts is deployed.
 
-⚠ **A rule configured beyond what the build honours is now called out on its card.** The leaf reports
+**A rule configured beyond what the build honours is now called out on its card.** The leaf reports
 the effective mode with the configured one beside it, and the card says "configured to act, running
 as observe" rather than echoing a granted authority that does not exist.
 
@@ -1410,7 +1417,7 @@ An empty window is worded as the ambiguous reading it is, not as "no data": a ru
 when its condition never occurred, and equally when the event that wakes it never arrived, and only
 the population report separates those.
 
-⚠ The page suggests no window, ceiling or threshold, because the leaf suggests none. Adding a
+The page suggests no window, ceiling or threshold, because the leaf suggests none. Adding a
 recommendation here would put back exactly what the leaf declined to say.
 
 ### Added — the Reactor leaf has an Overview
@@ -1432,7 +1439,7 @@ events that really happened and every rate derived from it under-reports — the
 otherwise looks exactly like a quiet host. It tones the Observations tile danger at one, not at a
 threshold.
 
-⚠ Every counter the leaf reports is since its own process started, so each says so in its own
+Every counter the leaf reports is since its own process started, so each says so in its own
 sub-line: a zero after a deploy is a restart, never evidence of a quiet host.
 
 Alongside them, the settling lane (evaluations woken and waiting out a settle window — the difference
@@ -1490,7 +1497,7 @@ carry that ink, one per family. A call site writing `background: var(--success)`
 `--btn-accent-fg` / `--btn-success-fg`, so a theme that had tuned those keeps its tuning; 29 themes
 re-value at least one of the six. **All 290 pairs now clear AA, worst 4.53:1.**
 
-⚠ This is not a palette retouch and does not soften "an upstream scheme ships unretouched": choosing
+This is not a palette retouch and does not soften "an upstream scheme ships unretouched": choosing
 black rather than white type to lay *on* Solarized's red does not change Solarized's red. What is
 stated per theme is the pair.
 
@@ -1546,7 +1553,7 @@ and is re-valued by the 17 themes where that pairing falls below AA — includin
 theme, which is where it matters most. Measured in a browser across all 48 themes; worst is now
 4.64:1 (nord), where the worst was 2.34:1.
 
-⚠ The same gap remains for the other filled semantic surfaces (`.chat-action__go--success/--danger/
+The same gap remains for the other filled semantic surfaces (`.chat-action__go--success/--danger/
 --warning/--update` pair `--fg-inverse` with tokens that are light in the tribute light themes), and
 `.server-tile__host` hardcodes white on a `--scrim-base` that three light themes make light. Neither is
 touched here. The update chip sidesteps the second by scrimming itself with a fixed dark value: what is
@@ -1573,7 +1580,7 @@ while the hero refuses it. A running server with an update pending therefore ren
 **disabled**, saying "Server must be stopped before updating", rather than hiding it or letting the
 click come back a 409.
 
-⚠ An unrecognized action kind draws nothing rather than guessing, so kgsm-api can offer a new
+An unrecognized action kind draws nothing rather than guessing, so kgsm-api can offer a new
 operation before this SPA knows how to render it.
 
 ### Fixed — the dashboard's player count is the fleet's, not zero
@@ -1587,7 +1594,7 @@ reads and pushed on the `server.patch` stream. The adapter maps it, so the count
 was dead: the dashboard line, the Servers page group and favourites tallies, and the **"Players
 online" sort**, which until now compared zeroes and sorted nothing.
 
-⚠ `null` is not `0`. A server whose presence this host can't see (no join/leave detection, or an
+`null` is not `0`. A server whose presence this host can't see (no join/leave detection, or an
 unreachable supervisor) carries null, renders "—" on its card, and is **left out of a total and
 counted separately** — the dashboard says *"· N servers can't report who's on"*, and a group tally
 renders `3+ players`. A measurably stopped server is not counted among those: nobody is connected to a
@@ -1615,7 +1622,7 @@ first prompt longer than 40 characters read one way in the browser that typed it
 everywhere else, permanently. A conversation now takes its name from the leaf on the next listing read,
 which the first turn's own completion triggers.
 
-⚠ One client-side name survives, in **one** place (`chatConstants.js`): the row this browser mints
+One client-side name survives, in **one** place (`chatConstants.js`): the row this browser mints
 between pressing New chat and `/new` answering, which is the only conversation the leaf has no opinion
 about yet. It is the leaf's word, which is why the wire contract states the string rather than leaving
 each side to pick one. Everything that renders a conversation name — the rail, the history popover, the
@@ -1652,7 +1659,7 @@ Three reasons there is nothing to show are told apart, where one message used to
 - **several run one and none is picked** — the dock deliberately leaves its target unset when more
   than one could answer, so a cluster of healthy assistants was reporting itself as having none. It
   offers the chat, where that choice is made; the choice is not duplicated here.
-- **one is picked but the browser has no route to it** — ⚠ stated as *not readable right now*, never
+- **one is picked but the browser has no route to it** — stated as *not readable right now*, never
   as nothing being remembered. The second is a claim about the memory, and it isn't known.
 
 The standalone assistant is untouched: it has exactly one leaf and never has to say which, so every
@@ -1670,7 +1677,7 @@ not. Each carries a live count against the leaf's own cap — read from `GET /me
 restated here, since a client cannot know when a host re-tunes them — and the card's header says how
 many of the allowance are kept.
 
-⚠ The name of a memory is fixed once it exists: writing that name again is what replaces it, so a
+The name of a memory is fixed once it exists: writing that name again is what replaces it, so a
 rename would be a write plus a forget wearing one button. The sheet says so, and offers the name as a
 field only when there is nothing there yet.
 
@@ -1757,7 +1764,7 @@ of the data layer they drive — runs for somebody who has not signed in.
 the shell in place. The reload was never about routing — it was that the shell's hooks sat above a
 flipping condition, which the split removes.
 
-⚠ **A pending account cannot live in `sessionStore`.** That store is keyed by backend host id, and
+**A pending account cannot live in `sessionStore`.** That store is keyed by backend host id, and
 the only way to learn one is `GET /hosts`, which is viewer-gated — so a tierless caller has no id to
 be filed under on any node. The gate carries their session itself, in `sessionStorage`, keyed by
 origin, until approval lets the ordinary per-host session take over.
@@ -1816,11 +1823,11 @@ subscriber is not silently dropped); `sessionStore.startBootstrap()`/`stopBootst
 a persisted session is a pure storage read the gate needs on its first render; and `stopPingLoop()` /
 `stopDiscovery()` join their existing starters.
 
-⚠ **`boot.js` reaches `sessionStore` through a lazy `import()`.** A static one closes a cycle —
+**`boot.js` reaches `sessionStore` through a lazy `import()`.** A static one closes a cycle —
 `sessionStore` → `stores.js` → `stores/index.js` → `boot.js` — and breaks boot. Same landmine as
 `apiClient`'s deferred imports.
 
-⚠ **One request still precedes sign-in**: `useAlerts()` is a hook above `App.jsx`'s gate, so it
+**One request still precedes sign-in**: `useAlerts()` is a hook above `App.jsx`'s gate, so it
 subscribes before the gate decides what to render. It goes when the gate and the shell become
 separate components.
 
@@ -1897,7 +1904,7 @@ Both surfaces get it — the panel's dock and the standalone assistant share `sr
 
 `scripts/visual-harness/spoken-reply.mjs` drives the queue in a real Chromium with real WAV bytes:
 decoded, played in arrival order, never two at once, stop empties the queue, a corrupt frame is
-skipped. ⚠ It counts concurrent sources rather than timing them — headless Chromium renders audio
+skipped. It counts concurrent sources rather than timing them — headless Chromium renders audio
 through a null sink faster than realtime, so a clip's wall-clock duration proves nothing.
 
 ## [1.114.2] - 2026-08-15
@@ -3123,7 +3130,7 @@ glance while still reading as one product.
 - **The artwork is derived, not drawn twice.** `scripts/make-assistant-icons.mjs` composes it from
   the panel's mark plus the `bot` badge the chat already uses for its replies, so the family
   resemblance survives a change to the mark. It is an authoring tool — no build runs it.
-- ⚠ **The assistant's service worker ALLOWLISTS what it may cache**, where the panel's denies
+- **The assistant's service worker ALLOWLISTS what it may cache**, where the panel's denies
   `/api/` and `/auth/`. The leaf answers on unprefixed root paths (`/turn`, `/conversations`,
   `/tools`, `/health`), so a denylist would cache every route the leaf grows until someone
   remembered to add it — and a stale authenticated `200` masks token expiry and can serve one
@@ -3158,7 +3165,7 @@ variant, so there is nowhere for one to drift from the other.
   publishes into the leaf's wwwroot with no privilege and no restart.
 - **Its sign-in is the leaf's own, and silent.** Served same-origin, so the address is
   `location.origin` and there is nothing to discover.
-- ⚠ **`npm run check:assistant` keeps "chat only" true.** It walks the standalone entry's import
+- **`npm run check:assistant` keeps "chat only" true.** It walks the standalone entry's import
   graph and fails on the Control Panel's data-layer roots, because tree-shaking does not remove a
   static import of a module with side effects. Three modules were split to cut those edges:
   `components/AccountAvatar.jsx` (out of `Sidebar.jsx`, which reaches persona and the session
@@ -3190,7 +3197,7 @@ only a redirect we were making them click.
   and a `/hosts` response describes one node, so the login chain can name at most one assistant.
 - **Ranked by cost.** A live session does nothing, a held refresh token is spent on a silent rotate,
   and only a browser with neither is worth a redirect.
-- ⚠ **One redirect per host per tab.** The marker is written before leaving and cleared only when a
+- **One redirect per host per tab.** The marker is written before leaving and cleared only when a
   session actually arrives, so a leaf that keeps refusing cannot loop the browser. `denied` stays
   terminal, and a leaf that is down is never redirected to — that would land on a dead origin.
 - **The route survives.** The fragment carries the handoff, so the route travels in `sessionStorage`
@@ -3229,7 +3236,7 @@ the leaf's address (the assistant capability's `info.url`) and nothing else.
   them; the panel offered no Run.
 - **Long actions narrate.** The confirm stream's progress steps drive a live sub-label under the
   card's spinner, so an install or a settling wait reads as advancing.
-- ⚠ **The OAuth return leg now carries an `assistant_login=<hostId>` marker.** Both logins land on
+- **The OAuth return leg now carries an `assistant_login=<hostId>` marker.** Both logins land on
   this origin with the same `access`/`refresh`/`error` fragment keys, and without the marker the
   panel presents a leaf token to `kgsm-api`. Keep it whenever either sign-in path changes.
 

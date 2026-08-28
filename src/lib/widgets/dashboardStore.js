@@ -152,7 +152,7 @@ function fitCapacity(layout) {
 
 /// Load the layout.
 ///
-/// ⚠ THE ORDER HERE IS LOAD-BEARING. Seeding the default is a WRITE, and a write goes to the node —
+/// THE ORDER HERE IS LOAD-BEARING. Seeding the default is a WRITE, and a write goes to the node —
 /// so seeding before the node has answered publishes a default over whatever was stored there, and
 /// the arrangement is gone. The rule is: never seed while the answer is still outstanding.
 ///

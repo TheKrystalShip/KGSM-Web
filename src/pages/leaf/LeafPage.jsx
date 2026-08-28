@@ -147,7 +147,7 @@ function LeafPage({ hostId, leafId, tab, onSelectTab, onReviewConversation, onAu
   // read rather than a store: it is one number, wanted on one page, and it has to be re-asked after
   // an offer is answered — which the tab body does by remounting on every visit.
   //
-  // ⚠ A failure leaves it null and the badge absent. Rendering a zero would say "nothing is waiting"
+  // A failure leaves it null and the badge absent. Rendering a zero would say "nothing is waiting"
   // on a host that could not be asked, which is the one answer this must never give.
   const [openOffers, setOpenOffers] = React.useState(null);
   React.useEffect(() => {

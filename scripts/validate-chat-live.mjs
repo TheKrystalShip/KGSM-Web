@@ -129,6 +129,6 @@ try {
   restoreEnv();
 }
 
-console.log(`\n${fail === 0 ? "✅ chat works end-to-end against the live relay" : `❌ ${fail} check(s) failed`}`);
+console.log(`\n${fail === 0 ? "✓ chat works end-to-end against the live relay" : `✗ ${fail} check(s) failed`}`);
 await sleep(50);
 process.exit(fail === 0 ? 0 : 1);

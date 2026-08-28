@@ -10,7 +10,7 @@
 // it renders through `.alert-card` and `alert-btn`, and the confirm arms through the same
 // `useConfirmAction` every lifecycle verb in the panel uses. One affordance, drawn once.
 //
-// ── ⚠ What it does NOT borrow is the mechanism ─────────────────────────────────────────────────────
+// ── What it does NOT borrow is the mechanism ─────────────────────────────────────────────────────
 //
 // An alert card's buttons issue an ordinary command; the gate is re-derived at render and that is the
 // whole of it. An offer is the opposite: the action is STAGED, and confirming redeems a handle so the
@@ -23,7 +23,7 @@
 // Confirmed, dismissed, lapsed and no-longer-applicable each say something different about the rule
 // that staged them, which is why they are four figures rather than answered-and-not.
 //
-// ── ⚠ A handle is the capability ───────────────────────────────────────────────────────────────────
+// ── A handle is the capability ───────────────────────────────────────────────────────────────────
 //
 // Anything holding one can ask for the action it names. Nothing here puts one in a link, a title
 // attribute or anything else that leaves the page.
@@ -64,7 +64,7 @@ const ENDINGS = [
     id: "lapsed", label: "Lapsed", icon: "clock", tone: "warn",
     sub: "expired unanswered",
   },
-  // ⚠ "Stale" rather than the wire's own "no longer applicable", and one word everywhere it is
+  // "Stale" rather than the wire's own "no longer applicable", and one word everywhere it is
   // shown. The long form does not fit a summary tile at any width the band uses, and a label that
   // wraps drops its number below its neighbours' — where a label shortened in one place and not the
   // other would leave a reader matching two names to one fact. The sub says what it means.
@@ -100,7 +100,7 @@ function fmtLeft(expiresAt, now) {
 // How long the fault itself has stood, which is a different figure from how long the offer has left
 // and the one that says how urgent this is.
 //
-// ⚠ Null when the leaf did not date the condition, and it renders as nothing at all. A rule judging a
+// Null when the leaf did not date the condition, and it renders as nothing at all. A rule judging a
 // standing fact has no opening to name, and "0m" in its place would read as a fault that had just
 // started — the most misleading thing this card could say.
 function fmtStanding(openedAt, now) {
@@ -115,7 +115,7 @@ function fmtStanding(openedAt, now) {
 
 // One open offer, as an alert-shaped row.
 //
-// ⚠ The arming is not theatre, and it is the panel's own: `useConfirmAction` is what every destructive
+// The arming is not theatre, and it is the panel's own: `useConfirmAction` is what every destructive
 // lifecycle verb here uses, so confirming an offer feels like confirming anything else. A single click
 // would make authorising a real action indistinguishable from clearing a notification.
 function Offer({ offer, busy, onAnswer, now }) {
@@ -175,7 +175,7 @@ function Offer({ offer, busy, onAnswer, now }) {
 // What came of the last answer. The leaf page's own notice strip, the same one the monitor's
 // thresholds and the scheduler's windows report a write through.
 //
-// ⚠ It exists because three of the outcomes are not "it worked", and one of them — no longer
+// It exists because three of the outcomes are not "it worked", and one of them — no longer
 // applicable — is the interesting one: the offer was real, the person authorised it, and the world had
 // moved on.
 function AnswerNotice({ answer }) {
@@ -222,7 +222,7 @@ function ReactorProposals({ hostId, leafId }) {
       (r) => { setBusy(null); setAnswer(r || null); reload(); },
       (e) => {
         setBusy(null);
-        // ⚠ Kept as an outcome rather than thrown away, because a failed redemption is not the same as
+        // Kept as an outcome rather than thrown away, because a failed redemption is not the same as
         // nothing having happened: the leaf claims an offer before it performs. The reload beside it is
         // what says which.
         setAnswer({ outcome: "unreachable", detail: (e && e.message) || "the reactor did not answer" });
@@ -308,7 +308,7 @@ function ReactorProposals({ hostId, leafId }) {
               ),
             },
             {
-              // ⚠ Blank rather than "—" for a lapse: nobody answered, which is the whole content of
+              // Blank rather than "—" for a lapse: nobody answered, which is the whole content of
               // that ending, and a dash reads as a value that could not be read.
               key: "answeredBy", label: "Answered by", width: "12rem",
               render: (r) => (r.answeredBy || ""),

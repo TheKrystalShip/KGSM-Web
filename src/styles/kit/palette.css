@@ -193,7 +193,7 @@
   flex-direction: column;
 }
 
-/* ⚠ The line-height is stated, NOT inherited. The page sets 1.6, which on a
+/* The line-height is stated, NOT inherited. The page sets 1.6, which on a
    13.5px title is a 22px line box before any padding — that alone was most of
    the height this component used to spend per row. */
 .kp__t {

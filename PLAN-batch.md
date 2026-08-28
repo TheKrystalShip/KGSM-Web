@@ -35,13 +35,13 @@ Every per-server mutation `kgsm-api` exposes, and whether a set of servers is a 
 
 | Action | Endpoint | Tier | Job | Batch |
 |---|---|---|---|---|
-| start · stop · restart · update | `POST /servers/{id}/commands` | Operator | ✅ | **yes — the core** |
-| back up now | `POST /servers/{id}/backups` | Operator | ✅ | **yes** |
+| start · stop · restart · update | `POST /servers/{id}/commands` | Operator | ✓ | **yes — the core** |
+| back up now | `POST /servers/{id}/backups` | Operator | ✓ | **yes** |
 | send console input | `POST /servers/{id}/console` | Operator | ✗ | **yes — broadcast** |
 | patch settings | `PATCH /servers/{id}/settings` | Operator | ✗ | **yes — sparse body** |
 | set note | `PUT /servers/{id}/note` | Operator | ✗ | yes, low value |
-| uninstall | `DELETE /servers/{id}` | Operator | ✅ | mechanically yes — **excluded** |
-| install | `POST /servers` | Operator | ✅ | no — needs a name, port and node each |
+| uninstall | `DELETE /servers/{id}` | Operator | ✓ | mechanically yes — **excluded** |
+| install | `POST /servers` | Operator | ✓ | no — needs a name, port and node each |
 | patch `.config.ini` | `PATCH /servers/{id}/config` | Operator | ✗ | no — keys are per-game |
 | write a file | `PUT /servers/{id}/files` | Operator | ✗ | no — content is per-server |
 | kick · ban · unban | `POST /servers/{id}/players/{p}/…` | Operator | ✗ | no — targets a player, not a server |
@@ -143,7 +143,7 @@ also outlive the process that accepted it.
 (§4c). Every node in one run is handed the same value and stores it verbatim; no node learns about
 any other. A nullable column and nothing more.
 
-> ⚠ `EnsureCreated` only creates tables on a *fresh* database. Both tables need the same one-shot
+> `EnsureCreated` only creates tables on a *fresh* database. Both tables need the same one-shot
 > creation on an already-deployed DB that `ClusterOutbox` and the session registry needed — never a
 > wipe of the shared audit log.
 
@@ -511,7 +511,7 @@ so a second cumulative calculation in the API would be a second answer to one qu
 worse one, since it would judge from a `MemAvailable` reading a request older than the members it
 paces. What the API owes is the *category* of the answer, not the answer.
 
-⚠ **The categorisation is only half-connected.** Only the CLI's own gate reports 51. A refusal from
+**The categorisation is only half-connected.** Only the CLI's own gate reports 51. A refusal from
 the watchdog's ledger arrives as a generic error, because its start endpoint answers `409` for every
 failure and kgsm maps any non-200 to `EC_ERROR` — so the refusal a batch is most likely to hit is
 the one that cannot be named. Carrying that distinction out to callers is upstream work; the rule

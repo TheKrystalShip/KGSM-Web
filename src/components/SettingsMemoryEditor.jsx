@@ -11,11 +11,11 @@ import { Modal } from "./Modal.jsx";
 // body gets an editor with room to think in. Showing them as one blob would hide the only difference
 // between them that matters.
 //
-// ⚠ The KEY is the whole update mechanism — writing one again supersedes what stood there — so it is
+// The KEY is the whole update mechanism — writing one again supersedes what stood there — so it is
 // fixed once a memory exists. Renaming is a write plus a forget, which is two changes wearing one
 // button, and the copy says so rather than the UI pretending otherwise.
 //
-// ⚠ `scrimClassName` is passed explicitly. Modal's default (`modal-scrim`) is styled in
+// `scrimClassName` is passed explicitly. Modal's default (`modal-scrim`) is styled in
 // `kit/hosts.css`, which the standalone assistant's style barrel does not import — the default would
 // render this as an unstyled block on that surface alone, and `npm run check:assistant` cannot see
 // it: that check reads class names written literally in the markup, and a default prop is not one.
