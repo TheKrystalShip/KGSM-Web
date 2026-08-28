@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — a rule gets a rule's face (`1.173.1`)
+
+An audit row whose actor is a reactor rule draws the not-a-person surface rather than an account
+avatar, which was rendering initials for a rule id and reading as somebody's name.
+
 ### Added — the reactor's rules are written here (`1.173.0`)
 
 The Reactor's Rules tab is an editor. A rule is an ordered list of steps where the first whose

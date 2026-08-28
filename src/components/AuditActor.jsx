@@ -50,6 +50,11 @@ function AuditActor({ actor, size = 28 }) {
     );
   }
   if (actor && actor.kind === "system") return <ServiceAvatar icon="cog" size={size} title="System" />;
+  // A rule the reactor evaluated. Nobody performed it, so it takes the not-a-person surface rather
+  // than an account avatar — which would draw initials for a rule id and read as somebody's name.
+  if (actor && actor.kind === "rule") {
+    return <ServiceAvatar icon="scale" size={size} title={(actor.name || "a rule") + " — reactor rule"} />;
+  }
   return <AccountAvatar user={actor} size={size} />;
 }
 
