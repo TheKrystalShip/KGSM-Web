@@ -378,16 +378,6 @@ function fetchLeafReactorTriggers(hostId, days) {
   return fetchLeafOverview(hostId, "reactor", "triggers" + q);
 }
 
-// The rules this host's api has stored, verbatim, for editing.
-//
-// ⚠ What is STORED and what is RUNNING are different questions, and this answers the first. A rule the
-// leaf refuses appears in neither of the lists on `status`, so an editor built on that alone would
-// silently drop the rule somebody is halfway through fixing. `managed:false` is the ordinary answer on a
-// host nobody has edited — the leaf runs the rules it ships — and is not an empty rule set.
-function fetchLeafReactorRules(hostId) {
-  return fetchLeafOverview(hostId, "reactor", "rules");
-}
-
 // What a proposed rule WOULD decide about this host right now — the verdict per subject and the exact
 // sentence it would record, with the figures filled in from the live world.
 //
@@ -400,16 +390,28 @@ function previewLeafReactorRule(hostId, rule, subject) {
     subject ? { rule, subject } : { rule });
 }
 
-// Store the rules this host's reactor runs. The api writes the file, points the leaf at it and restarts
-// it, then reports what the leaf made of them.
+// Store one rule. The leaf validates it against what the running build can honour, keeps it only if it
+// passes, and applies it without anything restarting.
 //
-// ⚠ `problems` in the answer is NOT a failure. A file with one bad rule in it stores and the rest runs —
-// the leaf names what it could not honour, and a surface that treated that as an error would make a
-// partly-good file impossible to save and therefore impossible to fix.
-function saveLeafReactorRules(hostId, rules) {
-  if (!hostId) return Promise.reject(new Error("saveLeafReactorRules: hostId required"));
+// ⚠ A refusal arrives as a REJECTED promise carrying `problems`, because nothing was written. A rule
+// that cannot be honoured never reaches the directory, so there is no half-saved state to reconcile —
+// the caller shows the reasons beside what the person is still looking at.
+function saveLeafReactorRule(hostId, rule) {
+  if (!hostId) return Promise.reject(new Error("saveLeafReactorRule: hostId required"));
+  if (!rule || !rule.id) return Promise.reject(new Error("saveLeafReactorRule: rule.id required"));
   return api.host(hostId).put(
-    "/hosts/" + hostId + "/services/reactor/rules", { rules: rules || [] });
+    "/hosts/" + hostId + "/services/reactor/rules/" + encodeURIComponent(rule.id), rule);
+}
+
+// Remove a rule's file outright.
+//
+// ⚠ Deleting is not retiring, and the panel retires. A retired rule keeps its file so the decisions it
+// already made still name a rule that can be described — an id is the actor on every one of them. This
+// is for a rule that was never meant to exist.
+function deleteLeafReactorRule(hostId, ruleId) {
+  if (!hostId || !ruleId) return Promise.reject(new Error("deleteLeafReactorRule: hostId and ruleId required"));
+  return api.host(hostId).del(
+    "/hosts/" + hostId + "/services/reactor/rules/" + encodeURIComponent(ruleId));
 }
 
 // The reactor's decision review over a window — what each rule concluded, the busiest hour a ceiling
@@ -462,7 +464,7 @@ export {
   fetchLeafConfig, fetchLeafCommands, applyLeafConfig, fetchLeafMetricsHistory, fetchEngineInfo,
   fetchLeafSchedules, controlLeafWindow, fetchLeafSupervision, fetchLeafMonitorStats, fetchLeafBotStatus,
   fetchLeafSpeechStatus, fetchLeafReactorStatus, fetchLeafReactorDecisions,
-  fetchLeafReactorCatalog, fetchLeafReactorTriggers, fetchLeafReactorRules,
-  previewLeafReactorRule, saveLeafReactorRules,
+  fetchLeafReactorCatalog, fetchLeafReactorTriggers,
+  previewLeafReactorRule, saveLeafReactorRule, deleteLeafReactorRule,
   fetchLeafReactorProposals, answerLeafReactorProposal,
 };

@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the reactor's rules page is three screens over one vocabulary (1.176.0)
+
+A rule is six questions and a hard one, and the page now asks them in that order in three places. The
+**list** answers what can be asked from outside a rule — what wakes it, what it would do, whether it
+is allowed to. A rule's **home** reads it back as those six questions, each with an Edit that opens
+exactly that stop. The **interview** runs start to finish only for a rule that does not exist yet,
+down a rail that stops showing its questions and starts showing your answers.
+
+The rail never locks: a person who knows the model is not walked through a sequence they do not need,
+and the leaf refuses a rule it cannot honour with its own words.
+
+Two things the page could not previously express are now reachable. **Lookups** at stop 3 bind a
+measurement that takes an argument, which is what makes the six parameterised signals — the update
+history and the four episode figures — usable at all; without it two of the four rules this host runs
+could be opened and damaged but never built. **Severity** has a control, so a rule offering an
+irreversible rollback is no longer filed as informational.
+
+The **placeholder catalog** is generated from the rule in hand rather than written down: the `#` form
+appears per comparison the step makes and the `@` form per lookup it named, each row carrying what it
+would render. Clicking one writes it into the sentence.
+
+Saving is one rule at a time, straight to the leaf, and nothing restarts.
+
 ### Added — what an offer costs, and how long the fault has stood (1.175.0)
 
 An offer now carries the leaf's own sentence about what confirming does to the host — that a pinned

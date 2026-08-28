@@ -1,48 +1,51 @@
-// ReactorRules — the rules this host's reactor runs: what each one asks, what it would do, and the
-// editing of them.
+// ReactorRules — the rules this host's reactor runs: a list, a rule's own page, and the interview
+// that writes one.
 //
-// ── Two questions, two sources ─────────────────────────────────────────────────────────────────
+// ── Three screens, one vocabulary ───────────────────────────────────────────────────────────────
 //
-// What is STORED comes from the api, which owns the file. What is RUNNING comes from the leaf, which
-// is the authority on what it could honour. They are not the same set: a rule the leaf refuses is in
-// the file and in neither of the leaf's lists, so an editor built on the leaf alone would silently
-// drop the rule somebody is halfway through fixing. The stored set is what is edited; the leaf's
-// `problems` is what says which of it did not take.
+// The LIST answers what can be asked from outside a rule: what wakes it, what it would do, and
+// whether it is allowed to. A rule's HOME reads it back as six sentences, each with an Edit that
+// opens exactly that stop. The INTERVIEW runs start to finish only for a rule that does not exist
+// yet. The six questions are the same in all three and in the same order, which is what lets one
+// surface teach the next.
+//
+// ── The leaf is the authority, and the only writer ─────────────────────────────────────────────
+//
+// Rules live in the leaf's own directory, one file each. Saving sends the rule to the leaf, which
+// validates it against what this build can honour and keeps it only if it passes — so a refusal
+// arrives while the person is still looking at what they wrote, and nothing restarts.
 //
 // ── The vocabulary is the leaf's ───────────────────────────────────────────────────────────────
 //
 // Signals, operators, outcomes, actions, subject sources and the events a rule may wake on all come
 // from `/catalog` and `/triggers`. A list kept here would go on offering a signal after the build
 // that measured it was replaced, and refuse one a later build added.
-//
-// ── Order is the semantics ─────────────────────────────────────────────────────────────────────
-//
-// A rule is an ordered list of steps and the first whose comparisons all hold decides. Nothing here
-// re-sorts them: a surface that ordered them by outcome, or alphabetically, would show a rule that
-// behaves differently from the one running.
-//
-// ── Applying restarts the reactor ──────────────────────────────────────────────────────────────
-//
-// The leaf reads its rules at startup, so saving is a file write plus a restart, admin-gated,
-// through the scoped grant the leaf-config path already uses.
 
 import React from "react";
 
 import { BriefCard } from "../../components/BriefCard.jsx";
 import { Icon } from "../../components/Icon.jsx";
 import {
-  fetchLeafReactorCatalog, fetchLeafReactorRules, fetchLeafReactorStatus,
-  fetchLeafReactorTriggers, previewLeafReactorRule, saveLeafReactorRules, servicesStore,
+  deleteLeafReactorRule, fetchLeafReactorCatalog, fetchLeafReactorStatus, fetchLeafReactorTriggers,
+  previewLeafReactorRule, saveLeafReactorRule,
 } from "../../lib/stores.js";
 import { sessionStore } from "../../lib/sessionStore.js";
-import { LeafAbsent, LeafFacts, LeafLoading, LeafNotice, LeafUnreadable, useLeafResource } from "./leafOverviewKit.jsx";
-import { RuleEditor, RuleFlow, RulePreviewPanel } from "./reactor/RuleEditor.jsx";
-import { blankRule, ID_SHAPE, catalogAction, catalogSource, idFromName, problemsFor, sameRule } from "./reactor/ruleModel.js";
-
-const fmtSeconds = (s) => (s == null ? "—" : s < 60 ? s + "s" : s < 5400 ? Math.round(s / 60) + "m" : (s / 3600).toFixed(1) + "h");
-const fmtMinutes = (m) => (m == null ? "—" : m < 90 ? m + "m" : (m / 60).toFixed(1) + "h");
+import { LeafAbsent, LeafLoading, LeafNotice, LeafUnreadable, useLeafResource } from "./leafOverviewKit.jsx";
+import { RuleInterview, fmtMinutes, fmtSeconds } from "./reactor/RuleInterview.jsx";
+import { Sentence } from "./reactor/StepEditor.jsx";
+import {
+  blankRule, catalogAction, catalogOutcome, catalogSource, problemsFor, toDocument,
+} from "./reactor/ruleModel.js";
 
 const MODE_LABEL = { off: "Off", observe: "Observe", propose: "Propose", act: "Act" };
+
+// What wakes a rule, in words. The ids are only useful once you are inside one.
+function wakesWords(rule) {
+  const wakes = rule.wakes || [];
+  if (!wakes.length) return "every sweep";
+  if (wakes.length === 1) return wakes[0];
+  return wakes.length + " kinds of event";
+}
 
 function ReactorRules({ hostId, leafId }) {
   // The leaf page's gate is the aggregate one — admin anywhere reaches it — so the tier that decides
@@ -56,255 +59,266 @@ function ReactorRules({ hostId, leafId }) {
 
   const [catalog, setCatalog] = React.useState(null);
   const [triggers, setTriggers] = React.useState([]);
-  const [stored, setStored] = React.useState(null);
   const [draft, setDraft] = React.useState(null);
-  const [editing, setEditing] = React.useState(null);
-  const [previews, setPreviews] = React.useState({});
+  const [opened, setOpened] = React.useState(null);
+  const [preview, setPreview] = React.useState(null);
+  const [problems, setProblems] = React.useState([]);
   const [busy, setBusy] = React.useState(false);
-  const [applied, setApplied] = React.useState(null);
-  const [failure, setFailure] = React.useState(null);
-
-  const loadRules = React.useCallback(() => {
-    if (!hostId) return;
-    fetchLeafReactorRules(hostId).then(
-      (res) => setStored(res || { managed: false }),
-      () => setStored(null));
-  }, [hostId]);
+  const [notice, setNotice] = React.useState(null);
 
   React.useEffect(() => {
     if (!hostId) return;
     fetchLeafReactorCatalog(hostId).then(setCatalog, () => setCatalog(null));
     fetchLeafReactorTriggers(hostId).then(
       (res) => setTriggers((res && res.triggers) || []), () => setTriggers([]));
-    loadRules();
-  }, [hostId, loadRules]);
-
-  // The set being edited. A host nobody has edited stores nothing, so the draft starts from what the
-  // leaf is running — which is the four rules it ships, and the thing a person expects to see when
-  // they open the page and start changing one.
-  React.useEffect(() => {
-    if (draft !== null || stored === null || state !== "ready") return;
-    if (stored.managed && stored.document && Array.isArray(stored.document.rules)) {
-      setDraft(stored.document.rules);
-      return;
-    }
-    setDraft(fromStatus(data));
-  }, [draft, stored, state, data]);
+  }, [hostId]);
 
   if (state === "loading") return <LeafLoading what="Reading the reactor’s rules…" />;
   if (state === "none") return <LeafAbsent leafId={leafId} what="a reactor" />;
   if (state === "error") return <LeafUnreadable what="Reactor rules" error={error} onRetry={reload} />;
 
   const honours = data.honours || "observe";
-  const problems = data.problems || [];
-  const liveIds = new Set((data.rules || []).map(r => r.id));
-  const rules = draft || [];
-  const dirty = !!draft && !!stored && !sameRule(rules, storedRules(stored, data));
+  const all = [...(data.rules || []), ...(data.retired || [])];
+  const leafProblems = data.problems || [];
 
-  const replace = (index, next) =>
-    setDraft(rules.map((r, i) => (i === index ? next : r)));
-
-  const save = () => {
+  const save = (rule) => {
     if (busy || !canEdit) return;
-    setBusy(true); setApplied(null); setFailure(null);
+    setBusy(true); setProblems([]);
 
-    saveLeafReactorRules(hostId, rules).then(
-      (res) => {
-        setApplied(res);
-        setEditing(null);
-        loadRules();
+    saveLeafReactorRule(hostId, rule).then(
+      () => {
+        setDraft(null);
+        setOpened(null);
+        setNotice({ ok: true, text: rule.name + " is running." });
         reload();
-        // A restart moves the unit through activating; re-read the board so the header's chip and
-        // the System tab reflect what actually came back up.
-        servicesStore.refresh(hostId).catch(() => {});
       },
-      (e) => setFailure((e && (e.userMessage || e.message)) || "The rules could not be saved."),
+      (e) => {
+        const found = (e && e.body && e.body.problems) || [];
+        setProblems(found.length
+          ? found
+          : [(e && (e.userMessage || e.message)) || "The rule could not be saved."]);
+      },
     ).finally(() => setBusy(false));
   };
 
-  const preview = (index) => {
-    const rule = rules[index];
-    setPreviews(p => ({ ...p, [rule.id]: { pending: true } }));
+  const remove = (ruleId) => {
+    if (busy || !canEdit) return;
+    setBusy(true);
+    deleteLeafReactorRule(hostId, ruleId).then(
+      () => { setOpened(null); setNotice({ ok: true, text: ruleId + " is gone." }); reload(); },
+      (e) => setNotice({ ok: false, text: (e && (e.userMessage || e.message)) || "It could not be removed." }),
+    ).finally(() => setBusy(false));
+  };
+
+  const runPreview = (rule) => {
+    setPreview({ pending: true });
     previewLeafReactorRule(hostId, rule).then(
-      (res) => setPreviews(p => ({ ...p, [rule.id]: res })),
-      (e) => setPreviews(p => ({
-        ...p,
-        [rule.id]: { problems: [(e && (e.userMessage || e.message)) || "The preview failed."], verdicts: [] },
-      })));
+      (res) => setPreview(res),
+      (e) => setPreview({
+        problems: [(e && (e.userMessage || e.message)) || "The preview failed."], verdicts: [],
+      }));
   };
 
-  const addRule = () => {
-    const rule = blankRule("");
-    setDraft([...rules, rule]);
-    setEditing(rules.length);
-  };
+  // ---- the interview, for a new rule or a stop of an existing one ----
+  if (draft) {
+    return (
+      <BriefCard icon="scale" title={draft.locked ? "Editing " + draft.id : "A new rule"}>
+        <RuleInterview
+          rule={draft} catalog={catalog || {}} triggers={triggers} honours={honours}
+          preview={preview} busy={busy} problems={problems}
+          onChange={setDraft}
+          onPreview={() => runPreview(draft)}
+          onSave={() => save(draft)}
+          onCancel={() => { setDraft(null); setProblems([]); setPreview(null); }} />
+      </BriefCard>
+    );
+  }
 
+  // ---- one rule's home ----
+  if (opened) {
+    const rule = all.find(r => r.id === opened);
+    if (!rule) { setOpened(null); return null; }
+    return (
+      <RuleHome
+        rule={rule} catalog={catalog} canEdit={canEdit} busy={busy}
+        problems={problemsFor(leafProblems, rule.id)}
+        onBack={() => setOpened(null)}
+        onEdit={() => setDraft({ ...toDocument(rule), locked: true })}
+        onRetire={() => save({ ...toDocument(rule), retired: !rule.retired })}
+        onRemove={() => remove(rule.id)} />
+    );
+  }
+
+  // ---- the list ----
   return (
     <>
-      {failure && (
-        <LeafNotice title="The rules were not saved" onRetry={() => setFailure(null)} retryLabel="Dismiss">
-          {failure}
+      {notice && (
+        <LeafNotice title={notice.ok ? "Saved" : "Not saved"}
+          onRetry={() => setNotice(null)} retryLabel="Dismiss">
+          {notice.text}
         </LeafNotice>
       )}
 
-      {applied && (
-        <LeafNotice
-          title={(applied.problems || []).length
-            ? (applied.problems || []).length + " rule(s) could not be honoured"
-            : "Saved"}
-          onRetry={() => setApplied(null)}
-          retryLabel="Dismiss">
-          {(applied.problems || []).length
-            ? <ul>{applied.problems.map((p, i) => <li key={i}>{p}</li>)}</ul>
-            : "Running: " + (applied.live || []).join(", ")}
+      {leafProblems.length > 0 && (
+        <LeafNotice title={leafProblems.length + " rule(s) could not be honoured"}
+          onRetry={reload} retryLabel="Re-read">
+          <ul>{leafProblems.map((p, i) => <li key={i}>{p}</li>)}</ul>
         </LeafNotice>
       )}
 
       <BriefCard icon="scale" title="Rules"
-        meta={rules.length + " stored · " + liveIds.size + " running"}
+        count={(data.rules || []).length + " running"}
+        countTone="neutral"
+        meta={"This build honours up to " + (MODE_LABEL[honours] || honours)}
         action={canEdit ? (
-          <>
-            <button type="button" className="lib-btn" onClick={addRule} disabled={busy}>
-              <Icon name="plus" size={14} /> Rule
-            </button>
-            <button type="button" className="lib-btn lib-btn--primary"
-              onClick={save} disabled={busy || !dirty}>
-              {busy ? "Saving…" : "Save"}
-            </button>
-          </>
+          <button type="button" className="lib-btn lib-btn--primary"
+            onClick={() => setDraft(blankRule(""))} disabled={busy || !catalog}>
+            <Icon name="plus" size={14} /> New rule
+          </button>
         ) : null}>
-        <LeafFacts rows={[
-          ["Most this build honours", MODE_LABEL[honours] || honours],
-          ["Rules file", stored && stored.path ? stored.path : "—",
-            stored && stored.managed
-              ? "Written by this panel and read by the leaf at startup."
-              : "Nothing is stored here yet, so the leaf runs the rules it ships."],
-        ]} />
-      </BriefCard>
 
-      {rules.map((rule, i) => (
-        <RuleCard key={rule.id || "new-" + i}
-          rule={rule}
-          catalog={catalog}
-          triggers={triggers}
-          honours={honours}
-          running={liveIds.has(rule.id)}
-          problems={problemsFor(problems, rule.id)}
-          editing={editing === i}
-          canEdit={canEdit && !!catalog}
-          busy={busy}
-          preview={previews[rule.id]}
-          onEdit={() => setEditing(editing === i ? null : i)}
-          onChange={(next) => replace(i, next)}
-          onRetire={() => replace(i, { ...rule, retired: !rule.retired })}
-          onPreview={() => preview(i)} />
-      ))}
+        {all.length === 0
+          ? <div className="chat-brief__empty">This host judges nothing.</div>
+          : (
+            <div className="rule-list">
+              <div className="rule-list__h">
+                <span>Rule</span>
+                <span className="rule-list__hide">Wakes on</span>
+                <span className="rule-list__hide">Would</span>
+                <span>Authority</span>
+              </div>
+              {all.map(rule => {
+                const action = catalogAction(catalog, rule.actionName);
+                return (
+                  <button type="button" key={rule.id} className="rule-row"
+                    onClick={() => setOpened(rule.id)}>
+                    <span>
+                      <span className="rule-row__n">{rule.name || rule.id}</span>
+                      <span className="rule-row__id">{rule.id}</span>
+                    </span>
+                    <span className="rule-row__c rule-list__hide">{wakesWords(rule)}</span>
+                    <span className="rule-row__c rule-list__hide">
+                      {action ? action.label : rule.actionName}
+                    </span>
+                    <span>
+                      <span className={"rule-pill" + (rule.retired ? " rule-pill--muted" : "")}>
+                        {rule.retired ? "Retired" : MODE_LABEL[rule.mode] || rule.mode}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+      </BriefCard>
     </>
   );
 }
 
-// The rules the leaf is running, as the file would hold them. What a host with no stored file starts
-// editing from — the definitions are already the whole rule, so nothing is invented here.
-function fromStatus(status) {
-  return [...((status && status.rules) || []), ...((status && status.retired) || [])].map(toDocument);
-}
+/** A rule read back as the six questions it answers, each with a way in. */
+function RuleHome({ rule, catalog, canEdit, busy, problems, onBack, onEdit, onRetire, onRemove }) {
+  const source = catalogSource(catalog, rule.subjectSource);
+  const action = catalogAction(catalog, rule.actionName);
+  const rows = rule.rows || [];
 
-function storedRules(stored, status) {
-  return stored && stored.managed && stored.document && Array.isArray(stored.document.rules)
-    ? stored.document.rules
-    : fromStatus(status);
-}
-
-// A rule as `/status` reports it, in the shape the file uses. The two carry the same fields under
-// the same names; what differs is that status also reports what was resolved, which a file does not
-// hold and must not be written back.
-function toDocument(rule) {
-  return {
-    id: rule.id,
-    name: rule.name,
-    wakes: rule.wakes || [],
-    subjects: { source: rule.subjectSource, args: rule.subjectArgs || {} },
-    signals: (rule.signals || []).map(s => ({ alias: s.alias, signal: s.signal, args: s.args || {} })),
-    rows: rule.rows || [],
-    default: rule.default,
-    action: rule.actionName,
-    severity: rule.severity,
-    settleSeconds: rule.settleSeconds,
-    suppressionMinutes: rule.suppressionMinutes ?? null,
-    mode: rule.mode,
-    retired: !!rule.retired,
-  };
-}
-
-function RuleCard({
-  rule, catalog, triggers, honours, running, problems, editing, canEdit, busy, preview,
-  onEdit, onChange, onRetire, onPreview,
-}) {
-  const source = catalogSource(catalog, rule.subjects && rule.subjects.source);
-  const action = catalogAction(catalog, rule.action);
-  const idOk = ID_SHAPE.test(rule.id || "");
+  const answers = [
+    ["It wakes when", (rule.wakes || []).length
+      ? (rule.wakes || []).join(" or ")
+      : "every sweep comes round", null],
+    ["and judges", source ? source.label : rule.subjectSource, source ? source.description : null],
+    ["looking up", (rule.signals || []).length
+      ? (rule.signals || []).map(s => s.alias).join(", ")
+      : "nothing beyond what it can already read", null],
+    ["and would", action ? action.label : rule.actionName, action ? action.consequence : null],
+    ["after waiting", fmtSeconds(rule.settleSeconds) + ", then staying quiet for "
+      + fmtMinutes(rule.suppressionMinutes), "Filed as " + rule.severity + "."],
+  ];
 
   return (
-    <BriefCard
-      icon={rule.retired ? "archive" : rule.mode === "off" ? "circle-off" : "scale"}
-      title={rule.name || rule.id || "Untitled rule"}
-      count={rule.retired ? "retired" : running ? MODE_LABEL[rule.mode] || rule.mode : "not running"}
-      countTone={rule.retired ? "muted" : running ? "neutral" : "warn"}
+    <BriefCard icon="scale" title={rule.name || rule.id}
+      count={rule.retired ? "Retired" : MODE_LABEL[rule.mode] || rule.mode}
+      countTone={rule.retired ? "muted" : "neutral"}
       meta={rule.id}
-      action={canEdit ? (
+      action={(
         <>
-          <button type="button" className="lib-btn" onClick={onPreview} disabled={busy || !idOk}>
-            <Icon name="play" size={14} /> Preview
-          </button>
-          <button type="button" className="lib-btn" onClick={onRetire} disabled={busy}>
-            {rule.retired ? "Restore" : "Retire"}
-          </button>
-          <button type="button" className="lib-btn" onClick={onEdit} disabled={busy}>
-            {editing ? "Done" : "Edit"}
-          </button>
+          <button type="button" className="lib-btn" onClick={onBack}>Back</button>
+          {canEdit && (
+            <>
+              <button type="button" className="lib-btn" onClick={onRetire} disabled={busy}>
+                {rule.retired ? "Restore" : "Retire"}
+              </button>
+              <button type="button" className="lib-btn lib-btn--primary" onClick={onEdit} disabled={busy}>
+                Edit
+              </button>
+            </>
+          )}
         </>
-      ) : null}>
+      )}>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {problems.map((p, i) => (
-          <div key={i} className="chat-brief__item chat-brief__item--warn">
-            <span className="chat-brief__icon"><Icon name="triangle-alert" size={14} /></span>
-            <div className="chat-brief__body">
-              <span className="chat-brief__detail">{p}</span>
+      {problems.map((p, i) => (
+        <div key={i} className="rule-problems__row">
+          <Icon name="triangle-alert" size={14} /> <span>{p}</span>
+        </div>
+      ))}
+
+      <div className="rule-home">
+        {answers.map(([q, a, sub]) => (
+          <div className="rule-ans" key={q}>
+            <div className="rule-ans__q">{q}</div>
+            <div className="rule-ans__a">
+              {a}
+              {sub && <span className="rule-ans__sub">{sub}</span>}
             </div>
+            {canEdit && (
+              <button type="button" className="lib-btn rule-ans__e" onClick={onEdit}>Edit</button>
+            )}
           </div>
         ))}
 
-        {editing && !idOk && (
-          <div className="rule-edit__field">
-            <label className="rule-edit__label">Id</label>
-            <input className="lcf-input" type="text" value={rule.id || ""}
-              placeholder={idFromName(rule.name)}
-              onChange={(e) => onChange({ ...rule, id: e.target.value })} />
-            <span className="rule-edit__hint">Lower case, digits and underscores.</span>
+        <div className="rule-ans">
+          <div className="rule-ans__q">deciding</div>
+          <div className="rule-ans__a">
+            {rows.length
+              ? "in " + (rows.length + 1) + " steps, first match wins"
+              : "on one fallback alone"}
+            <div className="rule-steps rule-steps--read">
+              {rows.map((row, i) => (
+                <div className="rule-line rule-line--read" key={i}>
+                  <span className="rule-line__n">{i + 1}</span>
+                  <span className="rule-line__say"><Sentence text={row.say} /></span>
+                  <span className={"rule-pill rule-pill--" + row.then}>
+                    {(catalogOutcome(catalog, row.then) || {}).label || row.then}
+                  </span>
+                </div>
+              ))}
+              <div className="rule-line rule-line--read rule-line--floor">
+                <span className="rule-line__n" />
+                <span className="rule-line__say">
+                  <span className="rule-line__otherwise">Anything else — </span>
+                  <Sentence text={(rule.default || {}).say} />
+                </span>
+                <span className={"rule-pill rule-pill--" + ((rule.default || {}).then || "doesNotHold")}>
+                  {(catalogOutcome(catalog, (rule.default || {}).then) || {}).label || "No"}
+                </span>
+              </div>
+            </div>
           </div>
-        )}
-
-        {editing
-          ? <RuleEditor rule={rule} catalog={catalog} triggers={triggers} honours={honours}
-              onChange={onChange} />
-          : (
-            <>
-              <LeafFacts rows={[
-                ["Wakes on", (rule.wakes || []).length ? rule.wakes.join(", ") : "the sweep"],
-                ["Decides about", source ? source.label : (rule.subjects && rule.subjects.source) || "—"],
-                ["Would", action ? action.label : rule.action],
-                ["Settles for", fmtSeconds(rule.settleSeconds)],
-                ["Then stays quiet for", fmtMinutes(rule.suppressionMinutes)],
-              ]} />
-              {catalog && <RuleFlow rule={rule} catalog={catalog} />}
-            </>
+          {canEdit && (
+            <button type="button" className="lib-btn rule-ans__e" onClick={onEdit}>Edit</button>
           )}
-
-        {preview && (preview.pending
-          ? <LeafLoading what="Asking the reactor what this would decide…" />
-          : <RulePreviewPanel preview={preview} />)}
+        </div>
       </div>
+
+      {canEdit && (
+        <div className="rule-home__foot">
+          <button type="button" className="lib-btn rule-btn--danger" onClick={onRemove} disabled={busy}>
+            Delete this rule
+          </button>
+          <span className="rule-edit__hint">
+            Retiring keeps it nameable on the decisions it already made. Deleting does not.
+          </span>
+        </div>
+      )}
     </BriefCard>
   );
 }
