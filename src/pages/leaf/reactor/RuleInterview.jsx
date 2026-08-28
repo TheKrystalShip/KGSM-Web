@@ -334,8 +334,10 @@ function RuleInterview({
           {at === 6 && (
             <>
               <Pick label="How far it may go" value={rule.mode} onChange={(v) => set({ mode: v })}
+                // No "off" here. Whether a rule runs is its own switch, on the list and on the rule's
+                // own page; this asks only how far it may go once it does. Offering both in one
+                // control would mean pausing a rule overwrote the authority chosen for it.
                 options={[
-                  { id: "off", label: "Off", description: "It is not run at all." },
                   { id: "observe", label: "Watch only",
                     description: "Records what it concludes. Nobody is told and nothing is done." },
                   { id: "propose", label: "Ask first",

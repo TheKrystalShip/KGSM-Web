@@ -25,6 +25,7 @@ import React from "react";
 
 import { BriefCard } from "../../components/BriefCard.jsx";
 import { Icon } from "../../components/Icon.jsx";
+import { Toggle } from "../../components/settings-primitives.jsx";
 import {
   deleteLeafReactorRule, fetchLeafReactorCatalog, fetchLeafReactorStatus, fetchLeafReactorTriggers,
   previewLeafReactorRule, saveLeafReactorRule,
@@ -38,6 +39,27 @@ import {
 } from "./reactor/ruleModel.js";
 
 const MODE_LABEL = { off: "Off", observe: "Observe", propose: "Propose", act: "Act" };
+
+// What a switched-off rule would go back to doing, as the end of "It would ___ when it is switched
+// back on." The same words the interview offers when the authority is chosen, so the sentence a
+// person read there is the one they are shown here.
+//
+// Read from `configuredMode`, never from `mode`: the latter reports what the leaf will actually do,
+// which for a rule that is off is nothing at all. Reading only that would offer to switch a rule on
+// without being able to say what it would then be allowed to do.
+const RESUMES_AS = {
+  observe: "record what it concludes, and do nothing",
+  propose: "put an offer in the panel and wait for a person",
+  act: "act without asking, and record that it did",
+};
+
+// The pill a rule wears in the list and on its own page. Retired outranks the switch: a rule kept
+// only so its old decisions still resolve is not a rule that is merely paused.
+function ruleStanding(rule) {
+  if (rule.retired) return { text: "Retired", muted: true };
+  if (rule.enabled === false) return { text: "Off", muted: true };
+  return { text: MODE_LABEL[rule.mode] || rule.mode, muted: false };
+}
 
 // What wakes a rule, in words. The ids are only useful once you are inside one.
 function wakesWords(rule) {
@@ -101,6 +123,38 @@ function ReactorRules({ hostId, leafId }) {
     ).finally(() => setBusy(false));
   };
 
+  // Switching a rule on or off writes the whole rule back through the same path an edit takes. There
+  // is no shortcut endpoint on purpose: the leaf validates what it is given, so a rule cannot be
+  // switched on into a state that build would refuse, and the change is audited like any other.
+  //
+  // Unlike an edit it leaves the screen where it is — a switch is not a departure — and it sends the
+  // CONFIGURED authority back untouched, which is what lets a paused rule resume as what it was.
+  const setEnabled = (rule, on) => {
+    if (busy || !canEdit) return;
+    setBusy(true);
+
+    saveLeafReactorRule(hostId, { ...toDocument(rule), enabled: on }).then(
+      () => {
+        setNotice({
+          ok: true,
+          text: on
+            ? (rule.name || rule.id) + " is running again."
+            : (rule.name || rule.id) + " is switched off. Nothing is judged by it until it is on.",
+        });
+        reload();
+      },
+      (e) => {
+        const found = (e && e.body && e.body.problems) || [];
+        setNotice({
+          ok: false,
+          text: found.length
+            ? found.join(" ")
+            : (e && (e.userMessage || e.message)) || "The rule could not be changed.",
+        });
+      },
+    ).finally(() => setBusy(false));
+  };
+
   const remove = (ruleId) => {
     if (busy || !canEdit) return;
     setBusy(true);
@@ -144,6 +198,7 @@ function ReactorRules({ hostId, leafId }) {
         problems={problemsFor(leafProblems, rule.id)}
         onBack={() => setOpened(null)}
         onEdit={() => setDraft({ ...toDocument(rule), locked: true })}
+        onEnabled={(on) => setEnabled(rule, on)}
         onRetire={() => save({ ...toDocument(rule), retired: !rule.retired })}
         onRemove={() => remove(rule.id)} />
     );
@@ -167,7 +222,7 @@ function ReactorRules({ hostId, leafId }) {
       )}
 
       <BriefCard icon="scale" title="Rules"
-        count={(data.rules || []).length + " running"}
+        count={(data.rules || []).filter(r => r.enabled !== false).length + " running"}
         countTone="neutral"
         meta={"This build honours up to " + (MODE_LABEL[honours] || honours)}
         action={canEdit ? (
@@ -182,30 +237,48 @@ function ReactorRules({ hostId, leafId }) {
           : (
             <div className="rule-list">
               <div className="rule-list__h">
-                <span>Rule</span>
-                <span className="rule-list__hide">Wakes on</span>
-                <span className="rule-list__hide">Would</span>
-                <span>Authority</span>
+                <span className="rule-row__cells">
+                  <span>Rule</span>
+                  <span className="rule-list__hide">Wakes on</span>
+                  <span className="rule-list__hide">Would</span>
+                </span>
+                <span className="rule-row__end">
+                  <span>Authority</span>
+                  <span>On</span>
+                </span>
               </div>
               {all.map(rule => {
                 const action = catalogAction(catalog, rule.actionName);
+                const standing = ruleStanding(rule);
                 return (
-                  <button type="button" key={rule.id} className="rule-row"
-                    onClick={() => setOpened(rule.id)}>
-                    <span>
-                      <span className="rule-row__n">{rule.name || rule.id}</span>
-                      <span className="rule-row__id">{rule.id}</span>
-                    </span>
-                    <span className="rule-row__c rule-list__hide">{wakesWords(rule)}</span>
-                    <span className="rule-row__c rule-list__hide">
-                      {action ? action.label : rule.actionName}
-                    </span>
-                    <span>
-                      <span className={"rule-pill" + (rule.retired ? " rule-pill--muted" : "")}>
-                        {rule.retired ? "Retired" : MODE_LABEL[rule.mode] || rule.mode}
+                  // A row, not a button: the switch lives in it, and an interactive control inside a
+                  // button is neither valid nor reachable by keyboard. Opening the rule is its own
+                  // button spanning the columns that describe it.
+                  <div key={rule.id} className="rule-row">
+                    <button type="button" className="rule-row__cells rule-row__open"
+                      onClick={() => setOpened(rule.id)}>
+                      <span>
+                        <span className="rule-row__n">{rule.name || rule.id}</span>
+                        <span className="rule-row__id">{rule.id}</span>
                       </span>
+                      <span className="rule-row__c rule-list__hide">{wakesWords(rule)}</span>
+                      <span className="rule-row__c rule-list__hide">
+                        {action ? action.label : rule.actionName}
+                      </span>
+                    </button>
+                    <span className="rule-row__end">
+                      <span className={"rule-pill" + (standing.muted ? " rule-pill--muted" : "")}>
+                        {standing.text}
+                      </span>
+                      {/* A retired rule has no switch: it is kept for the record, and restoring it is
+                          a different decision made on its own page. */}
+                      {canEdit && !rule.retired ? (
+                        <Toggle on={rule.enabled !== false} disabled={busy}
+                          onChange={(on) => setEnabled(rule, on)}
+                          label={(rule.enabled !== false ? "Switch off " : "Switch on ") + rule.id} />
+                      ) : <span />}
                     </span>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -216,7 +289,7 @@ function ReactorRules({ hostId, leafId }) {
 }
 
 /** A rule read back as the six questions it answers, each with a way in. */
-function RuleHome({ rule, catalog, canEdit, busy, problems, onBack, onEdit, onRetire, onRemove }) {
+function RuleHome({ rule, catalog, canEdit, busy, problems, onBack, onEdit, onEnabled, onRetire, onRemove }) {
   const source = catalogSource(catalog, rule.subjectSource);
   const action = catalogAction(catalog, rule.actionName);
   const rows = rule.rows || [];
@@ -234,16 +307,27 @@ function RuleHome({ rule, catalog, canEdit, busy, problems, onBack, onEdit, onRe
       + fmtMinutes(rule.suppressionMinutes), "Filed as " + rule.severity + "."],
   ];
 
+  const standing = ruleStanding(rule);
+  const off = !rule.retired && rule.enabled === false;
+
   return (
     <BriefCard icon="scale" title={rule.name || rule.id}
-      count={rule.retired ? "Retired" : MODE_LABEL[rule.mode] || rule.mode}
-      countTone={rule.retired ? "muted" : "neutral"}
+      className="rule-card"
+      count={standing.text}
+      countTone={standing.muted ? "muted" : "neutral"}
       meta={rule.id}
       action={(
-        <>
+        <span className="rule-acts">
           <button type="button" className="lib-btn" onClick={onBack}>Back</button>
           {canEdit && (
             <>
+              {!rule.retired && (
+                <span className="rule-switch">
+                  <span className="rule-switch__l">Running</span>
+                  <Toggle on={!off} disabled={busy} onChange={onEnabled}
+                    label={off ? "Switch on " + rule.id : "Switch off " + rule.id} />
+                </span>
+              )}
               <button type="button" className="lib-btn" onClick={onRetire} disabled={busy}>
                 {rule.retired ? "Restore" : "Retire"}
               </button>
@@ -252,8 +336,18 @@ function RuleHome({ rule, catalog, canEdit, busy, problems, onBack, onEdit, onRe
               </button>
             </>
           )}
-        </>
+        </span>
       )}>
+
+      {/* Said here rather than left to the pill, because this is the screen somebody is on when they
+          decide whether to switch it back on, and "Off" alone does not say what that would start. */}
+      {off && (
+        <div className="rule-paused">
+          Switched off, so nothing is judged by it. It would
+          {" " + (RESUMES_AS[rule.configuredMode] || RESUMES_AS.observe) + " "}
+          when it is switched back on.
+        </div>
+      )}
 
       {problems.map((p, i) => (
         <div key={i} className="rule-problems__row">

@@ -20,6 +20,7 @@ const blankRule = (id) => ({
   settleSeconds: 120,
   suppressionMinutes: null,
   mode: "observe",
+  enabled: true,
   retired: false,
 });
 
@@ -132,6 +133,12 @@ const bindableSignals = (catalog) =>
 // One rule as `/status` reports it, in the shape a rule FILE uses. The two carry the same fields
 // under the same names; what differs is that status also reports what was resolved, which the file
 // does not hold and must not be written back.
+//
+// The authority written back is the CONFIGURED one, never the honoured one. `mode` on a status
+// rule is what the leaf will actually do — clamped by the build, and `off` for a rule somebody
+// switched off — while `configuredMode` carries what was asked for whenever the two differ. Writing
+// the honoured value back would file the clamp, or the switch, as the authority somebody chose, so
+// saving any edit to a paused rule would silently demote it to watching.
 function toDocument(rule) {
   return {
     id: rule.id,
@@ -145,7 +152,8 @@ function toDocument(rule) {
     severity: rule.severity,
     settleSeconds: rule.settleSeconds,
     suppressionMinutes: rule.suppressionMinutes ?? null,
-    mode: rule.mode,
+    mode: rule.configuredMode || rule.mode,
+    enabled: rule.enabled !== false,
     retired: !!rule.retired,
   };
 }

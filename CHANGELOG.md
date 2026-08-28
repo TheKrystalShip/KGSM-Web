@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — a switch on every reactor rule (1.177.0)
+
+Each row on the reactor's Rules tab carries a switch, under an `ON` column beside the authority it
+holds, and a rule's own page carries the same one with room to label it. Switching a rule off writes
+the whole rule back through the path an edit takes, so the leaf validates it, the change is audited,
+and a rule cannot be switched on into a state that build would refuse.
+
+The switch is a sibling of the button that opens a rule rather than a control inside it — nested, it
+would be invalid markup and unreachable by keyboard.
+
+A paused rule says what switching it on would start: "Switched off, so nothing is judged by it. It
+would put an offer in the panel and wait for a person when it is switched back on." The card's count
+reads how many rules are running, which is not how many exist.
+
+`Off` is no longer offered among the authorities in the interview's "How far it may go", because it
+is not one. The switch owns whether a rule runs; that question owns how far it may go once it does.
+
+### Fixed — editing a rule no longer writes back the authority the leaf is honouring
+
+A rule is saved with the authority it was **configured** with. `/status` reports `mode` as what the
+leaf will actually do — clamped by the build, and `off` for a rule that is switched off — and carries
+the asked-for value beside it. Writing the honoured value back would file the clamp, or the switch,
+as the authority somebody chose, so saving any edit to a paused or clamped rule would demote it.
+
 ### Changed — no emoji in prose or output
 
 Docs, comments and command output carry no emoji. The information lives in the words, and a status

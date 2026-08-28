@@ -47,13 +47,33 @@
   background: var(--border-subtle);
 }
 
+/* A row is a grid of two parts: the columns that DESCRIBE the rule, which open it, and the end block
+ * that carries its standing and its switch. They are separate because the switch is a control in its
+ * own right — nesting it inside the button that opens the rule would be invalid and unreachable by
+ * keyboard, and the header has to line up with both. */
 .rule-list__h,
 .rule-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px 110px 90px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.rule-row__cells {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px 110px;
   gap: var(--s-3);
   align-items: center;
+  min-width: 0;
   padding: var(--s-3) var(--s-4);
+}
+
+/* Two cells, so the header's labels sit over the pill and the switch rather than beside them. */
+.rule-row__end {
+  display: grid;
+  grid-template-columns: 90px 38px;
+  gap: var(--s-3);
+  align-items: center;
+  padding: var(--s-3) var(--s-4) var(--s-3) 0;
 }
 
 .rule-list__h {
@@ -63,14 +83,24 @@
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--fg-4);
+}
+
+.rule-list__h .rule-row__cells,
+.rule-list__h .rule-row__end {
   padding-top: var(--s-2);
   padding-bottom: var(--s-2);
 }
 
-.rule-row {
+.rule-row { background: var(--surface-1); }
+
+.rule-row__open {
+  /* Stated, not inherited: this is a <button>, which the UA gives border-box, while the header cell
+   * beside it is a <span> that keeps content-box. Left to the UA the two would disagree by their
+   * padding and the columns would not line up. */
+  box-sizing: border-box;
   width: 100%;
   text-align: left;
-  background: var(--surface-1);
+  background: none;
   border: none;
   cursor: pointer;
   font-family: var(--font-ui);
@@ -78,7 +108,7 @@
 }
 
 .rule-row:hover { background: var(--surface-2); }
-.rule-row:focus-visible { outline: 2px solid var(--krystal-teal); outline-offset: -2px; }
+.rule-row__open:focus-visible { outline: 2px solid var(--krystal-teal); outline-offset: -2px; }
 
 .rule-row__n {
   display: block;
@@ -703,6 +733,46 @@
   border-radius: var(--r-sm);
 }
 
+/* ---- the switch, and what it is holding ---- */
+
+/* A rule's page carries four controls in its head — back, the switch, retire and edit — which is
+ * more than a phone holds on one line beside the title. The card's head does not wrap, so the group
+ * does: every control stays on the card at every width, and none of them is the one to drop. */
+.rule-acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  min-width: 0;
+  margin-left: auto;
+}
+
+.rule-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.rule-switch__l {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--fg-3);
+}
+
+/* Stated in full rather than tinted like a fault: a paused rule is somebody's decision, not a
+ * problem with the host, so it reads as a note and not as the warning row above it. */
+.rule-paused {
+  margin: var(--s-3) var(--s-4) 0;
+  padding: var(--s-2) var(--s-3);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--fg-2);
+  background: var(--surface-2);
+  border-left: 2px solid var(--border-strong);
+  border-radius: var(--r-sm);
+}
+
 /* ---- what a proposed rule would decide ---- */
 
 .rule-preview {
@@ -769,8 +839,17 @@
   .wiz-dot { grid-template-columns: 22px; padding: var(--s-2); }
   .wiz-dot__q, .wiz-dot__a { display: none; }
 
-  .rule-list__h, .rule-row { grid-template-columns: minmax(0, 1fr) auto; }
+  /* The describing columns collapse to the name alone; the standing and the switch stay, because
+   * they are what the row is operated by. */
+  .rule-row__cells { grid-template-columns: minmax(0, 1fr); }
   .rule-list__hide { display: none; }
+
+  /* A rule's name and its four controls do not share a line at this width without the name being
+   * squeezed into a column a few words wide. The controls take their own row under it instead —
+   * they are a group, and a rule named across five lines is harder to read than a second row. */
+  .rule-card .chat-brief__head { flex-wrap: wrap; }
+  .rule-card .chat-brief__title { flex: 1 1 100%; }
+  .rule-card .rule-acts { flex: 1 0 100%; justify-content: flex-start; margin-left: 0; }
 
   .rule-ans { grid-template-columns: minmax(0, 1fr); gap: var(--s-2); }
   .rule-ans__e { opacity: 1; justify-self: start; }
