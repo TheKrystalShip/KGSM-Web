@@ -14,7 +14,7 @@
 # packages owning one path, which pacman refuses.
 
 pkgname=kgsm-web
-pkgver=1.156.1
+pkgver=1.176.0
 pkgrel=1
 pkgdesc="KGSM Control Panel — the web UI served by kgsm-api"
 arch=('any')
