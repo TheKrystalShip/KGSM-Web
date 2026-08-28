@@ -97,6 +97,22 @@ function fmtLeft(expiresAt, now) {
   return (ms / HOUR_MS).toFixed(1) + "h left";
 }
 
+// How long the fault itself has stood, which is a different figure from how long the offer has left
+// and the one that says how urgent this is.
+//
+// ⚠ Null when the leaf did not date the condition, and it renders as nothing at all. A rule judging a
+// standing fact has no opening to name, and "0m" in its place would read as a fault that had just
+// started — the most misleading thing this card could say.
+function fmtStanding(openedAt, now) {
+  const d = at(openedAt);
+  if (!d) return null;
+  const ms = now.getTime() - d.getTime();
+  if (ms < MINUTE_MS) return "just started";
+  if (ms < HOUR_MS) return "for " + Math.round(ms / MINUTE_MS) + "m";
+  if (ms < 24 * HOUR_MS) return "for " + (ms / HOUR_MS).toFixed(1) + "h";
+  return "for " + Math.round(ms / (24 * HOUR_MS)) + "d";
+}
+
 // One open offer, as an alert-shaped row.
 //
 // ⚠ The arming is not theatre, and it is the panel's own: `useConfirmAction` is what every destructive
@@ -105,6 +121,7 @@ function fmtLeft(expiresAt, now) {
 function Offer({ offer, busy, onAnswer, now }) {
   const { armed, trigger } = useConfirmAction(() => onAnswer(offer.handle, true));
   const left = fmtLeft(offer.expiresAt, now);
+  const standing = fmtStanding(offer.openedAt, now);
   const severity = offer.severity === "danger" || offer.severity === "warn" ? offer.severity : "info";
 
   return (
@@ -117,8 +134,14 @@ function Offer({ offer, busy, onAnswer, now }) {
           <AlertSeverityTag severity={severity} />
         </div>
 
-        {/* The sentence the decision was made with, and the thing a person actually decides on. */}
+        {/* The sentence the decision was made with — what is wrong, in the rule's own words. */}
         <div className="alert-card__detail">{offer.reason}</div>
+
+        {/* And what confirming does to the host, which the reason cannot know. Answering without it
+            means authorising an action on the strength of the problem it names, and the two questions
+            — is this real, and can I live with the fix — are not the same question. */}
+        {offer.actionConsequence &&
+          <div className="reactor-offer__cost">{offer.actionConsequence}</div>}
 
         {/* The meta strip is already monospace, so the rule id needs no wrapper of its own — and it
             must not take the source chip's, which uppercases. A rule id is a name the person typed
@@ -126,6 +149,9 @@ function Offer({ offer, busy, onAnswer, now }) {
         <div className="alert-card__meta">
           <span>{offer.rule}</span>
           {offer.ruleAuthor && <><span>·</span><span>written by {offer.ruleAuthor}</span></>}
+          {/* How long the fault has stood, not how long the offer has. An offer made at three in the
+              morning is read at seven, and the reason it carries was frozen when it was staged. */}
+          {standing && <><span>·</span><span>standing {standing}</span></>}
           {left && <><span>·</span><span>{left}</span></>}
         </div>
       </div>

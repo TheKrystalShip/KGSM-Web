@@ -229,6 +229,19 @@
   flex-wrap: wrap;
 }
 
+/* What confirming an offer does to the host. Set below the reason and quieter than it: the fault is
+ * what a person reads first, and this is what they weigh once they believe it. Boxed rather than made
+ * another paragraph, so the two sentences cannot be skimmed as one. */
+.reactor-offer__cost {
+  font-size: var(--text-xs);
+  color: var(--fg-3);
+  line-height: 1.5;
+  padding: var(--s-2);
+  border: var(--edge);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
 /* A table cell carrying two lines. The shared table ellipsises a single text node, so an inner block
  * would overflow past it and clip mid-word with nothing to show the text was cut — each line has to
  * truncate itself. */

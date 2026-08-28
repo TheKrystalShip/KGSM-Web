@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — what an offer costs, and how long the fault has stood (1.175.0)
+
+An offer now carries the leaf's own sentence about what confirming does to the host — that a pinned
+archive touches nothing about the server, that a rollback is irreversible — set below the reason and
+quieter than it. Whether a fault is real and whether its fix is bearable are two questions, and a card
+answering only the first asks for authorisation on the strength of the problem it names.
+
+Its meta strip says how long the condition has been standing, which is a different figure from how long
+the offer has left. An offer made at three in the morning is read at seven, and the reason it carries
+was frozen when it was staged.
+
+⚠ Nothing is drawn where the leaf did not date the condition. A rule judging a standing fact has no
+opening to name, and "0m" in its place would read as a fault that had just started.
+
 ### Added — answering what the reactor offers (1.174.0)
 
 A Proposals tab on the reactor leaf, badged with how many offers are waiting. An offer is a rule that
