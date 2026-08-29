@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — one node's empty cache no longer blanks the fleet's catalog art (1.180.0)
+
+A game's cover, banner and description are the answering node's own cache state, not a fleet fact: a
+node whose hydration has not reached a game — no Steam capsule for it, or no RAWG key at all — says
+`cover: null, hero: null` for it, honestly. The library merge took the first node to answer as the
+authority for a game's whole entry, so whichever node the fan-out happened to reach first decided the
+art for every browser, and a node with a thinner cache erased covers and banners that another node
+had.
+
+The merge now fills field by field: the first node with a value for a field wins that field, and a
+node with nothing to say about it says nothing. Availability still unions across nodes as before. A
+cover URL is host-absolute, so a filled field points at the node whose disk actually holds the bytes.
+
 ### Fixed — a node is never named to a person by an internal key (1.179.0)
 
 Two surfaces name nodes, and both fell back to the routing id when they had no name. An id is not a

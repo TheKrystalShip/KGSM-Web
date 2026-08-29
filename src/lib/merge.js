@@ -31,15 +31,37 @@ export const mergeAlerts = (lists) => concatById(lists);
 // game id and UNION the per-host availability into `hosts` (the offering the
 // LibraryPage reads to show "available on" + scope install targets). Each input
 // list is tagged with the source hostId (the fan-out stamps `_srcHost`).
+//
+// A catalog entry is NOT one host's to dictate. Its art and RAWG text are that
+// host's own cache state — a node whose hydration has not reached a game (no
+// Steam capsule, no RAWG key) answers `cover: null, hero: null` for it, honestly.
+// So the merge fills FIELD BY FIELD: the first host to carry a value for a field
+// wins that field, and a host with nothing to say about it says nothing. Taking
+// one host's whole entry instead would let whichever node the fan-out happened to
+// reach first blank the art for the entire fleet. Absent is null or an empty
+// list; a cover/hero URL is host-absolute and stays verbatim, so a filled field
+// points at the node whose disk actually holds the bytes.
+function absent(v) { return v == null || (Array.isArray(v) && v.length === 0); }
+
+function fillGaps(entry, other) {
+  let out = entry;
+  for (const k of Object.keys(other)) {
+    if (!absent(out[k]) || absent(other[k])) continue;
+    if (out === entry) out = { ...entry };
+    out[k] = other[k];
+  }
+  return out;
+}
+
 function mergeLibrary(taggedLists) {
   const byId = new Map();   // gameId -> { entry, hosts:Set }
   for (const { hostId, list } of taggedLists) {
     for (const g of (list || [])) {
       if (!g || g.id == null) continue;
-      const cur = byId.get(g.id) || { entry: g, hosts: new Set() };
+      const cur = byId.get(g.id);
+      if (!cur) { byId.set(g.id, { entry: g, hosts: new Set(hostId ? [hostId] : []) }); continue; }
       if (hostId) cur.hosts.add(hostId);
-      // Keep the first entry's metadata; later hosts only widen availability.
-      byId.set(g.id, cur);
+      cur.entry = fillGaps(cur.entry, g);
     }
   }
   // When sources carried a hostId, set the unioned offering. When none did (a
