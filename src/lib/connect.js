@@ -10,7 +10,7 @@
 // backend token-handoff that isn't built (WIRING §6) — so we surface that
 // honestly ("needs_auth") rather than bounce into a flow that can't finish.
 
-import { CONNECTIONS, REGISTRY_KEY, addConnections } from "./config.js";
+import { CONNECTIONS, REGISTRY_KEY, addConnections, removeConnections } from "./config.js";
 
 const AUTH_LS_KEY = "krystal:auth";   // app-shell identity (same key App.jsx / authRedirect use)
 
@@ -48,8 +48,14 @@ export function userFromMe(me) {
 // A registry entry for a connected host. `id` is the backend host id (probed at
 // connect time) so multi-host routing is exact from the first load; null falls
 // back to the Slice-A sole-connection routing (fine for a lone host).
-export function registryEntry(origin, name, id) {
-  return { id: id || null, url: origin, name: name || null };
+//
+// `via` records how the app came to hold the entry, and it decides whether the
+// entry may later be dropped on its own. "roster" means a cluster named it, so the
+// cluster is also what says when it is gone. Anything else was a deliberate act by
+// the person using the app — a typed address or the build's seed — and only they
+// take it away again.
+export function registryEntry(origin, name, id, via) {
+  return { id: id || null, url: origin, name: name || null, via: via || "manual" };
 }
 
 // ---- impure: localStorage registry + app identity -----------------------
@@ -70,24 +76,40 @@ export function addConnection(entry) {
 }
 export function setAppUser(user) { try { localStorage.setItem(AUTH_LS_KEY, JSON.stringify(user)); } catch {} }
 
-// Mirror the converged cluster roster (clusterStore.nodes) into the host
-// registry, keyed by nodeId, so a 401 against a federated peer has a routable
-// target for sessionStore.vouch() (cluster SSO — see apiClient.js hostScoped
-// .withRetry). Only enabled nodes that carry BOTH a nodeId and a clientUrl are
-// mirrored — honesty: a node missing either is simply skipped (stays a ghost
-// row in the Cluster page), never fabricated. Only a node that is BOTH alive
-// (gossip membership) AND reachable (status probe) is mirrored: that is the one
-// legitimate vouch target (a federated, running peer). A down/joining/unknown
-// peer is deliberately left as a ghost — registering an unreachable URL would
-// add a dead CONNECTIONS entry that trips the app-wide connection banner and
-// never self-heals, and there is nothing to vouch onto anyway. Idempotent:
-// dedupes by normalized origin AND by existing id, so repeated calls (e.g. on
-// every roster poll) only ever add genuinely-new entries. opts.localHostId is
-// the already-connected node — skipped, it's registered by definition. A mirrored
-// node joins the LIVE connection set at once (addConnection), so the fan-out and
-// the stream registry pick it up with no reload.
-export function mirrorRosterToRegistry(nodes, opts = {}) {
+// Track the converged cluster roster (clusterStore.nodes) in the host registry,
+// keyed by nodeId. The node set the SPA drives is the CLUSTER's — not the list of
+// addresses this browser has been pointed at over its lifetime — so this both
+// registers the peers a roster names and drops the ones it no longer names.
+//
+// JOINING is deliberately conservative: only an enabled node carrying BOTH a
+// nodeId and a clientUrl, and reading BOTH alive (gossip membership) AND reachable
+// (status probe), is registered. That is the one legitimate vouch target, and it is
+// the only state in which adding a URL cannot strand a dead connection that trips
+// the app-wide banner and never self-heals. A node missing either field, or not yet
+// verified, stays a visible ghost on the Cluster page instead — never fabricated
+// into a connection.
+//
+// LEAVING is a different question from being unwell, and the two must not be
+// collapsed. A node absent from the roster has left the cluster: it was removed, it
+// departed, or it was reaped, and either way it is no longer a member and nothing
+// should still be counting it, streaming from it, or naming it in a banner. A node
+// PRESENT in the roster but unreachable or suspect is still a member having
+// trouble, and every surface that says so is telling the truth — so it keeps its
+// connection and keeps being reported.
+//
+// Only entries the cluster taught us are dropped this way (`via: "roster"`). An
+// address a person typed, or the build's seed, is theirs to remove; a roster that
+// does not mention it is not a statement about it.
+//
+// Idempotent: dedupes by normalized origin AND by existing id, so repeated calls on
+// every roster poll converge rather than churn. opts.localHostId is the node whose
+// roster this is — it is never in its own roster, so it is neither added nor
+// dropped. A joined node enters the LIVE connection set at once and a departed one
+// leaves it, so the fan-out and the stream registry follow with no reload.
+export function reconcileRosterToRegistry(nodes, opts = {}) {
   const localHostId = (opts && opts.localHostId) || null;
+  const roster = (Array.isArray(nodes) ? nodes : []).filter(n => n && typeof n === "object");
+
   // Known = the stored registry PLUS the connections the app is already driving.
   // The env seed is a connection with no registry row, so registry-only dedupe
   // would re-register the seeded node under whatever address the roster
@@ -95,21 +117,35 @@ export function mirrorRosterToRegistry(nodes, opts = {}) {
   const existing = readRegistry().concat(CONNECTIONS);
   const knownOrigins = new Set(existing.map((h) => normalizeHostUrl(h && h.url)).filter(Boolean));
   const knownIds = new Set(existing.map((h) => h && h.id).filter(Boolean));
+
   let added = 0;
-  for (const node of (Array.isArray(nodes) ? nodes : [])) {
-    if (!node || typeof node !== "object") continue;
+  for (const node of roster) {
     const { nodeId, label, clientUrl, enabled, membership, status } = node;
     if (!nodeId || !clientUrl || enabled === false) continue;
     if (membership !== "alive" || status !== "reachable") continue;
     if (nodeId === localHostId || knownIds.has(nodeId)) continue;
     const origin = normalizeHostUrl(clientUrl);
     if (!origin || knownOrigins.has(origin)) continue;
-    addConnection(registryEntry(origin, label, nodeId));
+    addConnection(registryEntry(origin, label, nodeId, "roster"));
     knownOrigins.add(origin);
     knownIds.add(nodeId);
     added++;
   }
-  return { added };
+
+  // A member is a node the roster names and does not have switched off. State is not
+  // membership: unreachable, suspect and dead all stay, because a member having
+  // trouble is exactly what the banners and the reach footnote exist to report.
+  // `enabled: false` is the admin's own off switch — the viewer roster omits such a
+  // node entirely, so honouring it here is also what keeps an admin's node set and a
+  // viewer's the same. It stays on the Cluster page, which reads the roster rather
+  // than the connection set, and turning it back on re-registers it.
+  const members = new Set(roster.filter(n => n.enabled !== false).map(n => n.nodeId).filter(Boolean));
+  const departed = CONNECTIONS
+    .filter(c => c.via === "roster" && c.id && c.id !== localHostId && !members.has(c.id))
+    .map(c => c.id);
+  const removed = departed.length ? removeConnections(departed).length : 0;
+
+  return { added, removed };
 }
 
 // ---- impure: probe a candidate host (fetch injectable for tests) --------

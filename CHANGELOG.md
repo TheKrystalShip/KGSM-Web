@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — a node that leaves the cluster leaves this browser (1.178.0)
+
+The set of nodes the panel drives now follows the cluster roster in both directions. It only ever
+grew before: a peer a roster named was registered and never let go, so a node removed from the
+cluster stayed in `localStorage` and went on being fanned out over, streamed from, counted in the
+"N of M nodes reported" footnote, and named in the connectivity banner as a host whose live
+connection had been lost. Nothing that happened on the cluster could clear it, because the browser
+held the list.
+
+Leaving the cluster and being unwell are separate states and are now treated separately. A node the
+roster no longer names has left — it was removed, it departed, or it was reaped — and it is dropped
+along with its streams, its realtime state, its reach record and its session. A node the roster
+still names but reports unreachable, suspect or dead is a member having trouble: it keeps its
+connection, and every surface that reports it as degraded is telling the truth.
+
+Every path that reads a roster now applies it, so an admin removing a peer from the Cluster page
+sees it leave the fan-out on the click rather than on the next discovery tick. An admin's
+`enabled: false` switch stops the fan-out too, which is also what a viewer sees, since the
+viewer-facing roster omits a disabled node entirely; the node stays on the Cluster page and turning
+it back on re-registers it.
+
+An address someone typed, and the build's seed, are theirs to remove: a roster that does not mention
+them is not a statement about them. The registry records which is which.
+
 ### Added — a switch on every reactor rule (1.177.0)
 
 Each row on the reactor's Rules tab carries a switch, under an `ON` column beside the authority it

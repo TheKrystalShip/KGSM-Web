@@ -10,13 +10,15 @@
 //                   smoke:live harness points the app at a backend, and a handy
 //                   dev shortcut.
 //
-// CONNECTIONS is seeded once at module load and then GROWS IN PLACE as cluster
-// discovery converges on the roster: the array identity never changes, so every
-// consumer that holds the import — routing, fan-out, the SSE registry — sees a
-// node the moment it is registered. Connect and disconnect still do a FULL PAGE
-// RELOAD (they change identity and auth, exactly as login / logout / session-loss
-// do); an appended peer needs no reload because nothing about the session changes.
-// Subscribe with subscribeConnections() to hold per-connection resources.
+// CONNECTIONS is seeded once at module load and then TRACKS THE CLUSTER IN PLACE
+// as discovery converges on the roster: the array identity never changes, so every
+// consumer that holds the import — routing, fan-out, the SSE registry — sees a node
+// the moment it joins and stops seeing one the moment it leaves. Connecting and
+// disconnecting a host YOURSELF still does a FULL PAGE RELOAD (that changes identity
+// and auth, exactly as login / logout / session-loss do); a peer joining or leaving
+// the cluster needs no reload, because nothing about the session changes.
+// Subscribe with subscribeConnections() / subscribeConnectionsRemoved() to hold and
+// release per-connection resources.
 
 const env = (typeof import.meta !== "undefined" && import.meta.env) || {};
 
@@ -55,8 +57,8 @@ const SEED_URL = /^(self|same-origin)$/i.test(RAW_SEED)
 // (connect resolves it).
 const registry = readRegistry();
 export const CONNECTIONS = registry.length
-  ? registry.map(h => ({ id: h.id || null, url: h.url, name: h.name || null }))
-  : (SEED_URL ? [{ id: null, url: SEED_URL, name: null, seed: true }] : []);
+  ? registry.map(h => ({ id: h.id || null, url: h.url, name: h.name || null, via: h.via || "manual" }))
+  : (SEED_URL ? [{ id: null, url: SEED_URL, name: null, via: "seed", seed: true }] : []);
 
 // ---- growing the connection set (cluster discovery) ---------------------
 // Notified with the connections just appended. The SSE registry uses this to
@@ -65,6 +67,14 @@ const connListeners = new Set();
 export function subscribeConnections(fn) {
   connListeners.add(fn);
   return () => connListeners.delete(fn);
+}
+
+// Notified with the connections just removed, so holders can close streams, drop
+// per-node state and stop counting a node that is no longer part of the cluster.
+const connRemovedListeners = new Set();
+export function subscribeConnectionsRemoved(fn) {
+  connRemovedListeners.add(fn);
+  return () => connRemovedListeners.delete(fn);
 }
 
 // Append the connections the app doesn't already drive. Dedupe is by normalized
@@ -79,12 +89,38 @@ export function addConnections(entries) {
     const o = originOf(url);
     if (CONNECTIONS.some(c => originOf(c.url) === o)) continue;
     if (e.id && CONNECTIONS.some(c => c.id && c.id === e.id)) continue;
-    const conn = { id: e.id || null, url, name: e.name || null };
+    const conn = { id: e.id || null, url, name: e.name || null, via: e.via || "manual" };
     CONNECTIONS.push(conn);
     added.push(conn);
   }
   if (added.length) connListeners.forEach(fn => { try { fn(added); } catch {} });
   return added;
+}
+
+// Stop driving the named nodes. Splices CONNECTIONS in place so the array identity
+// survives (every consumer holds the import), drops the stored registry rows with
+// them, and hands the removed entries to the listeners that own per-node resources.
+// Returns the entries actually removed, so a caller can tell "converged" from
+// "nothing left".
+export function removeConnections(ids) {
+  const wanted = new Set((ids || []).filter(Boolean));
+  if (!wanted.size) return [];
+
+  const removed = [];
+  for (let i = CONNECTIONS.length - 1; i >= 0; i--) {
+    if (!wanted.has(CONNECTIONS[i].id)) continue;
+    removed.push(...CONNECTIONS.splice(i, 1));
+  }
+  if (!removed.length) return [];
+
+  const gone = new Set(removed.map(c => originOf(c.url)));
+  try {
+    const reg = readRegistry().filter(e => !gone.has(originOf(e && e.url)));
+    localStorage.setItem(REGISTRY_KEY, JSON.stringify(reg));
+  } catch {}
+
+  connRemovedListeners.forEach(fn => { try { fn(removed); } catch {} });
+  return removed;
 }
 
 // Normalize a stored host URL to an http(s) origin. A URL with an explicit

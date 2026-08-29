@@ -1,5 +1,5 @@
 import { createStore } from "./store.js";
-import { apiV1Of, apiOriginOf, apiV1ForConn, streamUrlForConn, subscribeConnections, CONNECTIONS } from "./config.js";
+import { apiV1Of, apiOriginOf, apiV1ForConn, streamUrlForConn, subscribeConnections, subscribeConnectionsRemoved, CONNECTIONS } from "./config.js";
 import { DEVICE_HEADER, deviceId } from "./device.js";
 import * as adapt from "./adapters.js";
 import { createSseStream } from "./liveStream.js";
@@ -25,7 +25,7 @@ import("./stores.js").then((m) => {
   // indicator under the real host id once hosts arrive (single-host; multi-host
   // fan-out is a later slice). Reuses this one dynamic import.
   if (primaryStreams.length && m.hostsStore) {
-    try { m.hostsStore.subscribe(() => primaryStreams.forEach((s, i) => setLiveRealtime(CONNECTIONS[i] && CONNECTIONS[i].id, s.mode()))); } catch {}
+    try { m.hostsStore.subscribe(() => primaryStreams.forEach(p => { if (p.stream) setLiveRealtime(p.conn.id, p.stream.mode()); })); } catch {}
   }
 });
 
@@ -466,7 +466,7 @@ import("./stores.js").then((m) => {
   }
 
   // Per-host primary + dynamic stream registries.
-  let primaryStreams = [];      // one per connection
+  let primaryStreams = [];      // one { conn, stream } per connection, in connection order
   const dynamicStreams = new Map(); // topic → { stream, refCount, hosts }
 
   // Open the primary SSE stream for a connection (global topics, drives mode + rehydrate).
@@ -550,7 +550,7 @@ import("./stores.js").then((m) => {
     if (streamsStarted) return;
     streamsStarted = true;
     // One primary stream per connection, each feeding the SAME dispatchMessage seam.
-    primaryStreams = CONNECTIONS.map((conn) => openPrimary(conn));
+    primaryStreams = CONNECTIONS.map((conn) => ({ conn, stream: openPrimary(conn) }));
     // Any topic subscribed before the start dialled no sockets; give it them now,
     // keeping the ref count the subscribers already established.
     for (const [topic, entry] of [...dynamicStreams]) {
@@ -566,14 +566,14 @@ import("./stores.js").then((m) => {
   function stopStreams() {
     if (!streamsStarted) return;
     streamsStarted = false;
-    for (const s of primaryStreams) { try { if (s) s.close(); } catch {} }
+    for (const p of primaryStreams) { try { if (p.stream) p.stream.close(); } catch {} }
     primaryStreams = [];
     for (const topic of [...dynamicStreams.keys()]) closeDynamic(topic);
   }
 
   // Cluster discovery grows the connection set in place. Give each new node the
-  // same treatment the boot set got — its primary stream (pushed in order, so
-  // primaryStreams stays index-aligned with CONNECTIONS for reconnectHost), plus
+  // same treatment the boot set got — its primary stream, carried with the connection
+  // that owns it so a departure can find and close exactly that one, plus
   // every dynamic topic a view is currently subscribed to, so a late-joining node
   // is not silently missing from an open subscription. Then re-hydrate: the
   // stores fan out over CONNECTIONS, so their current contents predate this node.
@@ -584,7 +584,7 @@ import("./stores.js").then((m) => {
   subscribeConnections((added) => {
     if (!streamsStarted) return;
     for (const conn of added) {
-      primaryStreams.push(openPrimary(conn));
+      primaryStreams.push({ conn, stream: openPrimary(conn) });
       for (const [topic, entry] of dynamicStreams) {
         const url = streamUrlForConn(conn, [topic]);
         if (!url) continue;
@@ -604,11 +604,52 @@ import("./stores.js").then((m) => {
     rehydrateAll();
   });
 
+  // A node that has left the cluster stops being a node here. Every per-connection
+  // resource it holds is released — its streams closed, its realtime state and its
+  // reach record dropped, its session forgotten — because a departed node that keeps
+  // a "reconnecting" entry keeps its name in the connectivity banner and keeps
+  // counting against the reach footnote forever, which reads as an outage rather than
+  // as the departure it is. A member that is merely unreachable is untouched by this:
+  // it keeps its connection, and saying so is the banner's job.
+  //
+  subscribeConnectionsRemoved((removed) => {
+    for (const conn of removed) {
+      const idx = primaryStreams.findIndex((p) => p.conn === conn || (conn.id && p.conn.id === conn.id));
+      if (idx >= 0) {
+        try { if (primaryStreams[idx].stream) primaryStreams[idx].stream.close(); } catch {}
+        primaryStreams.splice(idx, 1);
+      }
+      for (const [, entry] of dynamicStreams) {
+        for (let i = entry.hosts.length - 1; i >= 0; i--) {
+          if (entry.hosts[i].connId !== conn.id) continue;
+          try { entry.hosts[i].stream.close(); } catch {}
+          entry.hosts.splice(i, 1);
+        }
+      }
+      if (conn.id) {
+        realtimeStore.setState((s) => {
+          if (!(conn.id in s.hosts)) return s;
+          const hosts = { ...s.hosts };
+          delete hosts[conn.id];
+          return { ...s, hosts };
+        });
+        if (sessionStore && sessionStore.forgetHost) sessionStore.forgetHost(conn.id);
+      }
+      reachStore.setState((s) => {
+        if (!(conn.url in s.byHost)) return s;
+        const byHost = { ...s.byHost };
+        delete byHost[conn.url];
+        return { byHost };
+      });
+    }
+    if (removed.length) rehydrateAll();
+  });
+
   // User-driven "Reconnect now" (the connectivity banner / per-host indicator):
   // drop the backoff and re-open that host's streams immediately.
   function reconnectHost(id) {
-    const idx = CONNECTIONS.findIndex((c) => c.id === id);
-    const s = idx >= 0 ? primaryStreams[idx] : null;
+    const owned = primaryStreams.find((p) => p.conn.id === id);
+    const s = owned && owned.stream;
     if (s && s.reconnect) s.reconnect();
     // Also reconnect dynamic streams for this host.
     for (const [, entry] of dynamicStreams) {
@@ -618,7 +659,7 @@ import("./stores.js").then((m) => {
     }
   }
   function reconnectAll() {
-    primaryStreams.forEach((s) => s && s.reconnect && s.reconnect());
+    primaryStreams.forEach((p) => { if (p.stream && p.stream.reconnect) p.stream.reconnect(); });
     for (const [, entry] of dynamicStreams) {
       for (const h of entry.hosts) { if (h.stream && h.stream.reconnect) h.stream.reconnect(); }
     }
@@ -639,7 +680,7 @@ import("./stores.js").then((m) => {
   // before redialing. REST needs nothing here: it heals reactively on its next 401.
   function handleVisible() {
     if (typeof document !== "undefined" && document.hidden) return;
-    primaryStreams.forEach((s) => { if (s && s.mode && s.mode() !== "live" && s.reconnect) s.reconnect(); });
+    primaryStreams.forEach((p) => { const s = p.stream; if (s && s.mode && s.mode() !== "live" && s.reconnect) s.reconnect(); });
     for (const [, entry] of dynamicStreams) {
       for (const h of entry.hosts) { if (h.stream && h.stream.mode && h.stream.mode() !== "live" && h.stream.reconnect) h.stream.reconnect(); }
     }

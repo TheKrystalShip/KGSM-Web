@@ -107,10 +107,16 @@ re-exports `stores/` — import from either.
   fan-out), NOT a `LIVE`/`MOCK` mode flag — never reintroduce that duality.**
   `VITE_API_BASE` is an optional single-host *seed*.
 - `connect.js` — connect/disconnect a host (mutates the registry → full page
-  reload) and `mirrorRosterToRegistry`, which registers the alive+reachable peers
-  a roster names (dedupes against the registry AND the live connection set, so a
-  seeded node is never registered twice under a second address);
-  `devSeedAutoConnect` for auth-disabled dev.
+  reload) and `reconcileRosterToRegistry`, which keeps the driven node set equal to
+  the cluster's: it registers the alive+reachable peers a roster names (dedupes
+  against the registry AND the live connection set, so a seeded node is never
+  registered twice under a second address) and drops the roster-learned ones a
+  roster no longer names. **Leaving the cluster and being unwell are different
+  states and must not be collapsed** — an unreachable or suspect MEMBER keeps its
+  connection so the banners and the reach footnote can report it; only absence from
+  the roster (or an admin's `enabled:false`) removes a node. An address a person
+  typed is theirs to remove (`via` records which is which). `devSeedAutoConnect`
+  for auth-disabled dev.
 
 **Auth / RBAC / capabilities**
 - `sessionStore.js` — per-host identity (Model A): Discord SSO anchor, each host

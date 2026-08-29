@@ -8,7 +8,7 @@
 
 import { api } from "../apiClient.js";
 import { CONNECTIONS } from "../config.js";
-import { mirrorRosterToRegistry } from "../connect.js";
+import { reconcileRosterToRegistry } from "../connect.js";
 import { createStore } from "../store.js";
 import { hostsStore } from "./hosts.js";
 
@@ -69,11 +69,20 @@ function fetchRoster(hostId) {
     });
 }
 
+// One roster read, applied. Every path that obtains a roster lands here, so the node
+// set the app drives is updated by the same act that updates what the Cluster page
+// shows — an admin removing a peer sees it leave the fan-out on the click, rather
+// than at whatever point the discovery timer next happens to fire.
+function applyRoster(hostId, { nodes, admin }) {
+  clusterStore.setState(s => ({ ...s, nodes, status: "ready", error: null, everLoaded: true, admin }));
+  return reconcileRosterToRegistry(nodes, { localHostId: hostId });
+}
+
 clusterStore.refresh = (hostId) => {
   clusterStore.setState(s => ({ ...s, status: "loading", error: null }));
-  return fetchRoster(hostId).then(({ nodes, admin }) => {
-    clusterStore.setState(s => ({ ...s, nodes, status: "ready", error: null, everLoaded: true, admin }));
-    return nodes;
+  return fetchRoster(hostId).then(roster => {
+    applyRoster(hostId, roster);
+    return roster.nodes;
   }).catch(err => {
     clusterStore.setState(s => ({ ...s, status: "error", error: err }));
     throw err;
@@ -93,10 +102,12 @@ clusterStore.refresh = (hostId) => {
 // unreachable cluster is already surfaced by the connection banner, and a
 // roster we could not read must not clear or contradict one we already have.
 //
-// Registration is deliberately conservative (see mirrorRosterToRegistry): only
-// an alive + reachable peer carrying both a nodeId and a client URL is
-// registered. A peer we cannot verify stays a visible ghost on the Cluster
-// page rather than becoming a dead connection.
+// The connection set FOLLOWS the roster (see reconcileRosterToRegistry): an alive
+// + reachable peer carrying both a nodeId and a client URL is registered, and a
+// node the roster no longer names is dropped. A peer we cannot verify stays a
+// visible ghost on the Cluster page rather than becoming a dead connection; a
+// member that is merely unwell keeps its connection, because being unreachable is
+// not the same as having left.
 // Only a connection whose BACKEND id is reconciled can be asked (api.peers
 // requires a concrete id) — the seed starts id-less and GET /hosts fills it in.
 const addressable = () => CONNECTIONS.filter(c => c.id);
@@ -107,10 +118,7 @@ clusterStore.discover = () => {
     if (i >= conns.length) return Promise.resolve(0);
     return Promise.resolve()
       .then(() => fetchRoster(conns[i].id))
-      .then(({ nodes, admin }) => {
-        clusterStore.setState(s => ({ ...s, nodes, status: "ready", error: null, everLoaded: true, admin }));
-        return mirrorRosterToRegistry(nodes, { localHostId: conns[i].id }).added;
-      })
+      .then(roster => applyRoster(conns[i].id, roster).added)
       .catch(() => attempt(i + 1));
   };
   return attempt(0);

@@ -435,6 +435,21 @@ import { hostsStore } from "./stores.js";
   // 401 before its one silent-rotate replay).
   function expire(id) { setRec(id, { status: "expired", error: "expired" }, true); }
 
+  // Drop one host's session because that node has left the cluster: its credentials
+  // go with it, and its record stops being read by the surfaces that name a node
+  // refusing or failing this session. Not the same gesture as expire() — that says a
+  // node we still drive needs a fresh token; this says there is no node.
+  function forgetHost(id) {
+    if (!id) return;
+    forgetSession(id);
+    store.setState(s => {
+      if (!(id in s.byHost)) return s;
+      const byHost = { ...s.byHost };
+      delete byHost[id];
+      return { ...s, byHost };
+    });
+  }
+
   function forgetHosts() {                           // drop every host → app shows the Add-host intermediate
     Object.keys(store.getState().byHost).forEach(forgetSession);
     writeRegistry([]);
@@ -490,6 +505,7 @@ import { hostsStore } from "./stores.js";
   store.expire = expire;
   store.applyMePatch = applyMePatch;
   store.onTierChange = onTierChange;
+  store.forgetHost = forgetHost;
   store.forgetHosts = forgetHosts;
   store.signOut = signOut;
 
