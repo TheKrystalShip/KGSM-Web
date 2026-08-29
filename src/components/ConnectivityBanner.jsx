@@ -2,6 +2,7 @@ import { Icon } from "./Icon.jsx";
 import { api, connectionStore, realtimeStore } from "../lib/apiClient.js";
 import { useStore } from "../lib/store.js";
 import { hostsStore } from "../lib/stores.js";
+import { nodeLabel } from "../lib/nodeLabel.js";
 
 // The connection-status surfaces, split out of ErrorBoundary.jsx because they are the only part of
 // it that reads the NODE data layer — the connection stores, the host roster, the reconnect action.
@@ -30,7 +31,7 @@ function ConnectivityBanner({ onRetryRest }) {
   const restRetrying = useStore(connectionStore, s => s.retrying);
   const rt = useStore(realtimeStore, s => s);
   const hosts = useStore(hostsStore, s => s.list);
-  const nameOf = (id) => (hosts.find(h => h.id === id) || {}).name || id;
+  const nameOf = (id) => nodeLabel(id, hosts);
 
   // 1) Browser offline — supersedes everything.
   if (!rt.online) {

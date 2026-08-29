@@ -5,6 +5,7 @@ import { useStore } from "../lib/store.js";
 import { hostsStore } from "../lib/stores.js";
 import { sessionStore, TIER_LABEL } from "../lib/sessionStore.js";
 import { statusTone } from "../lib/formatting.js";
+import { nodeLabel } from "../lib/nodeLabel.js";
 
 // host-helpers.jsx — shared host-related UI components extracted from page files.
 //
@@ -84,12 +85,7 @@ function ClusterReach({ className = "" }) {
 function NodeAccessNotice({ onReauth, onManage }) {
   const hosts = useStore(hostsStore, s => s.list);
   const sessions = useStore(sessionStore, s => s.byHost);
-  const nameOf = (id) => {
-    const h = hosts.find(x => x.id === id);
-    if (h && h.name) return h.name;
-    const c = CONNECTIONS.find(x => x.id === id);
-    return (c && c.name) || id;
-  };
+  const nameOf = (id) => nodeLabel(id, hosts);
   const refused = Object.keys(sessions).filter(id => {
     const rec = sessions[id];
     if (rec.status === "denied") return true;

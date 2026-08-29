@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — a node is never named to a person by an internal key (1.179.0)
+
+Two surfaces name nodes, and both fell back to the routing id when they had no name. An id is not a
+name. The realtime store files a connection whose backend id is not yet reconciled under a
+placeholder, so the connectivity banner announced "Lost the live connection to _cold-boot"; and a
+session recorded against a connection with no id was filed under the string "null", which the
+per-node access notice read back as "null ended your session". Neither names a machine anyone owns,
+and neither is something a person can act on.
+
+Both now resolve a node's name the same way, in one place: the name the host reports, then the label
+stored with the connection, then its address — a poor name but a true one somebody recognises — and
+only then "this host", which is at least a sentence rather than a key.
+
+The session record is fixed at its source as well: a session belongs to a node, and one arriving with
+no node id is not recorded rather than being filed under a name that does not exist.
+
 ### Fixed — a node that leaves the cluster leaves this browser (1.178.0)
 
 The set of nodes the panel drives now follows the cluster roster in both directions. It only ever

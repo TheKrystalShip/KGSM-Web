@@ -88,6 +88,11 @@ import { hostsStore } from "./stores.js";
   }
 
   function setRec(id, partial, persist) {
+    // A session belongs to a node. Without a node id there is no session to record — and recording one
+    // anyway files it under the string "null", which then surfaces to a person as a node called null
+    // ending their session. The cold-boot seed reaches here with no id yet, so this is a real path, not
+    // a defensive flourish.
+    if (!id) return null;
     store.setState(s => ({ byHost: { ...s.byHost, [id]: { ...(s.byHost[id] || {}), ...partial } } }));
     if (persist) writeSession(id);
     syncReauthSurfacing(id);
