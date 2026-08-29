@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the cluster surface reads members, not peers (1.181.0)
+
+A cluster has members, and a member is a node or an anchor. The client calls `/api/v1/members`, reads the
+`members` envelope key, and takes a member's identity from `memberId`. A row now carries `kind`, so a
+surface can tell a node from an anchor rather than inferring it from whether servers came back.
+
+Needs kgsm-api 0.155.0 or later.
+
 ### Fixed — one node's empty cache no longer blanks the fleet's catalog art (1.180.0)
 
 A game's cover, banner and description are the answering node's own cache state, not a fleet fact: a

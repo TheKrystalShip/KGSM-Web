@@ -62,7 +62,7 @@ function AddPeerForm({ hostId, onDone, onCancel }) {
     if (!u || busy) return;
     setBusy(true);
     setErr(null);
-    api.peers(hostId).add(u, nickname.trim() || null)
+    api.members(hostId).add(u, nickname.trim() || null)
       .then(() => { clusterStore.refresh(hostId); onDone(); })
       .catch((e) => setErr((e && e.message) || "Couldn't add that peer."))
       .finally(() => setBusy(false));
@@ -116,7 +116,7 @@ function PeerRow({ node, hostId, canManage, reach }) {
   const toggle = () => {
     if (busy) return;
     setBusy(true);
-    api.peers(hostId).setEnabled(node.peerId, !node.enabled)
+    api.members(hostId).setEnabled(node.peerId, !node.enabled)
       .then(() => clusterStore.refresh(hostId))
       .catch(() => {})
       .finally(() => setBusy(false));
@@ -124,7 +124,7 @@ function PeerRow({ node, hostId, canManage, reach }) {
   const remove = () => {
     if (busy) return;
     setBusy(true);
-    api.peers(hostId).remove(node.peerId)
+    api.members(hostId).remove(node.peerId)
       .then(() => clusterStore.refresh(hostId))
       .catch(() => {})
       .finally(() => { setBusy(false); setConfirming(false); });

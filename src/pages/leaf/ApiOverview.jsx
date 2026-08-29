@@ -43,7 +43,7 @@ function loadApiOverview(hostId) {
   return Promise.all([
     fetchHostDetail(hostId),
     api.sessions(hostId).list().catch(() => null),
-    api.peers(hostId).roster().catch(() => null),
+    api.members(hostId).roster().catch(() => null),
   ]).then(([host, sessions, peers]) => (host ? { host, sessions, peers } : null));
 }
 

@@ -27,7 +27,7 @@ function NodeRowActions({ hostId, node }) {
   const toggle = stop(() => {
     if (busy) return;
     setBusy(true);
-    api.peers(hostId).setEnabled(node.fed.peerId, !node.fed.enabled)
+    api.members(hostId).setEnabled(node.fed.peerId, !node.fed.enabled)
       .then(() => clusterStore.refresh(hostId))
       .catch(() => {})
       .finally(() => setBusy(false));
@@ -35,7 +35,7 @@ function NodeRowActions({ hostId, node }) {
   const remove = stop(() => {
     if (busy) return;
     setBusy(true);
-    api.peers(hostId).remove(node.fed.peerId)
+    api.members(hostId).remove(node.fed.peerId)
       .then(() => clusterStore.refresh(hostId))
       .catch(() => {})
       .finally(() => { setBusy(false); setConfirming(false); });

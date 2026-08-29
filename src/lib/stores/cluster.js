@@ -1,8 +1,8 @@
 // stores/cluster.js — the converged cluster-roster store for the Cluster page.
 //
-// Two backend surfaces feed the same shape: the admin peer roster
-// (GET /peers, full peer-management rows) and the viewer-safe converged
-// roster (GET /peers/roster, node-only rows). refresh() tries admin first and
+// Two backend surfaces feed the same shape: the admin roster
+// (GET /members, full management rows) and the viewer-safe converged
+// roster (GET /members/roster). refresh() tries admin first and
 // falls back to the viewer roster on a 403 — the store never fabricates a
 // value either code path doesn't provide (honest null/"unknown").
 
@@ -20,11 +20,14 @@ const clusterStore = createStore({
   admin: false,
 });
 
-// Admin PeerView row → normalized node.
+// Admin MemberView row → normalized node. A cluster member is a node or an
+// anchor; `kind` carries which, so a surface can tell them apart without
+// guessing from whether servers came back.
 function fromPeerRow(row) {
   return {
-    nodeId: row.nodeId,
-    label: row.nickname || row.nodeId,
+    nodeId: row.memberId,
+    kind: row.kind || "node",
+    label: row.nickname || row.memberId,
     clientUrl: row.url,
     membership: row.membership || "unknown",
     status: row.status || "unknown",
@@ -37,11 +40,12 @@ function fromPeerRow(row) {
   };
 }
 
-// Viewer ClusterNodeView row → normalized node.
+// Viewer ClusterMemberView row → normalized node.
 function fromClusterNodeRow(row) {
   return {
-    nodeId: row.nodeId,
-    label: row.label || row.nodeId,
+    nodeId: row.memberId,
+    kind: row.kind || "node",
+    label: row.label || row.memberId,
     clientUrl: row.clientUrl,
     membership: row.membership || "unknown",
     status: row.status || "unknown",
@@ -61,11 +65,11 @@ function isForbidden(err) {
 // Read one node's view of the roster: the admin peer list, falling back to the
 // viewer-safe converged roster on a 403. Resolves { nodes, admin }.
 function fetchRoster(hostId) {
-  return api.peers(hostId).list()
+  return api.members(hostId).list()
     .then(rows => ({ nodes: rows.map(fromPeerRow), admin: true }))
     .catch(err => {
       if (!isForbidden(err)) throw err;
-      return api.peers(hostId).roster().then(rows => ({ nodes: rows.map(fromClusterNodeRow), admin: false }));
+      return api.members(hostId).roster().then(rows => ({ nodes: rows.map(fromClusterNodeRow), admin: false }));
     });
 }
 

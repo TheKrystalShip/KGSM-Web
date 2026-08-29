@@ -829,31 +829,31 @@ import("./stores.js").then((m) => {
     };
   }
 
-  // api.peers(id) — the cluster peers surface (/api/v1/peers…): admin CRUD over
+  // api.members(id) — the cluster membership surface (/api/v1/members…): admin CRUD over
   // this host's peer roster + the viewer-safe converged roster. v1-routed (get/
-  // post/patch/del, not rootGet/rootPost) because peers live under /api/v1, not
+  // post/patch/del, not rootGet/rootPost) because these live under /api/v1, not
   // at the bare origin. Mirrors sessionsScoped's withRetry verbatim (see its
   // comment) rather than sharing it — each scoped surface owns its own closure.
-  function peersScoped(id) {
-    if (!id) throw new Error("api.peers() requires a concrete host id (got " + id + ")");
+  function membersScoped(id) {
+    if (!id) throw new Error("api.members() requires a concrete host id (got " + id + ")");
     const withRetry = (call) => call().catch(err => {
       if (!err || err.code !== 401 || err.preflight || !sessionStore) throw err;
       sessionStore.expire(id);
       return call();
     });
     return {
-      // Admin: this host's full peer roster.
-      list: () => withRetry(() => get("/peers", id)).then(j => (j && j.peers) || []),
-      // Viewer-safe: the converged cluster node list (no peer-management fields).
-      roster: () => withRetry(() => get("/peers/roster", id)).then(j => (j && j.nodes) || []),
-      // Admin: add a peer by seed URL (+ optional nickname); returns the raw added row.
-      add: (url, nickname) => withRetry(() => post("/peers", { url, nickname: nickname || null }, id)),
-      // Admin: drop a peer from this host's roster.
-      remove: (peerId) => withRetry(() => del("/peers/" + encodeURIComponent(peerId), id)),
-      // Admin: enable/disable a peer (the trust gate), without removing it.
-      setEnabled: (peerId, enabled) => withRetry(() => patch("/peers/" + encodeURIComponent(peerId), { enabled: !!enabled }, id)),
-      // Admin: on-demand latency probe for one peer.
-      latency: (peerId) => withRetry(() => get("/peers/" + encodeURIComponent(peerId) + "/latency", id)),
+      // Admin: this host's full membership roster.
+      list: () => withRetry(() => get("/members", id)).then(j => (j && j.members) || []),
+      // Viewer-safe: the converged member list (no management fields).
+      roster: () => withRetry(() => get("/members/roster", id)).then(j => (j && j.members) || []),
+      // Admin: add a member by seed URL (+ optional nickname); returns the raw added row.
+      add: (url, nickname) => withRetry(() => post("/members", { url, nickname: nickname || null }, id)),
+      // Admin: drop a member from this host's roster.
+      remove: (memberId) => withRetry(() => del("/members/" + encodeURIComponent(memberId), id)),
+      // Admin: enable/disable a member (the trust gate), without removing it.
+      setEnabled: (memberId, enabled) => withRetry(() => patch("/members/" + encodeURIComponent(memberId), { enabled: !!enabled }, id)),
+      // Admin: on-demand latency probe for one member.
+      latency: (memberId) => withRetry(() => get("/members/" + encodeURIComponent(memberId) + "/latency", id)),
     };
   }
 
@@ -907,7 +907,7 @@ import("./stores.js").then((m) => {
     sessions: sessionsScoped,
     users: usersScoped,
     identities: identitiesScoped,
-    peers: peersScoped,
+    members: membersScoped,
     reconnectHost, reconnectAll,
     startStreams, stopStreams,
     __hostAuth: hostAuthStatus,

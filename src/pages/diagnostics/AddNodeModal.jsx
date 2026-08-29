@@ -54,7 +54,7 @@ function AddNodeModal({ federateHosts = [], canFederate, onClose }) {
     if (canFederate && federate && localHostId && !federated) {
       setStep("federating");
       try {
-        await api.peers(localHostId).add(normalized, nickname.trim() || null);
+        await api.members(localHostId).add(normalized, nickname.trim() || null);
         didFederate = true;
         setFederated(true);
         clusterStore.refresh(localHostId);
