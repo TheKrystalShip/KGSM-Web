@@ -95,7 +95,7 @@ function AnchorRow({ entry, capability, hovered, onHover, onSelect, hostId, canM
   );
 }
 
-function ClusterAnchorList({ anchors, capabilities, members, hovered, onHover, onSelect, hostId, canManage, admin }) {
+function ClusterAnchorList({ anchors, capabilities, members, hovered, onHover, onSelect, hostId, actingLabel, canManage, admin }) {
   const [assigning, setAssigning] = React.useState(null);
   const orphaned = (capabilities || []).filter(c => c.orphaned);
   if (!anchors.length && !orphaned.length) return null;
@@ -112,6 +112,9 @@ function ClusterAnchorList({ anchors, capabilities, members, hovered, onHover, o
       title="Anchors"
       count={anchors.length}
       countTone="neutral"
+      meta={canReassign && actingLabel
+        ? <span className="cluster-cardmeta"><span className="cluster-cardmeta__acting">Managing · {actingLabel}</span></span>
+        : null}
     >
       <OrphanedCapabilities capabilities={capabilities} canReassign={canReassign} onReassign={setAssigning} />
       <div className="dash-fleet__rows">

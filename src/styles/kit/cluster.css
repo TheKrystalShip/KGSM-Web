@@ -559,6 +559,20 @@
   flex: none;
 }
 
+/* The meta strip carries at most two things and they are different lengths: a short route and a
+   sentence about a roster that could not be read. A wrapping flex keeps them apart on a wide card
+   and stacked on a phone, where the strip is only as wide as the card. */
+.cluster-cardmeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+.cluster-cardmeta__acting {
+  color: var(--fg-2);
+  white-space: nowrap;
+}
+
 .cluster-node-row__actions {
   display: flex;
   align-items: center;

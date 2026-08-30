@@ -9,6 +9,7 @@ import { useAlerts } from "../components/NeedsAttention.jsx";
 import { SubTabs } from "../components/SubTabs.jsx";
 import { api } from "../lib/apiClient.js";
 import { homeHostId } from "../lib/config.js";
+import { nodeLabel } from "../lib/nodeLabel.js";
 import { canOn } from "../lib/persona.js";
 import { sessionStore } from "../lib/sessionStore.js";
 import { useStore } from "../lib/store.js";
@@ -77,6 +78,7 @@ function ClusterPage({ focusHostId, tab: tabProp, onTabChange, onFocusHost, onAs
   // the unified add flow. The modal names that node itself — a sole manageable
   // node is it, otherwise it asks — so the flow never guesses where to federate.
   const canFederate = manageable.length > 0 && !!clusterAdmin;
+  const actingLabel = actingHostId ? nodeLabel(actingHostId, hosts) : null;
   const canManageMembers = !!actingHostId && canOn("host.manage", actingHostId);
   const pingByHost = useStore(pingStore, s => s.byHost);
   React.useEffect(() => { startPingLoop(); }, []);
@@ -181,6 +183,7 @@ function ClusterPage({ focusHostId, tab: tabProp, onTabChange, onFocusHost, onAs
               onHover={setHoveredNode}
               onSelect={selectNode}
               hostId={actingHostId}
+              actingLabel={actingLabel}
               canManage={canManageMembers}
               admin={clusterAdmin}
               clusterError={clusterErrored}
@@ -194,6 +197,7 @@ function ClusterPage({ focusHostId, tab: tabProp, onTabChange, onFocusHost, onAs
               onHover={setHoveredNode}
               onSelect={selectNode}
               hostId={actingHostId}
+              actingLabel={actingLabel}
               canManage={canManageMembers}
               admin={clusterAdmin}
             />

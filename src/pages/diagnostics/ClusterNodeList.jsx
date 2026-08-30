@@ -14,6 +14,24 @@ import { MemberRowActions } from "./clusterActions.jsx";
 import { MemberState, membershipRowTone } from "./clusterBadges.jsx";
 import { HostMenu } from "./diagComponents.jsx";
 
+// Where these controls write. Every member on this page is reached through ONE member, and it is the
+// same one for every row — so it is stated once, at card level, rather than repeated per control or
+// hidden in a tooltip that does not exist on a touch screen. What each write then does with that is
+// the control's own business: disabling holds only there and says so, and the two that converge do
+// not claim a scope they lack.
+//
+// Absent for somebody who cannot manage members. There is no write to place, so a route to it is
+// noise.
+function CardMeta({ acting, error }) {
+  if (!acting && !error) return null;
+  return (
+    <span className="cluster-cardmeta">
+      {acting && <span className="cluster-cardmeta__acting">Managing · {acting}</span>}
+      {error && <span>Federation roster unavailable — showing connected nodes only.</span>}
+    </span>
+  );
+}
+
 // GhostNodeRow — a federation peer this SPA holds no connected-host session
 // for. Same dash-fleet-row layout as a connected node, but the meter slot is
 // replaced by an honest "discovered, not connected" state (never fabricated
@@ -52,7 +70,7 @@ function GhostNodeRow({ n, hovered, onHover, onSelect, hostId, canManagePeers })
   );
 }
 
-function ClusterNodeList({ nodes, hovered, onHover, onSelect, hostId, canManage, admin, clusterError, menuProps }) {
+function ClusterNodeList({ nodes, hovered, onHover, onSelect, hostId, actingLabel, canManage, admin, clusterError, menuProps }) {
   const canManagePeers = canManage && admin;
 
   return (
@@ -61,7 +79,7 @@ function ClusterNodeList({ nodes, hovered, onHover, onSelect, hostId, canManage,
       title="Nodes"
       count={nodes.length}
       countTone="neutral"
-      meta={clusterError ? "Federation roster unavailable — showing connected nodes only." : null}
+      meta={<CardMeta acting={canManagePeers ? actingLabel : null} error={clusterError} />}
     >
       <div className="dash-fleet__rows">
         {nodes.map(n => {

@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.189.0]
+
+### Changed — the Cluster page says which member its controls write through
+
+Every member on that page is reached through one member, and it is the same one for every row. It
+was named per control, in a `title` — which does not exist on a touch screen, so on the surface most
+of this panel is used from the scope was not quiet, it was absent.
+
+Both cards state it once in their own furniture: `Managing · hotrod`, beside the roster line the
+Nodes card already carried there. Present only for somebody who can manage members, since without a
+write to place it is a route to nothing.
+
+What each control then does with that stays the control's own business. Disabling holds only on the
+member that recorded it and says so in the button and in the dialog's sentence, which are read at a
+different moment from the card behind them. Assignment and removal converge across the cluster and
+name nobody.
+
+
 ## [1.188.0]
 
 ### Fixed — the member a membership write is sent to resolves, and is named where it matters
