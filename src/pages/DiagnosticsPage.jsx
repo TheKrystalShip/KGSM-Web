@@ -8,6 +8,7 @@ import { FleetSkeleton } from "../components/Skeletons.jsx";
 import { useAlerts } from "../components/NeedsAttention.jsx";
 import { SubTabs } from "../components/SubTabs.jsx";
 import { api } from "../lib/apiClient.js";
+import { homeHostId } from "../lib/config.js";
 import { canOn } from "../lib/persona.js";
 import { sessionStore } from "../lib/sessionStore.js";
 import { useStore } from "../lib/store.js";
@@ -53,14 +54,21 @@ function ClusterPage({ focusHostId, tab: tabProp, onTabChange, onFocusHost, onAs
   // gives the link-latency radius. Both read here once and threaded to the two
   // BriefCards so they render from the exact same merged node array.
   const [hoveredNode, setHoveredNode] = React.useState(null);
-  // Peer writes (federate, enable/disable, unfederate) edit ONE node's peer list,
-  // which then propagates — so they name the node they act on: the one you have
-  // open, else the only one you can manage. With several manageable and none
-  // open, the acting node is unset and those controls wait to be told.
+  // A membership write lands on ONE member's roster, and which member is not a question about
+  // authority. There is no cluster-wide roster to write to: every member holds its own copy, and the
+  // three writes have three scopes. Assigning a capability is cluster state — versioned, gossiped,
+  // convergent — so any member serves. Removing travels as a correction, so it converges too. But
+  // DISABLING is local to the member it is sent to and no gossip undoes it, which is why the acting
+  // member is named in that control rather than resolved out of sight.
+  //
+  // So the acting node is the node you have open, else the node serving the panel — the address
+  // somebody actually typed, which is the member this browser is demonstrably talking to. A fact
+  // about this browser's connections, which is what config owns.
+  // Which node is THIS machine is a third question again, and it does not follow the focus: the
+  // `local` chip marks the node serving the panel wherever you have navigated to.
+  const homeId = homeHostId();
+  const actingHostId = (focusHostId && hosts.some(h => h.id === focusHostId)) ? focusHostId : homeId;
   const manageable = hosts.filter(h => canOn("host.manage", h.id));
-  const localHostId = (focusHostId && manageable.some(h => h.id === focusHostId))
-    ? focusHostId
-    : (manageable.length === 1 ? manageable[0].id : null);
   const clusterNodesRaw = useStore(clusterStore, s => s.nodes);
   const clusterAdmin = useStore(clusterStore, s => s.admin);
   const clusterCapabilities = useStore(clusterStore, s => s.capabilities);
@@ -69,6 +77,7 @@ function ClusterPage({ focusHostId, tab: tabProp, onTabChange, onFocusHost, onAs
   // the unified add flow. The modal names that node itself — a sole manageable
   // node is it, otherwise it asks — so the flow never guesses where to federate.
   const canFederate = manageable.length > 0 && !!clusterAdmin;
+  const canManageMembers = !!actingHostId && canOn("host.manage", actingHostId);
   const pingByHost = useStore(pingStore, s => s.byHost);
   React.useEffect(() => { startPingLoop(); }, []);
   // The roster has ONE owner: cluster discovery keeps clusterStore current for
@@ -79,8 +88,8 @@ function ClusterPage({ focusHostId, tab: tabProp, onTabChange, onFocusHost, onAs
   // latency is a fact about a member and not about a kind; the cards are separate because a
   // node's row and an anchor's row have almost no columns in common.
   const clusterNodes = React.useMemo(
-    () => buildClusterNodes(hosts, clusterNodesRaw, pingByHost, localHostId),
-    [hosts, clusterNodesRaw, pingByHost, localHostId]);
+    () => buildClusterNodes(hosts, clusterNodesRaw, pingByHost, homeId),
+    [hosts, clusterNodesRaw, pingByHost, homeId]);
   const clusterNodeRows = React.useMemo(() => nodeEntries(clusterNodes), [clusterNodes]);
   const clusterAnchorRows = React.useMemo(() => anchorEntries(clusterNodes), [clusterNodes]);
   const selectNode = (key) => onFocusHost(key);
@@ -171,8 +180,8 @@ function ClusterPage({ focusHostId, tab: tabProp, onTabChange, onFocusHost, onAs
               hovered={hoveredNode}
               onHover={setHoveredNode}
               onSelect={selectNode}
-              hostId={localHostId}
-              canManage={!!localHostId}
+              hostId={actingHostId}
+              canManage={canManageMembers}
               admin={clusterAdmin}
               clusterError={clusterErrored}
               menuProps={menuProps}
@@ -184,8 +193,8 @@ function ClusterPage({ focusHostId, tab: tabProp, onTabChange, onFocusHost, onAs
               hovered={hoveredNode}
               onHover={setHoveredNode}
               onSelect={selectNode}
-              hostId={localHostId}
-              canManage={!!localHostId}
+              hostId={actingHostId}
+              canManage={canManageMembers}
               admin={clusterAdmin}
             />
           </>

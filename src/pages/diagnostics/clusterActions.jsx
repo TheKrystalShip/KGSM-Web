@@ -11,16 +11,26 @@ import React from "react";
 import { Icon } from "../../components/Icon.jsx";
 import { Modal } from "../../components/Modal.jsx";
 import { api } from "../../lib/apiClient.js";
-import { clusterStore } from "../../lib/stores.js";
+import { nodeLabel } from "../../lib/nodeLabel.js";
+import { useStore } from "../../lib/store.js";
+import { clusterStore, hostsStore } from "../../lib/stores.js";
 import { MemberState } from "./clusterBadges.jsx";
 
 // The controls on a member row. Disable is one click because it is reversible from the
 // same button; removal opens the dialog, because it is the choice that can be the wrong
 // one and it is where the two acts are told apart.
+//
+// Both controls name the member they are SENT TO as well as the member they are about, because
+// disabling holds only on the member that recorded it. The other two writes converge across the
+// cluster, so naming a member for those would imply a scope they do not have.
 function MemberRowActions({ hostId, member }) {
+  const hosts = useStore(hostsStore, s => s.list);
   const [busy, setBusy] = React.useState(false);
   const [removing, setRemoving] = React.useState(false);
   const stop = (fn) => (e) => { e.stopPropagation(); fn(); };
+  const on = nodeLabel(hostId, hosts);
+  const name = member.label || member.nodeId;
+  const toggleLabel = (member.enabled === false ? "Enable " : "Disable ") + name + " on " + on;
 
   const toggle = stop(() => {
     if (busy) return;
@@ -35,8 +45,8 @@ function MemberRowActions({ hostId, member }) {
     <span className="cluster-node-row__actions">
       <button
         className="icon-btn"
-        title={member.enabled === false ? "Enable member" : "Disable member"}
-        aria-label={member.enabled === false ? "Enable member" : "Disable member"}
+        title={toggleLabel}
+        aria-label={toggleLabel}
         onClick={toggle}
         disabled={busy}
       >
@@ -44,7 +54,7 @@ function MemberRowActions({ hostId, member }) {
       </button>
       <button
         className="icon-btn"
-        title="Remove member"
+        title={"Remove " + name}
         aria-label="Remove member"
         onClick={stop(() => setRemoving(true))}
         disabled={busy}
@@ -72,9 +82,11 @@ function MemberRowActions({ hostId, member }) {
 // answers "I no longer trust this member", which survives exactly the situation removal
 // does not.
 function MemberRemoveDialog({ hostId, member, onClose }) {
+  const hosts = useStore(hostsStore, s => s.list);
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState(null);
   const label = member.label || member.nodeId;
+  const on = nodeLabel(hostId, hosts);
   const departed = member.membership === "left";
 
   const run = (fn) => {
@@ -102,8 +114,8 @@ function MemberRemoveDialog({ hostId, member, onClose }) {
             rejoins on its next gossip round.</>
           )}
           {member.enabled !== false && (
-            <> Disabling it stops this node calling it instead, holds only here, and nothing in the
-            cluster undoes it.</>
+            <> Disabling it instead stops <b>{on}</b> calling it, holds only there, and nothing in
+            the cluster undoes it.</>
           )}
         </p>
         {err && (
@@ -117,7 +129,7 @@ function MemberRemoveDialog({ hostId, member, onClose }) {
               onClick={() => run(() => api.members(hostId).setEnabled(member.peerId, false))}
               disabled={busy}
             >
-              <Icon name="power-off" size={14} /> Disable
+              <Icon name="power-off" size={14} /> Disable on {on}
             </button>
           )}
           <button

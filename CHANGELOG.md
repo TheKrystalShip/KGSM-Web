@@ -8,6 +8,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.188.0]
+
+### Fixed — the member a membership write is sent to resolves, and is named where it matters
+
+There is no cluster-wide roster. Every member holds its own copy, and the Cluster page's three writes
+have three scopes: assigning a capability is versioned cluster state and converges, removing travels
+as a correction and converges, and **disabling is local to the member it is sent to — no gossip
+undoes it**. Which member a write lands on was resolved from `host.manage`: the node you have open,
+else the only one you may manage. That is not a question about authority, and on any cluster where
+more than one node is manageable and none is focused it resolved to nothing, taking the membership
+and capability controls off the page.
+
+The acting member is the node you have open, else the node serving the panel — the address somebody
+actually typed, and the member this browser is demonstrably talking to. Which node is *local* is a
+third question and does not follow the focus, so the `local` chip stays on the node serving the
+panel wherever you have navigated.
+
+The disable control names the member it is sent to, in the act: `Disable on hotrod`, and the
+dialog's sentence names it too. Assignment and removal name nobody, because naming a member for a
+write that converges would state a scope it does not have.
+
+### Changed — a widget bound to something gone stays removable
+
+Existence is checked before authority, and the reason is that the two are different questions: a
+widget whose target is gone has to be removable, asking permission first renders nothing, and a
+widget that renders nothing cannot be removed — so the person holds a slot they can neither see nor
+clear. Nothing is protected by hiding it, since the id is one they put in their own layout.
+
+
 ## [1.187.0]
 
 ### Changed — a member that has left says so once

@@ -153,9 +153,11 @@ function WidgetHost({ descriptor, editing, onRemove, onGripDown, onResize }) {
   // Bound to something that is no longer there. The component says so too, in its own words, but
   // only the host can offer to take the widget off the dashboard.
   //
-  // Checked BEFORE permission, deliberately. `canOn(cap, node)` is false for a node this panel no
-  // longer holds, so asking permission first hid the widget with no explanation and no way to remove
-  // it — and there is nothing to protect: the id is one the person put in their own layout.
+  // Checked BEFORE permission, deliberately. Existence and authority are different questions, and a
+  // widget bound to something gone has to be REMOVABLE: asking permission first renders nothing, and
+  // a widget that renders nothing cannot be removed, so the person is left holding a slot they can
+  // neither see nor clear. There is nothing to protect by hiding it either — the id is one they put
+  // in their own layout.
   const exists = targetExists(entry, params, servers, hosts, serversLoaded, hostsLoaded);
   if (exists === false) {
     return (
