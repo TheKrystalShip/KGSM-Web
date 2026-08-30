@@ -1,9 +1,12 @@
 // The connection set follows the cluster roster, in both directions.
 //
 // A node that has LEFT the cluster is gone from this browser: no stream, no fan-out
-// slot, no name in the connectivity banner, no line in the reach footnote. A node
-// that is still a member but UNWELL keeps all of those, because being unreachable is
-// not the same as having left, and the surfaces that report it are telling the truth.
+// slot, no name in the connectivity banner, no line in the reach footnote. It is gone
+// from the moment the roster says so — a graceful departure is a tombstone that
+// propagates before the row is reaped — not only once the row disappears. A node that
+// is still a member but UNWELL keeps all of those, because unreachable, suspect and
+// dead are trouble rather than departure, and the surfaces that report them are
+// telling the truth.
 //
 // Pure module test: the real config/connect modules over a jsdom localStorage, no
 // server and no network.
@@ -62,28 +65,49 @@ r = reconcileRosterToRegistry([node("hotrod-b", { status: "unreachable", members
 assert(r.removed === 0, "an unreachable member keeps its connection");
 assert(ids().join() === "hotrod,hotrod-b", "so the surfaces can still report it as degraded", ids().join());
 
-// 4. A node the roster no longer names has LEFT — it goes.
+// 4. A member the roster records as LEFT has departed. The departure is announced
+//    before the row disappears — a graceful leave is a tombstone that propagates and
+//    is reaped minutes later — so it goes when it is read, not when the reaper
+//    catches up. Driving it through that window opens a stream to a node that is gone
+//    and calls an API that answers 401.
+r = reconcileRosterToRegistry([node("hotrod-b", { membership: "left", status: "unreachable" })], LOCAL);
+assert(r.removed === 1, "a member gossip records as left is dropped", `removed=${r.removed}`);
+assert(ids().join() === "hotrod", "so nothing streams to it or names it in a banner", ids().join());
+assert(stored().join() === "hotrod", "and the stored registry forgets it too", stored().join());
+
+// 5. And the tombstone does not put it back while it is still in the roster.
+r = reconcileRosterToRegistry([node("hotrod-b", { membership: "left", status: "unreachable" })], LOCAL);
+assert(r.added === 0 && ids().join() === "hotrod", "a left tombstone does not rejoin", ids().join());
+
+// 6. DEAD is refutable — a returning member beats its own dead with a higher
+//    incarnation — so it is trouble, not departure, and keeps its connection.
+reconcileRosterToRegistry([node("hotrod-b")], LOCAL);
+r = reconcileRosterToRegistry([node("hotrod-b", { membership: "dead", status: "unreachable" })], LOCAL);
+assert(r.removed === 0 && ids().join() === "hotrod,hotrod-b",
+  "a dead member keeps its connection", ids().join());
+
+// 7. A node the roster no longer names at all has been reaped — it goes too.
 r = reconcileRosterToRegistry([], LOCAL);
 assert(r.removed === 1, "a node absent from the roster is dropped", `removed=${r.removed}`);
 assert(ids().join() === "hotrod", "only the node we are signed in through remains", ids().join());
 assert(stored().join() === "hotrod", "and the stored registry forgets it too", stored().join());
 
-// 5. The node we are signed in through is never dropped by its own roster.
+// 8. The node we are signed in through is never dropped by its own roster.
 r = reconcileRosterToRegistry([], LOCAL);
 assert(r.removed === 0 && ids().join() === "hotrod", "the local node survives an empty roster");
 
-// 6. An admin's disable switch stops the fan-out, matching what a viewer's roster shows.
+// 9. An admin's disable switch stops the fan-out, matching what a viewer's roster shows.
 reconcileRosterToRegistry([node("hotrod-b")], LOCAL);
 r = reconcileRosterToRegistry([node("hotrod-b", { enabled: false })], LOCAL);
 assert(r.removed === 1 && ids().join() === "hotrod", "a disabled peer is not driven", ids().join());
 
-// 7. An address a person typed is theirs to remove; a roster is not a statement about it.
+// 10. An address a person typed is theirs to remove; a roster is not a statement about it.
 config.addConnections([{ id: "elsewhere", url: "https://elsewhere.test", name: "Typed by hand" }]);
 r = reconcileRosterToRegistry([], LOCAL);
 assert(r.removed === 0, "a manually-added node survives a roster that does not mention it");
 assert(ids().join() === "elsewhere,hotrod", "it is still driven", ids().join());
 
-// 8. Removal notifies the holders of per-node resources.
+// 11. Removal notifies the holders of per-node resources.
 let told = null;
 config.subscribeConnectionsRemoved((removed) => { told = removed.map(c => c.id); });
 reconcileRosterToRegistry([node("hotrod-c")], LOCAL);
@@ -91,7 +115,7 @@ reconcileRosterToRegistry([], LOCAL);
 assert(told && told.join() === "hotrod-c", "departure is announced so streams and sessions are released",
   told ? told.join() : "nothing");
 
-// 9. An ANCHOR is a member and is not a connection. It provides one capability to the
+// 12. An ANCHOR is a member and is not a connection. It provides one capability to the
 //    whole cluster and serves none of what this app drives a node for — so registering
 //    one makes every fan-out call it, every count include it, and its absent live
 //    channel name it in the connectivity banner with nothing able to clear it.
@@ -100,7 +124,7 @@ r = reconcileRosterToRegistry([node("hotrod-auth", { kind: "anchor" })], LOCAL);
 assert(r.added === 0, "an anchor does not join the connection set", `added=${r.added}`);
 assert(ids().join() === "hotrod", "only nodes are driven", ids().join());
 
-// 10. And one a previous build registered is dropped, rather than needing a person to
+// 13. And one a previous build registered is dropped, rather than needing a person to
 //     clear it by hand.
 config.addConnections([{ id: "hotrod-auth", url: "https://hotrod-auth.test", name: "Auth", via: "roster" }]);
 assert(ids().join() === "hotrod,hotrod-auth", "an anchor registered by an older build is present", ids().join());
@@ -108,7 +132,7 @@ r = reconcileRosterToRegistry([node("hotrod-auth", { kind: "anchor" })], LOCAL);
 assert(r.removed === 1, "reconciling drops it", `removed=${r.removed}`);
 assert(ids().join() === "hotrod", "so the banner it was stuck in clears itself", ids().join());
 
-// 11. A roster from a build that predates the field is all nodes, not none.
+// 14. A roster from a build that predates the field is all nodes, not none.
 r = reconcileRosterToRegistry([node("hotrod-old", { kind: undefined })], LOCAL);
 assert(r.added === 1 && ids().join() === "hotrod,hotrod-old",
   "a member with no kind is a node", ids().join());

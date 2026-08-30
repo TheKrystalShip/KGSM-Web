@@ -92,10 +92,15 @@ export function setAppUser(user) { try { localStorage.setItem(AUTH_LS_KEY, JSON.
 // LEAVING is a different question from being unwell, and the two must not be
 // collapsed. A node absent from the roster has left the cluster: it was removed, it
 // departed, or it was reaped, and either way it is no longer a member and nothing
-// should still be counting it, streaming from it, or naming it in a banner. A node
-// PRESENT in the roster but unreachable or suspect is still a member having
-// trouble, and every surface that says so is telling the truth — so it keeps its
-// connection and keeps being reported.
+// should still be counting it, streaming from it, or naming it in a banner. A
+// departure is also announced BEFORE the row disappears — a graceful leave is
+// recorded as a `left` tombstone that propagates and is only reaped minutes later,
+// so that a row vanishing locally and returning cannot be mistaken for a member
+// coming back. That tombstone is a departure the moment it is read, not a member to
+// keep driving until the reaper gets to it. A node PRESENT in the roster and
+// unreachable, suspect or dead is still a member having trouble — dead is refutable
+// and a returning member beats it — so it keeps its connection and keeps being
+// reported, which is what those surfaces exist for.
 //
 // Only entries the cluster taught us are dropped this way (`via: "roster"`). An
 // address a person typed, or the build's seed, is theirs to remove; a roster that
@@ -147,9 +152,13 @@ export function reconcileRosterToRegistry(nodes, opts = {}) {
     added++;
   }
 
-  // A member is a node the roster names and does not have switched off. State is not
-  // membership: unreachable, suspect and dead all stay, because a member having
-  // trouble is exactly what the banners and the reach footnote exist to report.
+  // A member is a node the roster names, does not have switched off, and has not
+  // recorded as departed. State is not membership: unreachable, suspect and dead all
+  // stay, because a member having trouble is exactly what the banners and the reach
+  // footnote exist to report. `left` is the exception and is not trouble — it is the
+  // member's own graceful departure, held as a tombstone so the leave propagates,
+  // and driving a connection through that window opens a stream to a node that is
+  // gone and calls an API that answers 401.
   // `enabled: false` is the admin's own off switch — the viewer roster omits such a
   // node entirely, so honouring it here is also what keeps an admin's node set and a
   // viewer's the same. It stays on the Cluster page, which reads the roster rather
@@ -158,7 +167,9 @@ export function reconcileRosterToRegistry(nodes, opts = {}) {
   // older build — or by a roster read before this rule existed — is dropped on the
   // next reconcile rather than needing the person to clear it by hand.
   const members = new Set(
-    roster.filter(n => n.enabled !== false && isNode(n)).map(n => n.nodeId).filter(Boolean));
+    roster
+      .filter(n => n.enabled !== false && isNode(n) && n.membership !== "left")
+      .map(n => n.nodeId).filter(Boolean));
   const departed = CONNECTIONS
     .filter(c => c.via === "roster" && c.id && c.id !== localHostId && !members.has(c.id))
     .map(c => c.id);

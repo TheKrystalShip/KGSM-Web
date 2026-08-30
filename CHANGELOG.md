@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.185.0]
+
+### Fixed — a member that has departed stops being driven the moment the roster says so
+
+A graceful departure is announced before the row disappears: the transport records it as a `left`
+tombstone that propagates across the mesh and is only reaped minutes later, deliberately, so that a
+row vanishing locally and returning cannot be mistaken for a member coming back. The connection set
+read that window as a member still present and merely unwell, kept its connection through it, and
+spent it opening a live stream to a machine that is gone and calling an API that answers 401 — three
+banners at once, naming a node that had left on purpose.
+
+`left` is departure, not trouble, and the connection goes with it: no stream, no fan-out slot, no
+name in the connectivity banner, no session left to say it ended one. `unreachable`, `suspect` and
+`dead` are untouched — `dead` is refutable, a returning member beats it with a higher incarnation,
+and reporting a member in difficulty is exactly what those surfaces are for.
+
+`npm run check:departure` pins both halves.
+
+
 ## [1.184.0]
 
 ### Fixed — the host and roster lists are joined by id, exactly
