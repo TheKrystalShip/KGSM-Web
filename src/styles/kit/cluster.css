@@ -268,9 +268,56 @@
   background: var(--surface-3);
 }
 
+/* What a member IS, as opposed to how it is doing. Deliberately neutral rather than a
+   status colour: an anchor is not a state to react to, and colouring it alongside the
+   reachable/unreachable chips would read as one. */
+.cluster-chip--kind {
+  color: var(--fg-1);
+  background: var(--veil-2);
+}
+
 .cluster-chip--local {
   color: var(--krystal-teal);
   background: var(--krystal-teal-dim);
+}
+
+/* What an anchor holds, in the column a node row spends on its capacity meters. Same slot,
+   different fact: a node's row answers "how loaded", an anchor's answers "what for". */
+.cluster-anchor-row__holds {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg-2);
+  font-size: 12px;
+  min-width: 0;
+}
+
+.cluster-anchor-row__holds b {
+  color: var(--fg-1);
+  font-weight: 600;
+}
+
+/* A capability nothing serves. Not a status chip on a row, because the fault belongs to the
+   cluster rather than to any member on the list — the member it names is the one that is
+   gone, and the members that are present are all behaving correctly. */
+.cluster-orphan {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border: 1px solid var(--warning);
+  border-radius: var(--r-sm);
+  background: var(--warning-bg);
+  color: var(--fg-1);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.cluster-orphan__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 /* ---- add-peer inline form ---- */

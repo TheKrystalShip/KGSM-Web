@@ -854,6 +854,14 @@ import("./stores.js").then((m) => {
       setEnabled: (memberId, enabled) => withRetry(() => patch("/members/" + encodeURIComponent(memberId), { enabled: !!enabled }, id)),
       // Admin: on-demand latency probe for one member.
       latency: (memberId) => withRetry(() => get("/members/" + encodeURIComponent(memberId) + "/latency", id)),
+      // Viewer: which member holds each of the cluster's capabilities. Viewer-visible because it is
+      // what makes a member with no servers legible — it is not a broken node, it is the one holding
+      // the accounts.
+      capabilities: () => withRetry(() => get("/members/capabilities", id)).then(j => (j && j.capabilities) || []),
+      // Admin: move a capability to another member. The deliberate failover — nothing promotes
+      // itself, so this is the only way one moves. An empty member id records "deliberately nobody".
+      assign: (capability, memberId) => withRetry(() =>
+        put("/members/capabilities/" + encodeURIComponent(capability), { memberId: memberId || "" }, id)),
     };
   }
 

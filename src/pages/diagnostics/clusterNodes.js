@@ -15,14 +15,22 @@ function norm(s) {
   return (s || "").toString().trim().toLowerCase();
 }
 
-// matchFederationNode(host, clusterNodes) — first federation node whose
+// matchFederationNode(host, clusterNodes) — first federation NODE whose
 // nodeId/label/clientUrl contains (or is contained by) the host's hostname or
 // display name. Returns null on no confident match.
+//
+// Anchors are excluded before the match runs, and that is load-bearing rather than
+// tidy. A connected host is a node, so an anchor is never its counterpart — and the
+// substring rule would pair them anyway, because a machine's anchor is conventionally
+// named after the machine: "hotrod-auth" contains "hotrod". The anchor would be absorbed
+// into the node's row and vanish from the page entirely, taking the node's own
+// federation data with it.
 function matchFederationNode(host, clusterNodes) {
   const hHostname = norm(host && host.hostname);
   const hName = norm(host && host.name);
   if (!hHostname && !hName) return null;
   for (const n of clusterNodes) {
+    if (n.kind && n.kind !== "node") continue;
     const candidates = [norm(n.nodeId), norm(n.label), norm(n.clientUrl)];
     for (const c of candidates) {
       if (!c) continue;
@@ -82,4 +90,20 @@ function buildClusterNodes(hosts, clusterNodes, pingByHost, localId) {
   return [...nodes, ...ghosts];
 }
 
-export { buildClusterNodes, matchFederationNode };
+// A member is a node or an anchor, and the two are rendered by different cards because
+// they are different things: a node runs the engine and game servers, so its row is CPU,
+// memory and a live link; an anchor provides one capability to the whole cluster and has
+// none of those by design. Splitting a built list rather than building two keeps the
+// topology whole — the constellation plots every member, since latency is a fact about a
+// member and not about a kind.
+const isAnchorEntry = (entry) => !!(entry.fed && entry.fed.kind === "anchor");
+
+function nodeEntries(entries) {
+  return (entries || []).filter(e => !isAnchorEntry(e));
+}
+
+function anchorEntries(entries) {
+  return (entries || []).filter(isAnchorEntry);
+}
+
+export { buildClusterNodes, matchFederationNode, nodeEntries, anchorEntries };

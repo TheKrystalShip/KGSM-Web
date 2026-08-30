@@ -18,8 +18,9 @@ import { ROUTE_TABS } from "../lib/labels.js";
 // Imports from extracted modules
 import { AddNodeModal } from "./diagnostics/AddNodeModal.jsx";
 import { ClusterConstellation } from "./diagnostics/ClusterConstellation.jsx";
+import { ClusterAnchorList } from "./diagnostics/ClusterAnchorList.jsx";
 import { ClusterNodeList } from "./diagnostics/ClusterNodeList.jsx";
-import { buildClusterNodes } from "./diagnostics/clusterNodes.js";
+import { anchorEntries, buildClusterNodes, nodeEntries } from "./diagnostics/clusterNodes.js";
 import { HostEditorModal, RemoveHostDialog } from "./diagnostics/diagComponents.jsx";
 import { DiagOverview } from "./diagnostics/DiagOverview.jsx";
 import { DiagResources } from "./diagnostics/DiagResources.jsx";
@@ -62,6 +63,7 @@ function ClusterPage({ focusHostId, tab: tabProp, onTabChange, onFocusHost, onAs
     : (manageable.length === 1 ? manageable[0].id : null);
   const clusterNodesRaw = useStore(clusterStore, s => s.nodes);
   const clusterAdmin = useStore(clusterStore, s => s.admin);
+  const clusterCapabilities = useStore(clusterStore, s => s.capabilities);
   const clusterErrored = useStore(clusterStore, s => s.status === "error");
   // "Add node" federates through one node's peer roster (admin-only) as part of
   // the unified add flow. The modal names that node itself — a sole manageable
@@ -73,9 +75,14 @@ function ClusterPage({ focusHostId, tab: tabProp, onTabChange, onFocusHost, onAs
   // the whole app, at boot and on its own cadence. This page reads it. The
   // per-node peer ACTIONS still re-read the node they mutated — that read is
   // scoped to the node it acted on, not to an ambient one.
+  // One built list, split for the two cards. The constellation plots every member, because
+  // latency is a fact about a member and not about a kind; the cards are separate because a
+  // node's row and an anchor's row have almost no columns in common.
   const clusterNodes = React.useMemo(
     () => buildClusterNodes(hosts, clusterNodesRaw, pingByHost, localHostId),
     [hosts, clusterNodesRaw, pingByHost, localHostId]);
+  const clusterNodeRows = React.useMemo(() => nodeEntries(clusterNodes), [clusterNodes]);
+  const clusterAnchorRows = React.useMemo(() => anchorEntries(clusterNodes), [clusterNodes]);
   const selectNode = (key) => onFocusHost(key);
 
   const countFor = (hostId) => servers.filter(s => s.hostId === hostId).length;
@@ -160,7 +167,7 @@ function ClusterPage({ focusHostId, tab: tabProp, onTabChange, onFocusHost, onAs
               onSelect={selectNode}
             />
             <ClusterNodeList
-              nodes={clusterNodes}
+              nodes={clusterNodeRows}
               hovered={hoveredNode}
               onHover={setHoveredNode}
               onSelect={selectNode}
@@ -169,6 +176,15 @@ function ClusterPage({ focusHostId, tab: tabProp, onTabChange, onFocusHost, onAs
               admin={clusterAdmin}
               clusterError={clusterErrored}
               menuProps={menuProps}
+            />
+            <ClusterAnchorList
+              anchors={clusterAnchorRows}
+              capabilities={clusterCapabilities}
+              hovered={hoveredNode}
+              onHover={setHoveredNode}
+              onSelect={selectNode}
+              canManage={!!localHostId}
+              admin={clusterAdmin}
             />
           </>
         )}

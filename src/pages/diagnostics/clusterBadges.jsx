@@ -72,4 +72,19 @@ function StatusChip({ status, enabled }) {
   );
 }
 
-export { MEMBERSHIP_META, membershipMeta, membershipRowTone, MembershipBadge, StatusChip };
+// A member that has LEFT is not a member having trouble — it is a tombstone the mesh is
+// still carrying so a removal is visible while it propagates, rather than a row that
+// disappears here and returns a minute later. It reads as its own thing for that reason:
+// "dead" invites someone to go and fix it, and there is nothing to fix.
+function DepartedChip({ membership }) {
+  if (membership !== "left") return null;
+  return (
+    <span className="cluster-chip cluster-chip--muted">
+      <Icon name="log-out" size={11} strokeWidth={2.2} />removed
+    </span>
+  );
+}
+
+export {
+  MEMBERSHIP_META, membershipMeta, membershipRowTone, MembershipBadge, StatusChip, DepartedChip,
+};

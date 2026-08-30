@@ -14,6 +14,10 @@ import { hostsStore } from "./hosts.js";
 
 const clusterStore = createStore({
   nodes: [],
+  // Which member holds each of the cluster's capabilities. A capability belongs to the
+  // cluster rather than to any member, so it is not a field on a roster row — a member
+  // is a node or an anchor, and being an anchor does not say WHICH capability it holds.
+  capabilities: [],
   status: "idle",
   error: null,
   everLoaded: false,
@@ -77,10 +81,39 @@ function fetchRoster(hostId) {
 // set the app drives is updated by the same act that updates what the Cluster page
 // shows — an admin removing a peer sees it leave the fan-out on the click, rather
 // than at whatever point the discovery timer next happens to fire.
+// The assignments are read wherever the roster is, and never gate it: a cluster whose
+// capability list could not be read is still a cluster whose members are known, and
+// failing the roster over it would lose more than it reports. A failed read keeps what is
+// already held — "I could not ask" is not "nobody holds it", and blanking would make the
+// page claim the cluster has no auth anchor.
+//
+// Called from applyRoster rather than from refresh(), because discovery reaches the roster
+// without going through refresh: a browser that boots, discovers the cluster and never
+// opens the management panel would otherwise hold members and no assignments, and the page
+// that most needs to name the holder is the one that would never have it.
+function loadCapabilities(hostId) {
+  return api.members(hostId).capabilities()
+    .then(rows => {
+      if (Array.isArray(rows)) clusterStore.setState(st => ({ ...st, capabilities: rows }));
+    })
+    .catch(() => {});
+}
+
 function applyRoster(hostId, { nodes, admin }) {
   clusterStore.setState(s => ({ ...s, nodes, status: "ready", error: null, everLoaded: true, admin }));
+  // Fired alongside, not awaited: the roster is the answer this returns and a slower second
+  // read must not hold it up. The store updates when it lands.
+  loadCapabilities(hostId);
   return reconcileRosterToRegistry(nodes, { localHostId: hostId });
 }
+
+// The member holding `capability`, or null when nobody does or nothing has been read
+// yet. Absent and held-by-nobody are different answers and both come back as null here
+// on purpose: a surface that needs to tell them apart reads the assignment itself.
+clusterStore.holderOf = (capability) => {
+  const found = clusterStore.getState().capabilities.find(c => c.capability === capability);
+  return found && found.held ? found.memberId : null;
+};
 
 clusterStore.refresh = (hostId) => {
   clusterStore.setState(s => ({ ...s, status: "loading", error: null }));

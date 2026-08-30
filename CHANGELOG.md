@@ -6,6 +6,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+
+## [1.183.0]
+
+### Added — the Anchors card
+
+A cluster's members are nodes and anchors, and they get a card each. A node runs the engine and game
+servers, so its row is CPU, memory and a live link; an anchor provides one capability to the whole
+cluster and has none of those by design. Listed among the nodes it read as one that was failing to
+report, under a heading that did not describe it.
+
+An anchor's row says which capability it holds, because a cluster can have more than one and an
+anchor holding none is a promotion candidate rather than a broken member. The card is absent when
+there is no anchor and no capability to report — most installs are one machine, and an empty card
+headed "Anchors" invites somebody to go looking for what is missing.
+
+### Added — a capability whose holder is gone is called out
+
+The one cluster state where every member is healthy and nothing works: the holder was reaped by the
+failure timers while the assignment survived it, so every member stands by against somebody who will
+never answer and nothing errors anywhere. The notice sits on the Anchors card and names the member,
+which is precisely the one absent from the rows.
+
+### Fixed — an anchor is no longer absorbed into the node it is named after
+
+The roster match is a substring test across id, label and address, and a machine's anchor is
+conventionally named after the machine — so `hotrod-auth` matched `hotrod`, was taken as that node's
+federation data, and vanished from the page entirely. A connected host is a node, so only nodes are
+considered for the match.
+
+### Fixed — the capability assignments are read wherever the roster is
+
+They were loaded only by an explicit refresh, which discovery does not go through. A browser that
+booted, discovered the cluster and never opened the management panel held members and no assignments
+— so the page that most needs to name the holder was the one that never had it.
+
 ## [1.182.0]
 
 ### Fixed — an anchor is a member of the cluster, not a host this app drives

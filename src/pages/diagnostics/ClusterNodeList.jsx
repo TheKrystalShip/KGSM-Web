@@ -13,7 +13,7 @@ import { HostMeters, hostHealth } from "../../components/HostCardBody.jsx";
 import { Icon } from "../../components/Icon.jsx";
 import { api } from "../../lib/apiClient.js";
 import { clusterStore } from "../../lib/stores.js";
-import { MembershipBadge, membershipRowTone, StatusChip } from "./clusterBadges.jsx";
+import { DepartedChip, MembershipBadge, membershipRowTone, StatusChip } from "./clusterBadges.jsx";
 import { HostMenu } from "./diagComponents.jsx";
 
 // NodeRowActions — enable/disable/remove for a federation-known peer, shown
@@ -91,6 +91,7 @@ function GhostNodeRow({ n, hovered, onHover, onSelect, hostId, canManagePeers })
         </span>
       </div>
       <div className="cluster-node-row__badges">
+        <DepartedChip membership={n.fed.membership} />
         <MembershipBadge membership={n.fed.membership} />
         <StatusChip status={n.fed.status} enabled={n.fed.enabled} />
         {n.fed.clientUrl && <span className="cluster-node-row__url">{n.fed.clientUrl}</span>}
