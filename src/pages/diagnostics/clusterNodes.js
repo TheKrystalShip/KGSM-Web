@@ -3,40 +3,36 @@
 // data (clusterStore.nodes — gossip membership/status/latency) into the ONE
 // node shape both the constellation and the node list render from.
 //
-// The match is best-effort, by design: a connected host and a federation peer
-// describe the same machine from two different sources (the client's host
-// registry vs. the backend's peer gossip) with no shared foreign key, so a
-// case-insensitive substring match across hostname/name against
-// nodeId/label/clientUrl is the honest thing to do — a host with no confident
-// match still renders (federation data is enrichment, never a gate); it's just
-// shown without a membership/status badge, never guessed.
-
-function norm(s) {
-  return (s || "").toString().trim().toLowerCase();
-}
-
-// matchFederationNode(host, clusterNodes) — first federation NODE whose
-// nodeId/label/clientUrl contains (or is contained by) the host's hostname or
-// display name. Returns null on no confident match.
+// The two lists have a shared key and the match is EXACT. A node's cluster identity
+// defaults to the same stable id its host card carries — kgsm-api resolves
+// `Api__NodeId` from `Api__HostId` precisely so a node does not have a second
+// independent name — so `host.id === member.memberId` for the same machine.
 //
-// Anchors are excluded before the match runs, and that is load-bearing rather than
-// tidy. A connected host is a node, so an anchor is never its counterpart — and the
-// substring rule would pair them anyway, because a machine's anchor is conventionally
-// named after the machine: "hotrod-auth" contains "hotrod". The anchor would be absorbed
-// into the node's row and vanish from the page entirely, taking the node's own
-// federation data with it.
+// The lists are still separate because they answer different questions and neither
+// contains the other: hosts are what THIS BROWSER can drive, gathered by fanning out
+// across its connections, and carry capacity; the roster is what ONE node says the
+// cluster's membership is, and a member is never in its own roster. Only the client
+// holds both, which is why the join happens here — and why it stops being needed once
+// the panel takes its node set from the cluster (`../../cluster-panel-plan.md` §4·e).
+//
+// A host that matches nothing still renders: federation data is enrichment, never a
+// gate. It is shown without a membership badge rather than with a guessed one.
+
+// matchFederationNode(host, clusterNodes) — the federation NODE that is this host, by id.
+//
+// Exact, because a fuzzy match on this data pairs the wrong members. A substring test
+// across id, label and address reads "hotrod-auth" as "hotrod": a machine's anchor is
+// conventionally named after the machine, so the anchor was absorbed into that node's row
+// and disappeared from the page, taking the node's own federation data with it.
+//
+// Anchors are skipped as well as keyed out. A connected host is a node, so an anchor is
+// never its counterpart whatever the ids say.
 function matchFederationNode(host, clusterNodes) {
-  const hHostname = norm(host && host.hostname);
-  const hName = norm(host && host.name);
-  if (!hHostname && !hName) return null;
+  const id = host && host.id;
+  if (!id) return null;
   for (const n of clusterNodes) {
     if (n.kind && n.kind !== "node") continue;
-    const candidates = [norm(n.nodeId), norm(n.label), norm(n.clientUrl)];
-    for (const c of candidates) {
-      if (!c) continue;
-      if (hHostname && (c.includes(hHostname) || hHostname.includes(c))) return n;
-      if (hName && (c.includes(hName) || hName.includes(c))) return n;
-    }
+    if (n.nodeId === id) return n;
   }
   return null;
 }

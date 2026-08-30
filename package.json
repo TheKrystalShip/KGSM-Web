@@ -1,7 +1,7 @@
 {
   "name": "krystal-control-panel",
   "private": true,
-  "version": "1.183.0",
+  "version": "1.184.0",
   "type": "module",
   "description": "Krystal Control Panel — production React app (migrated from the no-build UI-kit prototype).",
   "scripts": {
@@ -17,6 +17,7 @@
     "check:assistant": "node scripts/check-assistant-bundle.mjs",
     "check:tokens": "node scripts/check-tokens.mjs",
     "check:departure": "node scripts/validate-cluster-departure.mjs",
+    "check:merge": "node scripts/validate-cluster-merge.mjs",
     "check:labels": "node scripts/validate-node-labels.mjs"
   },
   "dependencies": {

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [1.184.0]
+
+### Fixed — the host and roster lists are joined by id, exactly
+
+They always had a shared key. A node's cluster identity defaults to the same stable id its host card
+carries — kgsm-api resolves `Api__NodeId` from `Api__HostId` so that a node has no second independent
+name — so the join is `host.id === member.memberId` and nothing has to be guessed. The code claimed
+there was no shared foreign key and matched by case-insensitive substring across id, label and
+address instead.
+
+That guess paired the wrong members. A machine's anchor is conventionally named after the machine, so
+`hotrod-auth` read as `hotrod`: the anchor was taken for that node's federation data, vanished from
+the page, and took the node's own membership and latency with it.
+
+A host that matches nothing still renders, because federation data is enrichment and never a gate —
+it is now shown without a membership badge rather than with one belonging to another member. A
+connection whose backend id has not been reconciled yet is not matched at all, which is what the
+name-based fallback existed for and is the honest answer.
+
+`npm run check:merge` pins the join.
+
 ## [1.183.0]
 
 ### Added — the Anchors card
