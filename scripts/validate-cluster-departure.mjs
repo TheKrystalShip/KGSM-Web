@@ -91,5 +91,27 @@ reconcileRosterToRegistry([], LOCAL);
 assert(told && told.join() === "hotrod-c", "departure is announced so streams and sessions are released",
   told ? told.join() : "nothing");
 
+// 9. An ANCHOR is a member and is not a connection. It provides one capability to the
+//    whole cluster and serves none of what this app drives a node for — so registering
+//    one makes every fan-out call it, every count include it, and its absent live
+//    channel name it in the connectivity banner with nothing able to clear it.
+config.removeConnections(["elsewhere"]);
+r = reconcileRosterToRegistry([node("hotrod-auth", { kind: "anchor" })], LOCAL);
+assert(r.added === 0, "an anchor does not join the connection set", `added=${r.added}`);
+assert(ids().join() === "hotrod", "only nodes are driven", ids().join());
+
+// 10. And one a previous build registered is dropped, rather than needing a person to
+//     clear it by hand.
+config.addConnections([{ id: "hotrod-auth", url: "https://hotrod-auth.test", name: "Auth", via: "roster" }]);
+assert(ids().join() === "hotrod,hotrod-auth", "an anchor registered by an older build is present", ids().join());
+r = reconcileRosterToRegistry([node("hotrod-auth", { kind: "anchor" })], LOCAL);
+assert(r.removed === 1, "reconciling drops it", `removed=${r.removed}`);
+assert(ids().join() === "hotrod", "so the banner it was stuck in clears itself", ids().join());
+
+// 11. A roster from a build that predates the field is all nodes, not none.
+r = reconcileRosterToRegistry([node("hotrod-old", { kind: undefined })], LOCAL);
+assert(r.added === 1 && ids().join() === "hotrod,hotrod-old",
+  "a member with no kind is a node", ids().join());
+
 console.log(fail ? `\n!! ${fail} failed` : "\nall checks passed");
 process.exit(fail ? 1 : 0);

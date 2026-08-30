@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [1.182.0]
+
+### Fixed — an anchor is a member of the cluster, not a host this app drives
+
+Only members of kind `node` enter the connection registry. A cluster has nodes and anchors; a
+connection is something this app drives — it asks it for hosts, servers and metrics and opens a live
+channel to it — and an anchor serves none of that, because it provides one capability to the whole
+cluster and answers on its own surface.
+
+Registering one put it in every fan-out, in every count, and in the connectivity banner permanently:
+the live channel it has no endpoint for could never connect, so *"Lost the live connection to
+hotrod-auth"* stood with nothing able to clear it.
+
+An anchor a previous build already registered is dropped on the next roster reconcile rather than
+needing anybody to clear it by hand. A member carrying no kind at all is a node — a roster from a
+build that predates the field describes a cluster where every member is one.
+
 ## [Unreleased]
 
 ### Changed — the cluster surface reads members, not peers (1.181.0)

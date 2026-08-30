@@ -106,6 +106,20 @@ export function setAppUser(user) { try { localStorage.setItem(AUTH_LS_KEY, JSON.
 // roster this is — it is never in its own roster, so it is neither added nor
 // dropped. A joined node enters the LIVE connection set at once and a departed one
 // leaves it, so the fan-out and the stream registry follow with no reload.
+//
+// ONLY NODES BECOME CONNECTIONS. A cluster's members are nodes and anchors, and a
+// connection is a thing this app drives — it asks it for hosts, servers and metrics
+// and opens a live channel to it. An anchor serves none of that: it provides one
+// capability to the whole cluster and answers on its own surface. Registering one
+// makes every fan-out call it, every count include it, and its absent live channel
+// name it in the connectivity banner forever.
+// A member is a node unless it says otherwise. A roster row from a build that
+// predates the field carries no kind, and every member in such a cluster is a node —
+// so the absent value reads as one rather than excluding the whole roster.
+function isNode(member) {
+  return !member.kind || member.kind === "node";
+}
+
 export function reconcileRosterToRegistry(nodes, opts = {}) {
   const localHostId = (opts && opts.localHostId) || null;
   const roster = (Array.isArray(nodes) ? nodes : []).filter(n => n && typeof n === "object");
@@ -122,6 +136,7 @@ export function reconcileRosterToRegistry(nodes, opts = {}) {
   for (const node of roster) {
     const { nodeId, label, clientUrl, enabled, membership, status } = node;
     if (!nodeId || !clientUrl || enabled === false) continue;
+    if (!isNode(node)) continue;
     if (membership !== "alive" || status !== "reachable") continue;
     if (nodeId === localHostId || knownIds.has(nodeId)) continue;
     const origin = normalizeHostUrl(clientUrl);
@@ -139,7 +154,11 @@ export function reconcileRosterToRegistry(nodes, opts = {}) {
   // node entirely, so honouring it here is also what keeps an admin's node set and a
   // viewer's the same. It stays on the Cluster page, which reads the roster rather
   // than the connection set, and turning it back on re-registers it.
-  const members = new Set(roster.filter(n => n.enabled !== false).map(n => n.nodeId).filter(Boolean));
+  // Anchors are deliberately absent from this set, so one already registered by an
+  // older build — or by a roster read before this rule existed — is dropped on the
+  // next reconcile rather than needing the person to clear it by hand.
+  const members = new Set(
+    roster.filter(n => n.enabled !== false && isNode(n)).map(n => n.nodeId).filter(Boolean));
   const departed = CONNECTIONS
     .filter(c => c.via === "roster" && c.id && c.id !== localHostId && !members.has(c.id))
     .map(c => c.id);
