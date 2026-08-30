@@ -8,6 +8,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.186.0]
+
+### Added — the two decisions the Cluster page can make
+
+A capability belongs to the cluster rather than to any member, and nothing promotes itself: an
+automatic failover during a partition would leave two members issuing conflicting statements about
+who may do what. So moving one is a person's decision, and the page now carries it. The orphaned
+notice — the one cluster state where every member reads healthy and nothing is served — offers the
+reassignment beside the report, and an anchor's row offers to move what it holds. The candidates are
+the cluster's members with the membership each actually has, because a holder that is *gone* is the
+whole reason to reassign and filtering the list on liveness would hide the target at the only moment
+it matters. Nobody is offered as a real choice, since a deliberate nobody converges as a decision
+rather than as an assignment nothing has heard yet.
+
+Anchors gain the member controls the node rows carry. An anchor is a member: it can be disabled, and
+when it is gone it can be removed.
+
+### Changed — remove and disable are told apart where somebody is choosing between them
+
+Remove takes a member out of this node's roster, and a member that is still running refutes its own
+removal: it gossips, this node hears a live member it holds no row for, and it returns. Disable is
+local and holds until it is undone here — no gossip and no returning member reverses it. They answer
+different questions, and the row's two icons said neither.
+
+Removal opens a dialog that states what removing *this* member does and stands disable beside it as
+the other act. A member that has announced its departure is described as gone, because it has, and
+one that is still running is told it will rejoin. Disable stays a single click on the row, since it
+is reversible from the same button.
+
+The workspace's `visual-harness/cluster-anchor.mjs` drives both dialogs in a real browser and
+asserts the request each button builds; no write reaches the cluster.
+
+
 ## [1.185.0]
 
 ### Fixed — a member that has departed stops being driven the moment the roster says so

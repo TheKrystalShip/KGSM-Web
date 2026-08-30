@@ -180,9 +180,11 @@ function ClusterPage({ focusHostId, tab: tabProp, onTabChange, onFocusHost, onAs
             <ClusterAnchorList
               anchors={clusterAnchorRows}
               capabilities={clusterCapabilities}
+              members={clusterNodesRaw}
               hovered={hoveredNode}
               onHover={setHoveredNode}
               onSelect={selectNode}
+              hostId={localHostId}
               canManage={!!localHostId}
               admin={clusterAdmin}
             />

@@ -10,8 +10,10 @@
 // anchor at all, and an empty card headed "Anchors" invites somebody to go and look for the
 // thing that is missing.
 
+import React from "react";
 import { BriefCard } from "../../components/BriefCard.jsx";
 import { Icon } from "../../components/Icon.jsx";
+import { CapabilityAssignDialog, MemberRowActions } from "./clusterActions.jsx";
 import { DepartedChip, MembershipBadge, membershipRowTone, StatusChip } from "./clusterBadges.jsx";
 
 // A capability nothing serves. It sits here rather than on the Nodes card because a
@@ -22,7 +24,7 @@ import { DepartedChip, MembershipBadge, membershipRowTone, StatusChip } from "./
 //
 // The member it names is precisely the one that is NOT in the list below, which is why the
 // notice has to exist separately from the rows.
-function OrphanedCapabilities({ capabilities, canReassign }) {
+function OrphanedCapabilities({ capabilities, canReassign, onReassign }) {
   const orphaned = (capabilities || []).filter(c => c.orphaned);
   if (!orphaned.length) return null;
   return (
@@ -31,9 +33,14 @@ function OrphanedCapabilities({ capabilities, canReassign }) {
       <span className="cluster-orphan__text">
         {orphaned.map(c => (
           <span key={c.capability} className="cluster-orphan__line">
-            <b>{c.capability}</b> is assigned to <b>{c.memberId}</b>, which is no longer a member of
-            this cluster. Nothing serves it until it is reassigned
-            {canReassign ? "." : ", which an administrator can do."}
+            <span>
+              <b>{c.capability}</b> is assigned to <b>{c.memberId}</b>, which is no longer a member of
+              this cluster. Nothing serves it until it is reassigned
+              {canReassign ? "." : ", which an administrator can do."}
+            </span>
+            {canReassign && (
+              <button className="host-btn host-btn--sm" onClick={() => onReassign(c)}>Reassign</button>
+            )}
           </span>
         ))}
       </span>
@@ -41,7 +48,7 @@ function OrphanedCapabilities({ capabilities, canReassign }) {
   );
 }
 
-function AnchorRow({ entry, capability, hovered, onHover, onSelect }) {
+function AnchorRow({ entry, capability, hovered, onHover, onSelect, hostId, canManage, onReassign }) {
   const fed = entry.fed;
   const isHovered = hovered === entry.key;
   const tone = membershipRowTone(fed.membership);
@@ -76,15 +83,26 @@ function AnchorRow({ entry, capability, hovered, onHover, onSelect }) {
         <MembershipBadge membership={fed.membership} />
         <StatusChip status={fed.status} enabled={fed.enabled} />
         {fed.clientUrl && <span className="cluster-node-row__url">{fed.clientUrl}</span>}
+        {canManage && capability && (
+          <button
+            className="host-btn host-btn--sm cluster-node-row__cap"
+            onClick={(e) => { e.stopPropagation(); onReassign({ capability, memberId: fed.nodeId }); }}
+          >
+            Move {capability}
+          </button>
+        )}
+        {canManage && !!fed.peerId && <MemberRowActions hostId={hostId} member={fed} />}
       </div>
     </div>
   );
 }
 
-function ClusterAnchorList({ anchors, capabilities, hovered, onHover, onSelect, canManage, admin }) {
+function ClusterAnchorList({ anchors, capabilities, members, hovered, onHover, onSelect, hostId, canManage, admin }) {
+  const [assigning, setAssigning] = React.useState(null);
   const orphaned = (capabilities || []).filter(c => c.orphaned);
   if (!anchors.length && !orphaned.length) return null;
 
+  const canReassign = canManage && admin && !!hostId;
   const capabilityOf = (memberId) => {
     const held = (capabilities || []).find(c => c.held && c.memberId === memberId);
     return held ? held.capability : null;
@@ -97,7 +115,7 @@ function ClusterAnchorList({ anchors, capabilities, hovered, onHover, onSelect, 
       count={anchors.length}
       countTone="neutral"
     >
-      <OrphanedCapabilities capabilities={capabilities} canReassign={canManage && admin} />
+      <OrphanedCapabilities capabilities={capabilities} canReassign={canReassign} onReassign={setAssigning} />
       <div className="dash-fleet__rows">
         {anchors.map(entry => (
           <AnchorRow
@@ -107,9 +125,21 @@ function ClusterAnchorList({ anchors, capabilities, hovered, onHover, onSelect, 
             hovered={hovered}
             onHover={onHover}
             onSelect={onSelect}
+            hostId={hostId}
+            canManage={canReassign}
+            onReassign={setAssigning}
           />
         ))}
       </div>
+      {assigning && (
+        <CapabilityAssignDialog
+          hostId={hostId}
+          capability={assigning.capability}
+          currentMemberId={assigning.memberId}
+          members={members}
+          onClose={() => setAssigning(null)}
+        />
+      )}
     </BriefCard>
   );
 }

@@ -1,7 +1,7 @@
-// clusterBadges.jsx — the two federation badge primitives shared by every
-// Cluster-page surface (the node list, the constellation's tone mapping, and
-// ClusterPanel). Kept in one place so the membership/status vocabulary and its
-// tone mapping never drifts between surfaces.
+// clusterBadges.jsx — the federation badge primitives shared by every Cluster-page
+// surface: the Nodes card, the Anchors card, and the constellation's tone mapping.
+// Kept in one place so the membership/status vocabulary and its tone mapping never
+// drift between surfaces.
 
 import { Icon } from "../../components/Icon.jsx";
 

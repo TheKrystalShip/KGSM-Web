@@ -2,64 +2,17 @@
 // node (hostsStore), in the exact Fleet-Capacity row idiom (`dash-fleet-row*`,
 // see DashFleetStrip) so it's pixel-consistent with the dashboard. A row that
 // has a federation match additionally shows the membership/status badges and,
-// for an admin managing that host's peer roster, inline enable/disable/remove
-// actions (ported from ClusterPanel's PeerRow/AddPeerForm). Hover-synced with
+// for an admin managing that host's member roster, the row's management controls
+// (`clusterActions.jsx`, shared with the Anchors card). Hover-synced with
 // ClusterConstellation via the hovered/onHover/onSelect the page owns.
 
-import React from "react";
 import { BriefCard } from "../../components/BriefCard.jsx";
 import { alertsTone, anchoredAlerts } from "../../components/ContextualAlerts.jsx";
 import { HostMeters, hostHealth } from "../../components/HostCardBody.jsx";
 import { Icon } from "../../components/Icon.jsx";
-import { api } from "../../lib/apiClient.js";
-import { clusterStore } from "../../lib/stores.js";
+import { MemberRowActions } from "./clusterActions.jsx";
 import { DepartedChip, MembershipBadge, membershipRowTone, StatusChip } from "./clusterBadges.jsx";
 import { HostMenu } from "./diagComponents.jsx";
-
-// NodeRowActions — enable/disable/remove for a federation-known peer, shown
-// only to an admin managing the local host's peer roster (canAct upstream).
-function NodeRowActions({ hostId, node }) {
-  const [busy, setBusy] = React.useState(false);
-  const [confirming, setConfirming] = React.useState(false);
-
-  const stop = (fn) => (e) => { e.stopPropagation(); fn(e); };
-
-  const toggle = stop(() => {
-    if (busy) return;
-    setBusy(true);
-    api.members(hostId).setEnabled(node.fed.peerId, !node.fed.enabled)
-      .then(() => clusterStore.refresh(hostId))
-      .catch(() => {})
-      .finally(() => setBusy(false));
-  });
-  const remove = stop(() => {
-    if (busy) return;
-    setBusy(true);
-    api.members(hostId).remove(node.fed.peerId)
-      .then(() => clusterStore.refresh(hostId))
-      .catch(() => {})
-      .finally(() => { setBusy(false); setConfirming(false); });
-  });
-
-  if (confirming) {
-    return (
-      <span className="cluster-node-row__actions">
-        <button className="host-btn host-btn--danger host-btn--sm" onClick={remove} disabled={busy}>Confirm</button>
-        <button className="host-btn host-btn--ghost host-btn--sm" onClick={stop(() => setConfirming(false))} disabled={busy}>Cancel</button>
-      </span>
-    );
-  }
-  return (
-    <span className="cluster-node-row__actions">
-      <button className="icon-btn" title={node.fed.enabled ? "Disable peer" : "Enable peer"} aria-label={node.fed.enabled ? "Disable peer" : "Enable peer"} onClick={toggle} disabled={busy}>
-        <Icon name={node.fed.enabled ? "power-off" : "power"} size={13} />
-      </button>
-      <button className="icon-btn" title="Remove peer" aria-label="Remove peer" onClick={stop(() => setConfirming(true))} disabled={busy}>
-        <Icon name="trash-2" size={13} />
-      </button>
-    </span>
-  );
-}
 
 // GhostNodeRow — a federation peer this SPA holds no connected-host session
 // for. Same dash-fleet-row layout as a connected node, but the meter slot is
@@ -95,7 +48,7 @@ function GhostNodeRow({ n, hovered, onHover, onSelect, hostId, canManagePeers })
         <MembershipBadge membership={n.fed.membership} />
         <StatusChip status={n.fed.status} enabled={n.fed.enabled} />
         {n.fed.clientUrl && <span className="cluster-node-row__url">{n.fed.clientUrl}</span>}
-        {canAct && <NodeRowActions hostId={hostId} node={n} />}
+        {canAct && <MemberRowActions hostId={hostId} member={n.fed} />}
       </div>
     </div>
   );
@@ -163,7 +116,7 @@ function ClusterNodeList({ nodes, hovered, onHover, onSelect, hostId, canManage,
                 )}
                 {n.fed && <MembershipBadge membership={n.fed.membership} />}
                 {n.fed && <StatusChip status={n.fed.status} enabled={n.fed.enabled} />}
-                {canAct && <NodeRowActions hostId={hostId} node={n} />}
+                {canAct && <MemberRowActions hostId={hostId} member={n.fed} />}
                 <span className="cluster-node-row__spacer" />
                 <HostMenu host={n.host} {...menuProps} />
               </div>

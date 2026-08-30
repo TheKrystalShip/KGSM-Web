@@ -196,7 +196,14 @@ try {
   const cr = await conn.connectHost(API);   // real global fetch → the running backend
   assert(cr.status === "ok", `connectHost(real backend) → ok (handshake + /me resolved)`);
   assert(cr.hostId && typeof cr.hostId === "string", `connectHost: real host id probed from GET /hosts (${cr.hostId})`);
-  assert(cr.user && cr.user.provider === "discord" && cr.tier, `connectHost: identity + tier resolved from /me (tier=${cr.tier})`);
+  // The provider is DERIVED from the id the backend returned (`provider:subject`), never
+  // assumed — stamping "discord" on a local account puts the wrong mark beside somebody's name
+  // everywhere it is shown and offers them the wrong controls in Settings. So the assertion is
+  // the derivation, which holds whichever door the account came through.
+  const wantProvider = String((cr.user && cr.user.id) || "").includes(":")
+    ? String(cr.user.id).split(":")[0] : "local";
+  assert(cr.user && cr.tier && cr.user.provider === wantProvider,
+    `connectHost: identity + tier resolved from /me (${cr.user && cr.user.provider}, tier=${cr.tier})`);
 
   const rawServers = await (await fetch(API + "/api/v1/servers")).json();
   const servers = adapt.adaptServers(rawServers);

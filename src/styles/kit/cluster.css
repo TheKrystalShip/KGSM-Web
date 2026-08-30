@@ -1,74 +1,8 @@
 /* ============================================================================
-   kit/cluster.css — Cluster page federation panel (local node + peer roster)
+   kit/cluster.css — the Cluster page: constellation, Nodes and Anchors cards,
+   member management and capability assignment.
    Split out under kit/; imported by kit.css in cascade order.
    ============================================================================ */
-
-.cluster-panel {
-  background: var(--surface-1);
-  border: var(--edge);
-  border-radius: var(--r-sm);
-  padding: 18px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin-bottom: 18px;
-}
-
-.cluster-panel__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.cluster-panel__title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--fg-1);
-  margin: 0;
-  letter-spacing: -0.01em;
-}
-
-.cluster-panel__sub {
-  font-size: 12.5px;
-  color: var(--fg-3);
-  margin: 3px 0 0;
-}
-
-.cluster-panel__loading,
-.cluster-panel__error {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--fg-3);
-  padding: 10px 0;
-}
-
-.cluster-panel__error {
-  color: var(--danger-fg);
-}
-
-.cluster-panel__empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 28px 12px;
-  text-align: center;
-  color: var(--fg-3);
-  font-size: 13px;
-}
-
-.cluster-panel__empty > svg {
-  color: var(--fg-4);
-}
-
-.cluster-panel__rows {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
 
 .cluster-spin {
   animation: cluster-spin var(--d-slow, 900ms) linear infinite;
@@ -76,73 +10,6 @@
 
 @keyframes cluster-spin {
   to { transform: rotate(360deg); }
-}
-
-/* ---- rows: local node + peers share the same grid idiom ---- */
-.cluster-row {
-  display: grid;
-  grid-template-columns: minmax(140px, 1.4fr) auto auto auto minmax(120px, 1.6fr) auto;
-  align-items: center;
-  gap: 12px;
-  background: var(--surface-2);
-  border: var(--edge);
-  border-radius: var(--r-sm);
-  padding: 10px 14px;
-}
-
-.cluster-row--local {
-  grid-template-columns: minmax(140px, 1.4fr) auto;
-  background: var(--surface-3);
-  border-color: var(--border-accent);
-}
-
-.cluster-row__id {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.cluster-row__label {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--fg-1);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cluster-row__nodeid {
-  font-size: 11px;
-  font-family: var(--font-mono);
-  color: var(--fg-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cluster-row__latency {
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  color: var(--fg-2);
-  white-space: nowrap;
-}
-
-.cluster-row__url {
-  font-size: 12px;
-  font-family: var(--font-mono);
-  color: var(--fg-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-.cluster-row__actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  justify-self: end;
 }
 
 /* ---- membership badge (gossip liveness axis) ---- */
@@ -203,15 +70,6 @@
 }
 .cluster-badge--muted .cluster-badge__dot {
   background: var(--fg-4);
-}
-
-/* ---- status cell: StatusChip (node-to-node axis) + ReachWarn (this-browser
-   axis) share one grid cell so they can both show at once without shifting
-   the row's column count ---- */
-.cluster-row__status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
 }
 
 /* ---- browser reachability probe: purely local, distinct from StatusChip ---- */
@@ -320,21 +178,84 @@
   gap: 4px;
 }
 
-/* ---- add-peer inline form ---- */
-.cluster-addform {
+/* The orphaned-capability line carries the reassignment, which is the only way a
+   capability moves — so the notice reporting one is where the action sits. */
+.cluster-orphan__line {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px;
-  background: var(--surface-2);
-  border: var(--edge);
-  border-radius: var(--r-sm);
-  padding: 14px;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.cluster-addform .host-field {
-  min-width: 200px;
+.cluster-orphan__line .host-btn {
+  flex: none;
 }
+
+/* ---- capability assignment ---- */
+.cluster-assign {
+  width: min(460px, 92vw);
+  padding: 22px 22px 18px;
+}
+
+.cluster-assign__title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--fg-1);
+  margin: 0 0 14px;
+}
+
+.cluster-assign__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 46vh;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+
+.cluster-assign__opt {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 11px;
+  border: var(--edge);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+.cluster-assign__opt--on {
+  border: var(--edge-accent);
+  background: var(--surface-3);
+}
+
+.cluster-assign__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-1);
+}
+
+.cluster-assign__id {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cluster-dialog__err {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  margin: 0 0 14px;
+  color: var(--danger-fg);
+  font-size: 12.5px;
+}
+
 
 .cluster-addform__err {
   display: flex;
@@ -343,13 +264,6 @@
   font-size: 12.5px;
   color: var(--danger-fg);
   flex-basis: 100%;
-}
-
-.cluster-addform__foot {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
 }
 
 /* ---- Add-node modal: federate checkbox + honest connect/ghost notes ---- */
@@ -636,6 +550,13 @@
 
 .cluster-node-row__spacer {
   flex: 1;
+}
+
+/* A badge row is a line of facts about the member, and a control on it is one more item
+   in that line. The small-button base fills its container, which is right where a button
+   is the row — here it would take the whole width and push the address out of sight. */
+.cluster-node-row__cap {
+  flex: none;
 }
 
 .cluster-node-row__actions {
