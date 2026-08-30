@@ -1,7 +1,11 @@
-// clusterBadges.jsx — the federation badge primitives shared by every Cluster-page
-// surface: the Nodes card, the Anchors card, and the constellation's tone mapping.
-// Kept in one place so the membership/status vocabulary and its tone mapping never
-// drift between surfaces.
+// clusterBadges.jsx — what a member's state looks like, in one place, so no Cluster-page
+// surface assembles its own. The Nodes card, the Anchors card and the assignment dialog
+// render `MemberState`; the constellation and the fleet strip take the tone mapping the
+// same vocabulary produces, so a dot and a badge can never disagree about one member.
+//
+// The individual chips are the pieces MemberState composes and are deliberately not
+// exported: a surface picking two of the three is how a departed member came to state its
+// departure three times, in three vocabularies, one of which read as a fault.
 
 import { Icon } from "../../components/Icon.jsx";
 
@@ -85,6 +89,34 @@ function DepartedChip({ membership }) {
   );
 }
 
-export {
-  MEMBERSHIP_META, membershipMeta, membershipRowTone, MembershipBadge, StatusChip, DepartedChip,
-};
+// What state a member is in, as ONE statement, so no surface assembles its own.
+//
+// A member that is still one has two axes and both are worth showing: what the mesh converged on,
+// and what this node's own probe found. They answer different questions and a member can be alive
+// to the mesh while this node cannot reach it.
+//
+// A member that has LEFT has no standing on either. It is unreachable because it went, and printing
+// that beside its departure describes a fault to go and fix — which is the reading the departed chip
+// exists to prevent, reintroduced by the chips beside it. So departure is the whole answer.
+//
+// The one thing that still holds for a departed member is an admin's own off switch: the row keeps
+// it, so a member that is re-added comes back switched off, and that is a fact about the future
+// rather than about a member that is gone.
+function MemberState({ membership, status, enabled }) {
+  if (membership === "left") {
+    return (
+      <>
+        <DepartedChip membership={membership} />
+        {enabled === false && <StatusChip status={status} enabled={enabled} />}
+      </>
+    );
+  }
+  return (
+    <>
+      <MembershipBadge membership={membership} />
+      <StatusChip status={status} enabled={enabled} />
+    </>
+  );
+}
+
+export { MEMBERSHIP_META, membershipMeta, membershipRowTone, MemberState };

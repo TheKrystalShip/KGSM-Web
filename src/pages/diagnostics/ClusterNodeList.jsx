@@ -11,7 +11,7 @@ import { alertsTone, anchoredAlerts } from "../../components/ContextualAlerts.js
 import { HostMeters, hostHealth } from "../../components/HostCardBody.jsx";
 import { Icon } from "../../components/Icon.jsx";
 import { MemberRowActions } from "./clusterActions.jsx";
-import { DepartedChip, MembershipBadge, membershipRowTone, StatusChip } from "./clusterBadges.jsx";
+import { MemberState, membershipRowTone } from "./clusterBadges.jsx";
 import { HostMenu } from "./diagComponents.jsx";
 
 // GhostNodeRow — a federation peer this SPA holds no connected-host session
@@ -44,9 +44,7 @@ function GhostNodeRow({ n, hovered, onHover, onSelect, hostId, canManagePeers })
         </span>
       </div>
       <div className="cluster-node-row__badges">
-        <DepartedChip membership={n.fed.membership} />
-        <MembershipBadge membership={n.fed.membership} />
-        <StatusChip status={n.fed.status} enabled={n.fed.enabled} />
+        <MemberState membership={n.fed.membership} status={n.fed.status} enabled={n.fed.enabled} />
         {n.fed.clientUrl && <span className="cluster-node-row__url">{n.fed.clientUrl}</span>}
         {canAct && <MemberRowActions hostId={hostId} member={n.fed} />}
       </div>
@@ -114,8 +112,7 @@ function ClusterNodeList({ nodes, hovered, onHover, onSelect, hostId, canManage,
                     <Icon name="map-pin" size={10} strokeWidth={2.2} />local
                   </span>
                 )}
-                {n.fed && <MembershipBadge membership={n.fed.membership} />}
-                {n.fed && <StatusChip status={n.fed.status} enabled={n.fed.enabled} />}
+                {n.fed && <MemberState membership={n.fed.membership} status={n.fed.status} enabled={n.fed.enabled} />}
                 {canAct && <MemberRowActions hostId={hostId} member={n.fed} />}
                 <span className="cluster-node-row__spacer" />
                 <HostMenu host={n.host} {...menuProps} />

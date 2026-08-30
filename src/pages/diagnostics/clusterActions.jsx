@@ -12,7 +12,7 @@ import { Icon } from "../../components/Icon.jsx";
 import { Modal } from "../../components/Modal.jsx";
 import { api } from "../../lib/apiClient.js";
 import { clusterStore } from "../../lib/stores.js";
-import { MembershipBadge } from "./clusterBadges.jsx";
+import { MemberState } from "./clusterBadges.jsx";
 
 // The controls on a member row. Disable is one click because it is reversible from the
 // same button; removal opens the dialog, because it is the choice that can be the wrong
@@ -179,7 +179,7 @@ function CapabilityAssignDialog({ hostId, capability, currentMemberId, members, 
               />
               <span className="cluster-assign__name">{m.label || m.nodeId}</span>
               <span className="cluster-assign__id">{m.nodeId}</span>
-              <MembershipBadge membership={m.membership} />
+              <MemberState membership={m.membership} status={m.status} enabled={m.enabled} />
             </label>
           ))}
           <label className={"cluster-assign__opt" + (choice === "" ? " cluster-assign__opt--on" : "")}>

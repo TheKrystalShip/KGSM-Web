@@ -14,7 +14,7 @@ import React from "react";
 import { BriefCard } from "../../components/BriefCard.jsx";
 import { Icon } from "../../components/Icon.jsx";
 import { CapabilityAssignDialog, MemberRowActions } from "./clusterActions.jsx";
-import { DepartedChip, MembershipBadge, membershipRowTone, StatusChip } from "./clusterBadges.jsx";
+import { MemberState, membershipRowTone } from "./clusterBadges.jsx";
 
 // A capability nothing serves. It sits here rather than on the Nodes card because a
 // capability is what an anchor holds — and it is the one state this page can report that
@@ -79,9 +79,7 @@ function AnchorRow({ entry, capability, hovered, onHover, onSelect, hostId, canM
         </span>
       </div>
       <div className="cluster-node-row__badges">
-        <DepartedChip membership={fed.membership} />
-        <MembershipBadge membership={fed.membership} />
-        <StatusChip status={fed.status} enabled={fed.enabled} />
+        <MemberState membership={fed.membership} status={fed.status} enabled={fed.enabled} />
         {fed.clientUrl && <span className="cluster-node-row__url">{fed.clientUrl}</span>}
         {canManage && capability && (
           <button

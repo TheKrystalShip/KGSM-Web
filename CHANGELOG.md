@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [1.187.0]
+
+### Changed — a member that has left says so once
+
+Membership and reachability are two axes and both are worth showing about a member that is still
+one: a member can be alive to the mesh while this node cannot reach it. Neither has standing over a
+member that has gone. A departed row carried all of it anyway — a departure chip, a membership badge
+reading `left`, and a status chip reading `unreachable` — three statements of one fact in three
+vocabularies, and `unreachable` describes a fault to go and fix, which is the reading the departure
+chip exists to prevent.
+
+Every Cluster-page surface now renders one `MemberState` instead of assembling its own line, so the
+Nodes card, the Anchors card and the capability dialog cannot disagree about what a member is. A
+departed member reads `removed`, and keeps a `disabled` chip when an admin has switched it off,
+because the row survives the departure and a member that is re-added comes back switched off. A
+member that is still one keeps both axes.
+
+The chips themselves are no longer exported. A surface picking two of the three is how the row came
+to say it three times.
+
+
 ## [1.186.0]
 
 ### Added — the two decisions the Cluster page can make
